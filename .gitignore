@@ -1,2 +1,4 @@
 *.swp
 *.so
+*.txt
+gl_passthrough.cpp

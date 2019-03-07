@@ -36,18 +36,6 @@ typedef decltype(&pthread_cond_timedwait) PFN_pthread_cond_timedwait;
 typedef decltype(&sem_timedwait) PFN_sem_timedwait;
 typedef decltype(&mktime) PFN_mktime;
 
-typedef decltype(time) FN_time;
-typedef decltype(gettimeofday) FN_gettimeofday;
-typedef decltype(localtime) FN_localtime;
-typedef decltype(localtime_r) FN_localtime_r;
-typedef decltype(gmtime) FN_gmtime;
-typedef decltype(clock_gettime) FN_clock_gettime;
-typedef decltype(gmtime_r) FN_gmtime_r;
-typedef decltype(difftime) FN_difftime;
-typedef decltype(pthread_cond_timedwait) FN_pthread_cond_timedwait;
-typedef decltype(sem_timedwait) FN_sem_timedwait;
-typedef decltype(mktime) FN_mktime;
-
 PFN_time real_time = nullptr;
 PFN_gettimeofday real_gettimeofday = nullptr;
 PFN_localtime real_localtime = nullptr;
@@ -60,7 +48,7 @@ PFN_pthread_cond_timedwait real_pthread_cond_timedwait = nullptr;
 PFN_sem_timedwait real_sem_timedwait = nullptr;
 PFN_mktime real_mktime = nullptr;
 
-const int speedup = 3;
+const int speedup = 1000;
 const int MILLION = 1000000;
 const int BILLION = 1000000000;
 
@@ -81,8 +69,6 @@ timeval speedup_timeval(timeval t) {
 }
 
 time_t time(time_t* arg) {
-  std::cout << "Intercepting: time" << std::endl;
-  std::cout << "arg is: " << arg << std::endl;
   if (!real_time) {
     real_time = (PFN_time)dlsym(RTLD_NEXT, "time");
   }
@@ -95,7 +81,6 @@ time_t time(time_t* arg) {
 }
 
 int gettimeofday(struct timeval *tv, struct timezone *tz) {
-  std::cout << "Intercepting: gettimeofday" << std::endl;
   if (!real_gettimeofday) {
     real_gettimeofday = (PFN_gettimeofday)dlsym(RTLD_NEXT, "gettimeofday");
   }
@@ -106,7 +91,6 @@ int gettimeofday(struct timeval *tv, struct timezone *tz) {
 }
 
 tm* localtime(const time_t *timep) {
-  std::cout << "Intercepting: localtime" << std::endl;
   if (!real_localtime) {
     real_localtime = (PFN_localtime)dlsym(RTLD_NEXT, "localtime");
   }
@@ -116,7 +100,6 @@ tm* localtime(const time_t *timep) {
 }
 
 tm* localtime_r(const time_t* timep, struct tm* result) {
-  std::cout << "Intercepting: localtime_r" << std::endl;
   if (!real_localtime_r) {
     real_localtime_r = (PFN_localtime_r)dlsym(RTLD_NEXT, "localtime_r");
   }
@@ -126,7 +109,6 @@ tm* localtime_r(const time_t* timep, struct tm* result) {
 }
 
 tm* gmtime(const time_t *timep) {
-  std::cout << "Intercepting: gmtime" << std::endl;
   if (!real_gmtime) {
     real_gmtime = (PFN_gmtime)dlsym(RTLD_NEXT, "gmtime");
   }
@@ -136,7 +118,6 @@ tm* gmtime(const time_t *timep) {
 }
 
 tm* gmtime_r(const time_t* timep, struct tm* result) {
-  std::cout << "Intercepting: gmtime_r" << std::endl;
   if (!real_gmtime_r) {
     real_gmtime_r = (PFN_gmtime_r)dlsym(RTLD_NEXT, "gmtime_r");
   }
@@ -146,7 +127,6 @@ tm* gmtime_r(const time_t* timep, struct tm* result) {
 }
 
 int clock_gettime(clockid_t clk_id, struct timespec *tp) {
-  std::cout << "Intercepting: clock_gettime" << std::endl;
   if (!real_clock_gettime) {
     real_clock_gettime = (PFN_clock_gettime)dlsym(RTLD_NEXT, "clock_gettime");
   }
@@ -157,7 +137,6 @@ int clock_gettime(clockid_t clk_id, struct timespec *tp) {
 }
 
 double difftime(time_t t1, time_t t0) {
-  std::cout << "Intercepting: difftime" << std::endl;
   if (!real_difftime) {
     real_difftime = (PFN_difftime)dlsym(RTLD_NEXT, "difftime");
   }
@@ -166,7 +145,6 @@ double difftime(time_t t1, time_t t0) {
 }
 
 int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex, const struct timespec *abstime) {
-  std::cout << "Calling Original: pthread_cond_timewait" << std::endl;
   if (!real_pthread_cond_timedwait) {
     real_pthread_cond_timedwait = (PFN_pthread_cond_timedwait)dlsym(RTLD_NEXT, "pthread_cond_timedwait");
   }
@@ -175,7 +153,6 @@ int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex, const s
 }
 
 int sem_timedwait(sem_t *sem, const struct timespec *abs_timeout) {
-  std::cout << "Calling Original: sem_timedwait" << std::endl;
   if (!real_sem_timedwait) {
     real_sem_timedwait = (PFN_sem_timedwait)dlsym(RTLD_NEXT, "sem_timedwait");
   }
@@ -184,11 +161,26 @@ int sem_timedwait(sem_t *sem, const struct timespec *abs_timeout) {
 }
 
 time_t mktime(struct tm *tm) {
-  std::cout << "Intercepting: mktime" << std::endl;
   if (!real_mktime) {
     real_mktime = (PFN_mktime)dlsym(RTLD_NEXT, "mktime");
   }
 
   time_t out = real_mktime(tm);
   return speedup_time_t(out);
+}
+
+
+typedef unsigned long int XID;
+typedef XID GLXDrawable;
+#include <X11/Xlib.h>
+#include <stdio.h>
+
+void glxSwapBuffers(Display* dpy, GLXDrawable drawable);
+
+typedef decltype(&glxSwapBuffers) PFN_glxSwapBuffers;
+
+void glxSwapBuffers(Display* dpy, GLXDrawable drawable) {
+  printf("Swapping buffers for display %p!\n", dpy);
+  //PFN_glxSwapBuffers real_glxSwapBuffers = (PFN_glxSwapBuffers)dlsym(RTLD_NEXT, "glxSwapBuffers");
+  //real_glxSwapBuffers(dpy, drawable);
 }
