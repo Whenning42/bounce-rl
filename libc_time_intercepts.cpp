@@ -24,7 +24,19 @@
 // Not intercepted functions
 // utime
 
-typedef decltype(&time) PFN_time;
+#define FPN_TYPEDEF(func) typedef decltype(&func) PFN_##func
+FPN_TYPEDEF(time);
+FPN_TYPEDEF(gettimeofday);
+FPN_TYPEDEF(localtime);
+FPN_TYPEDEF(localtime_r);
+FPN_TYPEDEF(gmtime);
+FPN_TYPEDEF(clock_gettime);
+FPN_TYPEDEF(gmtime_r);
+FPN_TYPEDEF(difftime);
+FPN_TYPEDEF(pthread_cond_timedwait);
+FPN_TYPEDEF(sem_timedwait);
+FPN_TYPEDEF(mktime);
+/*typedef decltype(&time) PFN_time;
 typedef decltype(&gettimeofday) PFN_gettimeofday;
 typedef decltype(&localtime) PFN_localtime;
 typedef decltype(&localtime_r) PFN_localtime_r;
@@ -34,7 +46,7 @@ typedef decltype(&gmtime_r) PFN_gmtime_r;
 typedef decltype(&difftime) PFN_difftime;
 typedef decltype(&pthread_cond_timedwait) PFN_pthread_cond_timedwait;
 typedef decltype(&sem_timedwait) PFN_sem_timedwait;
-typedef decltype(&mktime) PFN_mktime;
+typedef decltype(&mktime) PFN_mktime;*/
 
 PFN_time real_time = nullptr;
 PFN_gettimeofday real_gettimeofday = nullptr;
@@ -169,18 +181,53 @@ time_t mktime(struct tm *tm) {
   return speedup_time_t(out);
 }
 
-
+// Belongs elsewhere
 typedef unsigned long int XID;
 typedef XID GLXDrawable;
 #include <X11/Xlib.h>
 #include <stdio.h>
 
-void glxSwapBuffers(Display* dpy, GLXDrawable drawable);
+extern "C" void glxSwapBuffers(Display* dpy, GLXDrawable drawable);
+FPN_TYPEDEF(glxSwapBuffers);
 
-typedef decltype(&glxSwapBuffers) PFN_glxSwapBuffers;
-
-void glxSwapBuffers(Display* dpy, GLXDrawable drawable) {
+extern "C" void glxSwapBuffers(Display* dpy, GLXDrawable drawable) {
   printf("Swapping buffers for display %p!\n", dpy);
   //PFN_glxSwapBuffers real_glxSwapBuffers = (PFN_glxSwapBuffers)dlsym(RTLD_NEXT, "glxSwapBuffers");
   //real_glxSwapBuffers(dpy, drawable);
+}
+
+typedef unsigned char GLubyte;
+extern "C" void (*glXGetProcAddress(const GLubyte* procName)) () {
+  printf("Getting address for function: %s\n", procName);
+  return nullptr;
+}
+
+extern "C" void (*glXGetProcAddressARB(const GLubyte* procName)) () {
+  printf("Getting address for function: %s\n", procName);
+  return nullptr;
+}
+
+//void *dlopen(const char *filename, int flag);
+extern "C" void *dlsym(void *handle, const char *symbol);
+FPN_TYPEDEF(dlsym);
+
+extern "C" void * __libc_dlopen_mode(const char * filename, int flag);
+extern "C" void * __libc_dlsym(void * handle, const char * symbol);
+
+// Function body taken from apitrace
+extern "C" void *dlsym(void *handle, const char *symbol) {
+  static PFN_dlsym dlsym_ptr = nullptr;
+  if (!dlsym_ptr) {
+    void *libdl_handle = __libc_dlopen_mode("libdl.so.2", RTLD_LOCAL | RTLD_NOW);
+    if (libdl_handle) {
+      dlsym_ptr = (PFN_dlsym)__libc_dlsym(libdl_handle, "dlsym");
+    }
+    if (!dlsym_ptr) {
+      printf("Failed to look up real dlsym\n");
+      return NULL;
+    }
+  }
+
+  printf("dlsym symbol: %s\n", symbol);
+  return dlsym_ptr(handle, symbol);
 }
