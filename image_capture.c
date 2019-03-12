@@ -1,8 +1,17 @@
 #include "image_capture.h"
 
+#include <X11/Xlib.h>
+#include <X11/extensions/XShm.h>
 #include <X11/Xutil.h>
 #include <assert.h>
 #include <sys/shm.h>
+
+struct ImageCapture {
+  Display *display;
+  int screen;
+  XImage *image;
+  XShmSegmentInfo shminfo;
+};
 
 struct ImageCapture InitImageCapture(int width, int height) {
   Display *display = XOpenDisplay(NULL);

@@ -1,7 +1,7 @@
 import re
 
 HEADER_PATH = "external/gl.h"
-OUTPUT_PATH = "gl_passthrough.cpp"
+OUTPUT_PATH = "build/gl_passthrough.cpp"
 
 # For each function, generate a signature that returns either nothing or an empty initializer list
 header = open(HEADER_PATH, 'r')
