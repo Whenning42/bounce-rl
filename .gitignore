@@ -1,4 +1,10 @@
 *.swp
 *.so
 *.txt
+*.o
+image_capture.c
+build/*
+dlfcn_intercept.cpp
 gl_passthrough.cpp
+src/runner
+src/focus
