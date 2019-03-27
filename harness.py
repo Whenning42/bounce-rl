@@ -5,6 +5,7 @@ import os
 import subprocess
 import signal
 import time
+from datetime import datetime
 
 from Xlib import display
 import Xlib.X
@@ -17,8 +18,8 @@ binary_name = "skyrogue.x86"
 
 x_res = 640
 y_res = 480
-x_tiles = 3
-y_tiles = 2
+x_tiles = 1
+y_tiles = 1
 
 # harness interface
 #   tick() returns True if the underlying game is still running
@@ -151,8 +152,9 @@ class Keyboard(object):
         self.display.flush()
 
 class Harness(object):
-    def __init__(self, instances = 6):
-        self.last_time = time.time()
+    def __init__(self):
+        instances = x_tiles * y_tiles
+        self.tick_start = time.time()
         self.display = display.Display()
         self.root_window = self.display.screen().root
         #self.keyboards = [Keyboard(None)]
@@ -163,13 +165,14 @@ class Harness(object):
             subprocess.Popen([executable], cwd=game_directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         atexit.register(KillRunningPrograms)
         self.windows = self.connect_to_windows("Sky Rogue", instances)
+        self.keyboards = []
         for w in range(instances):
             self.windows[w].configure(x = x_res*(w%x_tiles), y = y_res*(w//x_tiles))
+            self.keyboards.append(Keyboard(self.display, self.windows[w]))
         self.window_x = self.windows[0].get_geometry().width
         self.window_y = self.windows[0].get_geometry().height
         print("Dimensions: " + str(self.window_x) + ", " + str(self.window_y))
         self.capture = image_capture.ImageCapture(self.window_x, self.window_y)
-        self.keyboards = [Keyboard(self.display, self.windows[0])]
 
     def connect_to_windows(self, title, count):
         time.sleep(3)
@@ -182,20 +185,20 @@ class Harness(object):
 
     def tick(self):
         # Sleep here to enforce a max fps.
-        fps = 30
+        fps = 24
         tick_duration = 1/fps
-        current_time = time.time()
-        elapsed = current_time - self.last_time
-
+        tick_end = time.time()
+        elapsed = tick_end - self.tick_start
         sleep_length = tick_duration - elapsed
+
         if sleep_length > 0:
             time.sleep(sleep_length)
-        self.last_time = current_time
+
+        self.tick_start = time.time()
         return True
 
     def get_screen(self):
         return self.capture.get_image(self.windows[0].id)
-
 
     def _focus_windows(self):
         for w in self.windows:
@@ -204,20 +207,40 @@ class Harness(object):
                 self.display.send_event(w, e)
                 self.display.flush()
 
-
     def perform_actions(self, keymap):
         self._focus_windows()
-        self.keyboards[0].set_keymap(keymap)
+        for keyboard in self.keyboards:
+            keyboard.set_keymap(keymap)
+
+from PIL import Image
+
+# Setup an advesarial curiosity model
+#   The agent tries to maximize model uncertainty
+#   The model tries to predict the next input frame
 
 class Model(object):
     def __init__(self):
-        pass
+        # Name the model after it's initialization time
+        self.name = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S:%f')
+        os.mkdir("memories/" + self.name)
+
+    def save_state(self, bitmap, keymap):
+        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S:%f')
+
+        # Could hurt performance badly
+        bitmap = bitmap[:, :, [2, 1, 0]]
+        im = Image.fromarray(bitmap)
+        im.save("memories/" + self.name + "/" + timestamp + ".png")
+
+        f = open("memories/" + self.name + "/" + timestamp + ".keymap", "w")
+        keymap.astype('uint8').tofile(f)
 
     def get_action(self, bitmap):
         action_keymap = np.zeros(84)
         # Press and release space every second
         if int(time.time()) % 2 == 0:
             action_keymap[57] = 1
+        self.save_state(bitmap, action_keymap)
         return action_keymap
 
 # TODO
