@@ -93,33 +93,6 @@ int main(int argc, char** argv) {
         }
     }
 
-    // Send the enter notify event
-    //for(int i=0; i<num_details; ++i) {
-    //    for(int j=0; j<num_modes; ++j) {
-    //        for(int w = 0; w < num_windows; ++w) {
-    //            printf("Sending detail: %d\n", i);
-    //            printf("Sending mode: %d\n", j);
-    //            XEvent enter;
-    //            enter.type = FocusIn;
-    //            enter.xcrossing.display = display;
-    //            enter.xcrossing.window = windows[w];
-    //            enter.xcrossing.root = DefaultRootWindow(display);
-    //            enter.xcrossing.subwindow = None;
-    //            enter.xcrossing.time = 0;
-    //            enter.xcrossing.x = 1;
-    //            enter.xcrossing.y = 1;
-    //            enter.xcrossing.x_root = 1;
-    //            enter.xcrossing.y_root = 1;
-    //            enter.xcrossing.mode = modes[j];
-    //            enter.xcrossing.detail = details[i];
-    //            enter.xcrossing.same_screen = True;
-    //            enter.xcrossing.focus = True;
-    //            enter.xcrossing.state = 0;
-    //            assert(XSendEvent(display, windows[w], /*propagate=*/True, FocusChangeMask | EnterWindowMask/*?*/, &enter));
-    //        }
-    //    }
-    //}
-
     XFlush(display);
     free(windows);
 }

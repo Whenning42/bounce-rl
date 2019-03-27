@@ -33,7 +33,6 @@ capture_t SetupImageCapture(int width, int height) {
                          IPC_CREAT | S_IRWXU);
   capture->shminfo.readOnly = False;
 
-  printf("Shmid is: %d\n", capture->shminfo.shmid);
   assert(capture->shminfo.shmid != -1);
 
   image->data = (char *)shmat(capture->shminfo.shmid, NULL, 0);
@@ -46,13 +45,13 @@ capture_t SetupImageCapture(int width, int height) {
   return capture;
 }
 
-  #include <time.h>
-char *CaptureImage(const capture_t capture_h, int x, int y) {
+#include <time.h>
+char *CaptureImage(const capture_t capture_h, Window window) {
   const struct ImageCapture* capture = capture_h;
 
   clock_t start = clock();
-  XShmGetImage(capture->display, RootWindow(capture->display, capture->screen), capture->image, x, y, AllPlanes);
-  printf("Took: %fs\n", ((double) (clock() - start)) / CLOCKS_PER_SEC);
+  XShmGetImage(capture->display, window, capture->image, 0, 0, AllPlanes);
+  double duration = ((double)(clock() - start)) / CLOCKS_PER_SEC;
 
   return capture->image->data;
 }

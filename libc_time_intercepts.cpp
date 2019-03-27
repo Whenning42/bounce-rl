@@ -41,7 +41,7 @@ PFN_TYPEDEF(pthread_cond_timedwait);
 PFN_TYPEDEF(sem_timedwait);
 PFN_TYPEDEF(mktime);
 
-//PFN_time real_time = nullptr;
+PFN_time real_time = nullptr;
 PFN_gettimeofday real_gettimeofday = nullptr;
 PFN_localtime real_localtime = nullptr;
 PFN_localtime_r real_localtime_r = nullptr;
@@ -133,8 +133,8 @@ timeval speedup_timeval(timeval t) {
 }
 
 time_t time(time_t* arg) {
-//  LAZY_LOAD_REAL(gettimeofday);
-  time_t out = real_impl<decltype(&time)>(arg);
+  LAZY_LOAD_REAL(time);
+  time_t out = real_time(arg);
   if(arg) {
     *arg = speedup_time_t(*arg);
   }

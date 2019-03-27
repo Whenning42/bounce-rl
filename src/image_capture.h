@@ -8,7 +8,7 @@ capture_t SetupImageCapture(int width, int height);
 
 // The return pointer's data will be overwritten the next time this function is
 // called
-char *CaptureImage(const capture_t capture, int x, int y);
+char *CaptureImage(const capture_t capture, Window window);
 
 // Cleans up and delete the given ImageCapture
 void CleanupImageCapture(capture_t capture);
