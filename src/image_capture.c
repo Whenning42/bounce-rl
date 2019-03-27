@@ -42,6 +42,7 @@ capture_t SetupImageCapture(int width, int height) {
   capture->display = display;
   capture->screen = screen;
   capture->image = image;
+
   return capture;
 }
 
@@ -63,4 +64,27 @@ void CleanupImageCapture(capture_t capture_h) {
     shmdt(capture->shminfo.shmaddr);
     shmctl(capture->shminfo.shmid, IPC_RMID, 0);
     free(capture);
+}
+
+void FocusAndIgnoreAllEvents(capture_t capture_h, Window window) {
+    struct ImageCapture* capture = capture_h;
+    Display* display = capture->display;
+
+    int num_details = 8;
+    int details[] = {NotifyAncestor, NotifyVirtual, NotifyInferior, NotifyNonlinear, NotifyNonlinearVirtual, NotifyPointer, NotifyPointerRoot, NotifyDetailNone};
+
+    // Sends the focus in event
+    for(int i = 0; i < num_details; ++i) {
+        XEvent focus_in;
+        focus_in.type = FocusIn;
+        focus_in.xfocus.display = display;
+        focus_in.xfocus.window = window;
+        focus_in.xfocus.mode = NotifyNormal;
+        focus_in.xfocus.detail = details[i];
+        assert(XSendEvent(display, window, /*propagate=*/False, 0/*?*/, &focus_in));
+        XSelectInput(display, window, FocusChangeMask);
+    }
+
+    XFlush(display);
+    printf("Did it!\n");
 }

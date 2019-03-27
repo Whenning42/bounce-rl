@@ -12,3 +12,6 @@ char *CaptureImage(const capture_t capture, Window window);
 
 // Cleans up and delete the given ImageCapture
 void CleanupImageCapture(capture_t capture);
+
+// Not really related to image capture
+void FocusAndIgnoreAllEvents(capture_t capture, Window window);

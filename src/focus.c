@@ -63,34 +63,16 @@ Window* GetAllWindowsWithName(Display* display, const char* name, int* count) {
     return matching_windows;
 }
 
+#include "image_capture.h"
 int main(int argc, char** argv) {
     Display *display = XOpenDisplay(NULL);
 
     int num_windows;
     Window* windows = GetAllWindowsWithName(display, to_focus, &num_windows);
 
-    int num_details = 8;
-    int details[] = {NotifyAncestor, NotifyVirtual, NotifyInferior, NotifyNonlinear, NotifyNonlinearVirtual, NotifyPointer, NotifyPointerRoot, NotifyDetailNone};
-
-    int num_modes = 3;
-    int modes[] = {NotifyNormal, NotifyGrab, NotifyUngrab};
-
-    // Sends the focus in event
-    for(int i = 0; i < num_details; ++i) {
-        for(int w = 0; w < num_windows; ++w) {
-            XEvent focus_in;
-            focus_in.type = FocusIn;
-            focus_in.xfocus.display = display;
-            focus_in.xfocus.window = windows[w];
-            focus_in.xfocus.mode = NotifyNormal;
-            focus_in.xfocus.detail = details[i];
-            assert(XSendEvent(display, windows[w], /*propagate=*/True, FocusChangeMask/*?*/, &focus_in));
-
-            int tile_x = 3;
-            int x = w%tile_x;
-            int y = w/tile_x;
-            XMoveWindow(display, windows[w], 640*x, 480*y);
-        }
+    capture_t c = SetupImageCapture(1, 1);
+    for(int w = 0; w < num_windows; ++w) {
+        FocusAndIgnoreAllEvents(c, windows[w]);
     }
 
     XFlush(display);

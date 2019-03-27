@@ -5,7 +5,7 @@ import os
 import subprocess
 import signal
 import time
-from datetime import datetime
+from model import *
 
 from Xlib import display
 import Xlib.X
@@ -16,6 +16,7 @@ game_directory = "/home/william/.local/share/Steam/steamapps/common/Sky Rogue"
 executable = "./skyrogue.x86"
 binary_name = "skyrogue.x86"
 
+fps = 24
 x_res = 640
 y_res = 480
 x_tiles = 1
@@ -173,6 +174,8 @@ class Harness(object):
         self.window_y = self.windows[0].get_geometry().height
         print("Dimensions: " + str(self.window_x) + ", " + str(self.window_y))
         self.capture = image_capture.ImageCapture(self.window_x, self.window_y)
+        #self._focus_windows()
+        #self._disable_user_input()
 
     def connect_to_windows(self, title, count):
         time.sleep(3)
@@ -185,7 +188,6 @@ class Harness(object):
 
     def tick(self):
         # Sleep here to enforce a max fps.
-        fps = 24
         tick_duration = 1/fps
         tick_end = time.time()
         elapsed = tick_end - self.tick_start
@@ -202,46 +204,22 @@ class Harness(object):
 
     def _focus_windows(self):
         for w in self.windows:
-            for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]:
+            # I'm unsure which detail to send so I send all of them to be cautious, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]
+            for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual]:
                 e = Xlib.protocol.event.FocusIn(display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal)
                 self.display.send_event(w, e)
-                self.display.flush()
+                w.change_attributes(event_mask=Xlib.X.FocusChangeMask)
+        self.display.flush()
+
+    def _disable_user_input(self):
+        for w in range(len(self.windows)):
+            self.windows[w].change_attributes(event_mask=Xlib.X.FocusChangeMask)
+            self.display.flush()
 
     def perform_actions(self, keymap):
-        self._focus_windows()
+        #self._focus_windows()
+        #self._disable_user_input()
+        #for w in self.windows:
+        #    self.capture.FocusAndIgnoreAllEvents(w.id)
         for keyboard in self.keyboards:
             keyboard.set_keymap(keymap)
-
-from PIL import Image
-
-# Setup an advesarial curiosity model
-#   The agent tries to maximize model uncertainty
-#   The model tries to predict the next input frame
-
-class Model(object):
-    def __init__(self):
-        # Name the model after it's initialization time
-        self.name = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S:%f')
-        os.mkdir("memories/" + self.name)
-
-    def save_state(self, bitmap, keymap):
-        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S:%f')
-
-        # Could hurt performance badly
-        bitmap = bitmap[:, :, [2, 1, 0]]
-        im = Image.fromarray(bitmap)
-        im.save("memories/" + self.name + "/" + timestamp + ".png")
-
-        f = open("memories/" + self.name + "/" + timestamp + ".keymap", "w")
-        keymap.astype('uint8').tofile(f)
-
-    def get_action(self, bitmap):
-        action_keymap = np.zeros(84)
-        # Press and release space every second
-        if int(time.time()) % 2 == 0:
-            action_keymap[57] = 1
-        self.save_state(bitmap, action_keymap)
-        return action_keymap
-
-# TODO
-# implement MockKeyboard

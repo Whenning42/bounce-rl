@@ -26,3 +26,6 @@ cdef class ImageCapture:
         cdef char* image_data = image_capture.CaptureImage(self._image_capture, window)
         cdef np.ndarray[np.uint8_t, ndim=3] np_array = np.PyArray_SimpleNewFromData(3, shape, np.NPY_UINT8, image_data)
         return np_array
+
+    def FocusAndIgnoreAllEvents(self, window):
+        image_capture.FocusAndIgnoreAllEvents(self._image_capture, window);
