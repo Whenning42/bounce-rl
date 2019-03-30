@@ -22,15 +22,6 @@ y_res = 480
 x_tiles = 1
 y_tiles = 1
 
-# harness interface
-#   tick() returns True if the underlying game is still running
-#   get_screen() returns a bitmap of the game's full window
-#   perform_actions(keymap) uses the provided keymap
-#   reset_handler() hardcoded implementation to handle game launch and resets ?
-#     This might not be necessary if curiosity implementation works out
-
-# We need to figure out keymap formats. Models will output 1 hot vectors and eventually, those need to get turned into keycodes or scancodes or something.
-
 def GetAllWindowsWithName(name, parent, matches):
     for child in parent.query_tree().children:
         if child.get_wm_name() is not None:
@@ -62,6 +53,7 @@ class Keyboard(object):
 
     def _mask_keymap(keymap):
         keymap[0] = 0 # reserved
+        keymap[1] = 0 # escape
         keymap[58] = 0 # caps lock
         keymap[69] = 0 # num lock
         keymap[70] = 0 # scroll lock
@@ -69,6 +61,7 @@ class Keyboard(object):
 
     def _assert_keymap_is_masked(keymap):
         assert(keymap[0] == 0)
+        assert(keymap[1] == 0)
         assert(keymap[58] == 0)
         assert(keymap[69] == 0)
         assert(keymap[70] == 0)
@@ -152,11 +145,16 @@ class Keyboard(object):
         self.display.send_event(self.focused_window, event, True, Xlib.X.KeyPress | Xlib.X.KeyRelease)
         self.display.flush()
 
+def custom_handler(*args):
+    print("Called custom handler")
+    print(args)
+
 class Harness(object):
     def __init__(self):
         instances = x_tiles * y_tiles
         self.tick_start = time.time()
         self.display = display.Display()
+        self.display.set_error_handler(custom_handler)
         self.root_window = self.display.screen().root
         #self.keyboards = [Keyboard(None)]
         #return
@@ -168,7 +166,7 @@ class Harness(object):
         self.windows = self.connect_to_windows("Sky Rogue", instances)
         self.keyboards = []
         for w in range(instances):
-            self.windows[w].configure(x = x_res*(w%x_tiles), y = y_res*(w//x_tiles))
+            self.windows[w].configure(x = 10000 + x_res*(w%x_tiles), y = y_res*(w//x_tiles))
             self.keyboards.append(Keyboard(self.display, self.windows[w]))
         self.window_x = self.windows[0].get_geometry().width
         self.window_y = self.windows[0].get_geometry().height
@@ -182,7 +180,7 @@ class Harness(object):
         windows = GetAllWindowsWithName("Sky Rogue", self.root_window, [])
         print("Found " + str(len(windows)) + " windows")
         if len(windows) != count:
-            print("Failed trying to capture windows")
+            print("Failed trying to find running windows")
             assert(False)
         return windows
 
@@ -197,7 +195,13 @@ class Harness(object):
             time.sleep(sleep_length)
 
         self.tick_start = time.time()
+        self.reopen_windows_if_closed()
         return True
+
+    def reopen_windows_if_closed(self):
+        # Figure out how many windows are open
+
+        pass
 
     def get_screen(self):
         return self.capture.get_image(self.windows[0].id)
@@ -217,7 +221,7 @@ class Harness(object):
             self.display.flush()
 
     def perform_actions(self, keymap):
-        #self._focus_windows()
+        self._focus_windows()
         #self._disable_user_input()
         #for w in self.windows:
         #    self.capture.FocusAndIgnoreAllEvents(w.id)

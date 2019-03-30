@@ -8,3 +8,5 @@ dlfcn_intercept.cpp
 gl_passthrough.cpp
 src/runner
 src/focus
+__pycache__/*
+memories/*
