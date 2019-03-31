@@ -15,6 +15,7 @@ struct ImageCapture {
   int screen;
   XImage *image;
   XShmSegmentInfo shminfo;
+  void* handler;
 };
 
 capture_t SetupImageCapture(int width, int height) {
@@ -66,25 +67,16 @@ void CleanupImageCapture(capture_t capture_h) {
     free(capture);
 }
 
-void FocusAndIgnoreAllEvents(capture_t capture_h, Window window) {
-    struct ImageCapture* capture = capture_h;
-    Display* display = capture->display;
+int (*global_mim)(Display*, XErrorEvent*, void*) = NULL;
+void* global_py_handler = NULL;
 
-    int num_details = 8;
-    int details[] = {NotifyAncestor, NotifyVirtual, NotifyInferior, NotifyNonlinear, NotifyNonlinearVirtual, NotifyPointer, NotifyPointerRoot, NotifyDetailNone};
+#include <stdio.h>
+int _call_global_handler(Display* display, XErrorEvent* error) {
+    return global_mim(display, error, global_py_handler);
+}
 
-    // Sends the focus in event
-    for(int i = 0; i < num_details; ++i) {
-        XEvent focus_in;
-        focus_in.type = FocusIn;
-        focus_in.xfocus.display = display;
-        focus_in.xfocus.window = window;
-        focus_in.xfocus.mode = NotifyNormal;
-        focus_in.xfocus.detail = details[i];
-        assert(XSendEvent(display, window, /*propagate=*/False, 0/*?*/, &focus_in));
-        XSelectInput(display, window, FocusChangeMask);
-    }
-
-    XFlush(display);
-    printf("Did it!\n");
+void SetErrorHandler(OnErrorMIM mim, void* on_error_py) {
+  global_mim = mim;
+  global_py_handler = on_error_py;
+  XSetErrorHandler(_call_global_handler);
 }

@@ -24,10 +24,10 @@ class Model(object):
         # Could hurt performance badly
         bitmap = bitmap[:, :, [2, 1, 0]]
         im = Image.fromarray(bitmap)
-        im.save("memories/" + self.name + "/" + timestamp + ".png")
+#        im.save("memories/" + self.name + "/" + timestamp + ".png")
 
         f = open("memories/" + self.name + "/" + timestamp + ".keymap", "w")
-        keymap.astype('uint8').tofile(f)
+#        keymap.astype('uint8').tofile(f)
 
     def get_action(self, bitmap):
         action_keymap = np.zeros(84)

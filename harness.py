@@ -15,21 +15,13 @@ import Xlib.protocol
 game_directory = "/home/william/.local/share/Steam/steamapps/common/Sky Rogue"
 executable = "./skyrogue.x86"
 binary_name = "skyrogue.x86"
+game_title = "Sky Rogue"
 
 fps = 24
 x_res = 640
 y_res = 480
 x_tiles = 1
 y_tiles = 1
-
-def GetAllWindowsWithName(name, parent, matches):
-    for child in parent.query_tree().children:
-        if child.get_wm_name() is not None:
-            print("Child: " + child.get_wm_name())
-        if child.get_wm_name() == name:
-            matches.append(child)
-        matches = GetAllWindowsWithName(name, child, matches)
-    return matches
 
 def KillRunningPrograms():
     ps = subprocess.Popen(['ps', '-A'], stdout=subprocess.PIPE)
@@ -53,7 +45,6 @@ class Keyboard(object):
 
     def _mask_keymap(keymap):
         keymap[0] = 0 # reserved
-        keymap[1] = 0 # escape
         keymap[58] = 0 # caps lock
         keymap[69] = 0 # num lock
         keymap[70] = 0 # scroll lock
@@ -61,7 +52,6 @@ class Keyboard(object):
 
     def _assert_keymap_is_masked(keymap):
         assert(keymap[0] == 0)
-        assert(keymap[1] == 0)
         assert(keymap[58] == 0)
         assert(keymap[69] == 0)
         assert(keymap[70] == 0)
@@ -145,44 +135,79 @@ class Keyboard(object):
         self.display.send_event(self.focused_window, event, True, Xlib.X.KeyPress | Xlib.X.KeyRelease)
         self.display.flush()
 
-def custom_handler(*args):
-    print("Called custom handler")
-    print(args)
+window_owners = {}
+
+def handle_error(*args):
+    # In python XLib, the resource_id property is actually a resource object here
+    resource_id = args[0].resource_id.id
+    if resource_id in window_owners:
+        window_owners[resource_id].window_closed(resource_id);
+    else:
+        print("Orphan window closed:", resource_id)
+
+def suppress_error(*args):
+    pass
 
 class Harness(object):
     def __init__(self):
-        instances = x_tiles * y_tiles
+        window_count = x_tiles * y_tiles
+        self.game_title = game_title
         self.tick_start = time.time()
         self.display = display.Display()
-        self.display.set_error_handler(custom_handler)
+        self.display.set_error_handler(handle_error) # Python XLib handler
+        image_capture.ImageCapture.set_error_handler(suppress_error) # Screen capture library has no need to throw errors
         self.root_window = self.display.screen().root
-        #self.keyboards = [Keyboard(None)]
-        #return
-        for i in range(instances):
-            # Skyrogue tries launching steam if the working directory
-            # isn't the game's directory.
-            subprocess.Popen([executable], cwd=game_directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        atexit.register(KillRunningPrograms)
-        self.windows = self.connect_to_windows("Sky Rogue", instances)
-        self.keyboards = []
-        for w in range(instances):
-            self.windows[w].configure(x = 10000 + x_res*(w%x_tiles), y = y_res*(w//x_tiles))
-            self.keyboards.append(Keyboard(self.display, self.windows[w]))
-        self.window_x = self.windows[0].get_geometry().width
-        self.window_y = self.windows[0].get_geometry().height
-        print("Dimensions: " + str(self.window_x) + ", " + str(self.window_y))
-        self.capture = image_capture.ImageCapture(self.window_x, self.window_y)
-        #self._focus_windows()
-        #self._disable_user_input()
 
-    def connect_to_windows(self, title, count):
-        time.sleep(3)
-        windows = GetAllWindowsWithName("Sky Rogue", self.root_window, [])
-        print("Found " + str(len(windows)) + " windows")
-        if len(windows) != count:
-            print("Failed trying to find running windows")
-            assert(False)
-        return windows
+        for i in range(window_count):
+            self.open_new_window()
+
+        atexit.register(KillRunningPrograms)
+
+        self.windows = [None for _ in range(window_count)]
+        self.keyboards = [None for _ in range(window_count)]
+        self.captures = [image_capture.ImageCapture(x_res, y_res) for _ in range(window_count)]
+
+    def window_closed(self, window_id):
+        global window_owners
+        del window_owners[window_id]
+
+        for i in range(len(self.windows)):
+            if self.windows[i].id == window_id:
+                self.windows[i] = None
+                self.keyboards[i] = None
+                self.open_new_window()
+                return
+        # Make sure that window_closed is called on a window with a connection
+        assert(False)
+
+    def open_new_window(self):
+        # Skyrogue tries launching steam if the working directory
+        # isn't the game's directory.
+        subprocess.Popen([executable], cwd=game_directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def GetAllWindowsWithName(name, parent, matches):
+        # Fixes crash?
+        time.sleep(.01)
+        for child in parent.query_tree().children:
+            #if child.get_wm_name() is not None:
+            #    print("Child: " + child.get_wm_name())
+            if child.get_wm_name() == name:
+                matches.append(child)
+            matches = Harness.GetAllWindowsWithName(name, child, matches)
+        return matches
+
+    def connect_to_windows(self):
+        global window_owners
+        open_windows = Harness.GetAllWindowsWithName(self.game_title, self.root_window, [])
+        for w in open_windows:
+            if w not in self.windows:
+                # Make sure we haven't opened too many instances
+                assert(None in self.windows)
+                loc = self.windows.index(None)
+                self.windows[loc] = w
+                self.keyboards[loc] = Keyboard(self.display, w)
+                w.configure(x = x_res * (loc % x_tiles), y = y_res * (loc // x_tiles))
+                window_owners[w.id] = self
 
     def tick(self):
         # Sleep here to enforce a max fps.
@@ -194,20 +219,27 @@ class Harness(object):
         if sleep_length > 0:
             time.sleep(sleep_length)
 
+        if None in self.windows:
+            self.connect_to_windows()
+
         self.tick_start = time.time()
         self.reopen_windows_if_closed()
         return True
 
     def reopen_windows_if_closed(self):
         # Figure out how many windows are open
-
         pass
 
-    def get_screen(self):
-        return self.capture.get_image(self.windows[0].id)
+    def get_screen(self, instance = 0):
+        if self.windows[instance] is not None:
+            return self.captures[instance].get_image(self.windows[instance].id)
+        else:
+            return np.zeros([y_res, x_res, 4], dtype='uint8')
 
     def _focus_windows(self):
         for w in self.windows:
+            if w is None:
+                continue
             # I'm unsure which detail to send so I send all of them to be cautious, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]
             for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual]:
                 e = Xlib.protocol.event.FocusIn(display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal)
@@ -226,4 +258,6 @@ class Harness(object):
         #for w in self.windows:
         #    self.capture.FocusAndIgnoreAllEvents(w.id)
         for keyboard in self.keyboards:
+            if keyboard is None:
+                continue
             keyboard.set_keymap(keymap)

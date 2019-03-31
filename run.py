@@ -8,5 +8,6 @@ model = Model()
 
 while harness.tick():
     bitmap = harness.get_screen()
-    keymap = model.get_action(bitmap)
-    harness.perform_actions(keymap)
+    if bitmap is not None:
+        keymap = model.get_action(bitmap)
+        harness.perform_actions(keymap)

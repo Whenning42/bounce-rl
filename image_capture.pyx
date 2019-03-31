@@ -1,7 +1,8 @@
 cimport image_capture
 
-#import numpy as np
 cimport numpy as np
+import Xlib
+from Xlib import display
 
 np.import_array()
 
@@ -27,5 +28,10 @@ cdef class ImageCapture:
         cdef np.ndarray[np.uint8_t, ndim=3] np_array = np.PyArray_SimpleNewFromData(3, shape, np.NPY_UINT8, image_data)
         return np_array
 
-    def FocusAndIgnoreAllEvents(self, window):
-        image_capture.FocusAndIgnoreAllEvents(self._image_capture, window);
+    @staticmethod
+    def set_error_handler(on_error_py):
+        image_capture.SetErrorHandler(mim, <void*>on_error_py)
+
+cdef int mim(Display* display, XErrorEvent* error, void* on_error_py):
+    (<object>on_error_py)()
+    return 0

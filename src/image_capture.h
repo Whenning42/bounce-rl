@@ -2,6 +2,7 @@
 #include <X11/extensions/XShm.h>
 
 typedef void* capture_t;
+typedef int (*OnErrorMIM)(Display*, XErrorEvent*, void*);
 
 // Allocates and initializes an ImageCapture
 capture_t SetupImageCapture(int width, int height);
@@ -13,5 +14,5 @@ char *CaptureImage(const capture_t capture, Window window);
 // Cleans up and delete the given ImageCapture
 void CleanupImageCapture(capture_t capture);
 
-// Not really related to image capture
-void FocusAndIgnoreAllEvents(capture_t capture, Window window);
+// Sets the X error handler for this library's calls to a python function
+void SetErrorHandler(OnErrorMIM mim, void* on_error_py);

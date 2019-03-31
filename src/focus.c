@@ -71,9 +71,9 @@ int main(int argc, char** argv) {
     Window* windows = GetAllWindowsWithName(display, to_focus, &num_windows);
 
     capture_t c = SetupImageCapture(1, 1);
-    for(int w = 0; w < num_windows; ++w) {
-        FocusAndIgnoreAllEvents(c, windows[w]);
-    }
+    //for(int w = 0; w < num_windows; ++w) {
+    //    FocusAndIgnoreAllEvents(c, windows[w]);
+    //}
 
     XFlush(display);
     free(windows);
