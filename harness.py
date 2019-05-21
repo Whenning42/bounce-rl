@@ -145,6 +145,10 @@ def handle_error(*args):
     else:
         print("Orphan window closed:", resource_id)
 
+# Could be normal or an error
+def xlib_error(*args):
+    print("An xlib error was thrown")
+
 def suppress_error(*args):
     pass
 
@@ -155,7 +159,7 @@ class Harness(object):
         self.tick_start = time.time()
         self.display = display.Display()
         self.display.set_error_handler(handle_error) # Python XLib handler
-        image_capture.ImageCapture.set_error_handler(suppress_error) # Screen capture library has no need to throw errors
+        image_capture.ImageCapture.set_error_handler(xlib_error) # Screen capture library has no need to throw errors
         self.root_window = self.display.screen().root
 
         for i in range(window_count):
@@ -186,8 +190,6 @@ class Harness(object):
         subprocess.Popen([executable], cwd=game_directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def GetAllWindowsWithName(name, parent, matches):
-        # Fixes crash?
-        time.sleep(.01)
         for child in parent.query_tree().children:
             #if child.get_wm_name() is not None:
             #    print("Child: " + child.get_wm_name())
@@ -232,7 +234,8 @@ class Harness(object):
 
     def get_screen(self, instance = 0):
         if self.windows[instance] is not None:
-            return self.captures[instance].get_image(self.windows[instance].id)
+            im = self.captures[instance].get_image(self.windows[instance].id)
+            return im[:, :, 2::-1]
         else:
             return np.zeros([y_res, x_res, 4], dtype='uint8')
 
@@ -261,3 +264,6 @@ class Harness(object):
             if keyboard is None:
                 continue
             keyboard.set_keymap(keymap)
+
+    def setup_reward(self, reward_class):
+        self.get_reward = reward_class.get_reward
