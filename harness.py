@@ -146,7 +146,7 @@ def handle_error(*args):
 
 # Could be normal or an error
 def xlib_error(*args):
-    print("An xlib error was thrown")
+    print("An xlib error was thrown:", args)
 
 def suppress_error(*args):
     pass

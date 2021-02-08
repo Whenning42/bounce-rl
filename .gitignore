@@ -10,3 +10,7 @@ src/runner
 src/focus
 __pycache__/*
 memories/*
+
+# Minecraft files
+logs/*
+GPUCache/*
