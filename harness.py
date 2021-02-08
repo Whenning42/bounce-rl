@@ -5,6 +5,7 @@ import os
 import subprocess
 import signal
 import time
+import shlex
 from model import *
 
 from Xlib import display
@@ -12,24 +13,22 @@ import Xlib.X
 import Xlib.XK
 import Xlib.protocol
 
-game_directory = "/home/william/.local/share/Steam/steamapps/common/Sky Rogue"
-executable = "./skyrogue.x86"
-binary_name = "skyrogue.x86"
-game_title = "Sky Rogue"
+# Skyrogue config.
+# Skyrogue tries launches steam if the working directory isn't the game's directory.
+# directory = "/home/william/.local/share/Steam/steamapps/common/Sky Rogue"
+# command = "./skyrogue.x86"
+# window_title = "Sky Rogue"
+
+# MC config.
+directory = "./"
+command = open("minecraft_command.txt").read()
+window_title = "Minecraft 1.16.3"
 
 fps = 24
 x_res = 640
 y_res = 480
 x_tiles = 1
 y_tiles = 1
-
-def KillRunningPrograms():
-    ps = subprocess.Popen(['ps', '-A'], stdout=subprocess.PIPE)
-    out, err = ps.communicate()
-    for p in out.decode('ascii').splitlines():
-        if binary_name in p:
-            pid = int(p.split()[0])
-            os.kill(pid, signal.SIGKILL)
 
 class Keyboard(object):
     PRESS = 1
@@ -155,21 +154,27 @@ def suppress_error(*args):
 class Harness(object):
     def __init__(self):
         window_count = x_tiles * y_tiles
-        self.game_title = game_title
+        self.window_title = window_title
         self.tick_start = time.time()
+        # Pass in the display here
         self.display = display.Display()
         self.display.set_error_handler(handle_error) # Python XLib handler
         image_capture.ImageCapture.set_error_handler(xlib_error) # Screen capture library has no need to throw errors
         self.root_window = self.display.screen().root
 
+        self.subprocess_pids = []
+        atexit.register(self.kill_subprocesses)
+
         for i in range(window_count):
             self.open_new_window()
-
-        atexit.register(KillRunningPrograms)
 
         self.windows = [None for _ in range(window_count)]
         self.keyboards = [None for _ in range(window_count)]
         self.captures = [image_capture.ImageCapture(x_res, y_res) for _ in range(window_count)]
+
+    def kill_subprocesses(self):
+        for pid in self.subprocess_pids:
+            os.kill(pid, signal.SIGKILL)
 
     def window_closed(self, window_id):
         global window_owners
@@ -185,9 +190,9 @@ class Harness(object):
         assert(False)
 
     def open_new_window(self):
-        # Skyrogue tries launching steam if the working directory
-        # isn't the game's directory.
-        subprocess.Popen([executable], cwd=game_directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        split_command = shlex.split(command)
+        process = subprocess.Popen(split_command, cwd=directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.subprocess_pids.append(process.pid)
 
     def GetAllWindowsWithName(name, parent, matches):
         for child in parent.query_tree().children:
@@ -199,8 +204,9 @@ class Harness(object):
         return matches
 
     def connect_to_windows(self):
+        time.sleep(1)
         global window_owners
-        open_windows = Harness.GetAllWindowsWithName(self.game_title, self.root_window, [])
+        open_windows = Harness.GetAllWindowsWithName(self.window_title, self.root_window, [])
         for w in open_windows:
             if w not in self.windows:
                 # Make sure we haven't opened too many instances
@@ -208,9 +214,16 @@ class Harness(object):
                 loc = self.windows.index(None)
                 self.windows[loc] = w
                 self.keyboards[loc] = Keyboard(self.display, w)
+                print(w)
+                print(hex(w.id))
+                # i3-msg [id=0x1c00007] floating enable
+                # i3-msg [id=0x1c00007] border pixel 0
+                subprocess.Popen(["i3-msg", "[id=" + hex(w.id) + "]", "floating", "enable"])
+                subprocess.Popen(["i3-msg", "[id=" + hex(w.id) + "]", "border", "pixel", "0"])
                 w.configure(x = x_res * (loc % x_tiles), y = y_res * (loc // x_tiles))
                 window_owners[w.id] = self
 
+    # Unused?
     def tick(self):
         # Sleep here to enforce a max fps.
         tick_duration = 1/fps
@@ -225,12 +238,7 @@ class Harness(object):
             self.connect_to_windows()
 
         self.tick_start = time.time()
-        self.reopen_windows_if_closed()
         return True
-
-    def reopen_windows_if_closed(self):
-        # Figure out how many windows are open
-        pass
 
     def get_screen(self, instance = 0):
         if self.windows[instance] is not None:

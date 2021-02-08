@@ -112,7 +112,7 @@ PFN_mktime real_mktime = nullptr;
 //real_load<sem_timedwait>
 //real_load<mktime>
 
-const int speedup = 1000;
+const int speedup = 2;
 const int MILLION = 1e6;
 const int BILLION = 1e9;
 

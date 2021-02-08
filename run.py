@@ -15,6 +15,7 @@ harness.setup_reward(reward_class)
 
 model = Model()
 
+from PIL import Image
 import numpy as np
 
 while harness.tick():

@@ -15,8 +15,8 @@ SAVE_DIR = "memories/"
 class Model(object):
     def __init__(self):
         # Name the model after it's initialization time
-        self.save_path = SAVE_DIR + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S') + "/"
-        os.mkdir(self.save_path)
+        self.name = datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S:%f')
+        os.mkdir("memories/" + self.name)
         self.last_action = np.zeros(84)
         self.startup = 0
         self.current_observation = 0
@@ -36,16 +36,16 @@ class Model(object):
         timestamp_file = open(observation_path + ".timestamp", "w")
         timestamp_file.write(str(timestamp))
 
-        reward_file = open(observation_path + ".reward", "w")
-        reward_file.write(str(reward))
+    def save_state(self, bitmap, keymap):
+        timestamp = datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S:%f')
 
-        self.current_observation += 1
+        # Could hurt performance badly
+        bitmap = bitmap[:, :, [2, 1, 0]]
+        im = Image.fromarray(bitmap)
+        im.save("memories/" + self.name + "/" + timestamp + ".png")
 
-    # State is a bitmap, action is a keymap, and reward is a float
-    # The format of these files could probably be improved but this is alright for now
-    def load_state(self, observation_path):
-        image = Image.load(observation_path + ".png")
-        state = np.array(image)
+        f = open("memories/" + self.name + "/" + timestamp + ".keymap", "w")
+        keymap.astype('uint8').tofile(f)
 
         action_file = open(observation_path + ".keymap", "r")
         action = np.fromfile(action_file, dtype='uint8')
@@ -60,6 +60,10 @@ class Model(object):
 
     def update(self, state, reward):
         action_keymap = np.zeros(84)
+
+        # We use a no-op model here to get a user trial
+        self.save_state(bitmap, action_keymap)
+        return action_keymap
 
         if self.startup < 20 * 15:
             if int(time.time() * 10) % 2 == 0:
