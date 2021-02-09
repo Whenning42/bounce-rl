@@ -16,3 +16,6 @@ dlfcn_intercept:
 
 clean:
 	rm *.so
+
+erase_memories:
+	rm -rf memories/*

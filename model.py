@@ -21,8 +21,6 @@ class Model(object):
     def save_state(self, bitmap, keymap):
         timestamp = datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S:%f')
 
-        # Could hurt performance badly
-        bitmap = bitmap[:, :, [2, 1, 0]]
         im = Image.fromarray(bitmap)
         im.save("memories/" + self.name + "/" + timestamp + ".png")
 

@@ -13,6 +13,8 @@ import Xlib.X
 import Xlib.XK
 import Xlib.protocol
 
+REOPEN_CLOSED_WINDOWS = False
+
 # Skyrogue config.
 # Skyrogue tries launches steam if the working directory isn't the game's directory.
 # directory = "/home/william/.local/share/Steam/steamapps/common/Sky Rogue"
@@ -24,8 +26,13 @@ directory = "./"
 command = open("minecraft_command.txt").read()
 window_title = "Minecraft 1.16.3"
 
+# Firefox config.
+# directory = "./"
+# command = "firefox"
+# window_title = "Mozilla Firefox"
+
 fps = 24
-x_res = 640
+x_res = 720
 y_res = 480
 x_tiles = 1
 y_tiles = 1
@@ -137,16 +144,11 @@ class Keyboard(object):
 window_owners = {}
 
 def handle_error(*args):
-    # In python XLib, the resource_id property is actually a resource object here
-    resource_id = args[0].resource_id.id
-    if resource_id in window_owners:
-        window_owners[resource_id].window_closed(resource_id);
+    window_id = args[0].resource_id.id
+    if window_id in window_owners:
+        window_owners[window_id].window_closed(window_id);
     else:
-        print("Orphan window closed:", resource_id)
-
-# Could be normal or an error
-def xlib_error(*args):
-    print("An xlib error was thrown:", args)
+        print("Orphan window closed:", window_id)
 
 def suppress_error(*args):
     pass
@@ -159,8 +161,11 @@ class Harness(object):
         # Pass in the display here
         self.display = display.Display()
         self.display.set_error_handler(handle_error) # Python XLib handler
-        image_capture.ImageCapture.set_error_handler(xlib_error) # Screen capture library has no need to throw errors
+        image_capture.ImageCapture.set_error_handler(suppress_error) # Screen capture library has no need to throw errors
+
         self.root_window = self.display.screen().root
+        self.root_window.change_attributes(event_mask = Xlib.X.SubstructureNotifyMask)
+        self.display.flush()
 
         self.subprocess_pids = []
         atexit.register(self.kill_subprocesses)
@@ -182,9 +187,10 @@ class Harness(object):
 
         for i in range(len(self.windows)):
             if self.windows[i].id == window_id:
-                self.windows[i] = None
+                self.windows[i] = -1
                 self.keyboards[i] = None
-                self.open_new_window()
+                if REOPEN_CLOSED_WINDOWS:
+                    self.open_new_window()
                 return
         # Make sure that window_closed is called on a window with a connection
         assert(False)
@@ -216,11 +222,13 @@ class Harness(object):
                 self.keyboards[loc] = Keyboard(self.display, w)
                 print(w)
                 print(hex(w.id))
-                # i3-msg [id=0x1c00007] floating enable
-                # i3-msg [id=0x1c00007] border pixel 0
-                subprocess.Popen(["i3-msg", "[id=" + hex(w.id) + "]", "floating", "enable"])
-                subprocess.Popen(["i3-msg", "[id=" + hex(w.id) + "]", "border", "pixel", "0"])
-                w.configure(x = x_res * (loc % x_tiles), y = y_res * (loc // x_tiles))
+                subprocess.Popen(["i3-msg", "[id=" + hex(w.id) + "]", "floating", "enable;", \
+                                                                      "border", "pixel", "0"])
+                self.display.flush()
+                time.sleep(1)
+                self.display.flush()
+                w.configure(x = x_res * (loc % x_tiles), y = y_res * (loc // x_tiles), width = x_res, height = y_res)
+                self.display.flush()
                 window_owners[w.id] = self
 
     # Unused?
@@ -231,6 +239,8 @@ class Harness(object):
         elapsed = tick_end - self.tick_start
         sleep_length = tick_duration - elapsed
 
+        print("tick")
+
         if sleep_length > 0:
             time.sleep(sleep_length)
 
@@ -238,6 +248,14 @@ class Harness(object):
             self.connect_to_windows()
 
         self.tick_start = time.time()
+
+        while self.display.pending_events() > 0:
+            print(self.display.next_event())
+
+        if self.windows.count(-1) == len(self.windows):
+            print("All windows closed. Exiting.")
+            return False
+
         return True
 
     def get_screen(self, instance = 0):
