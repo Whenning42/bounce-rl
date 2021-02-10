@@ -1,6 +1,7 @@
 from harness import *
+import run_configs
 
-harness = Harness()
+harness = Harness(run_configs.LoadConfig("Minecraft"))
 model = Model()
 
 from PIL import Image

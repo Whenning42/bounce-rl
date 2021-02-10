@@ -31,9 +31,6 @@ window_title = "Minecraft 1.16.3"
 # command = "firefox"
 # window_title = "Mozilla Firefox"
 
-fps = 24
-x_res = 720
-y_res = 480
 x_tiles = 1
 y_tiles = 1
 
@@ -154,7 +151,9 @@ def suppress_error(*args):
     pass
 
 class Harness(object):
-    def __init__(self):
+    def __init__(self, run_conf):
+        self.run_conf = run_conf
+
         window_count = x_tiles * y_tiles
         self.window_title = window_title
         self.tick_start = time.time()
@@ -175,7 +174,9 @@ class Harness(object):
 
         self.windows = [None for _ in range(window_count)]
         self.keyboards = [None for _ in range(window_count)]
-        self.captures = [image_capture.ImageCapture(x_res, y_res) for _ in range(window_count)]
+        self.captures = \
+                [image_capture.ImageCapture(self.run_conf["x_res"], self.run_conf["y_res"]) \
+                  for _ in range(window_count)]
 
     def kill_subprocesses(self):
         for pid in self.subprocess_pids:
@@ -196,8 +197,8 @@ class Harness(object):
         assert(False)
 
     def open_new_window(self):
-        split_command = shlex.split(command)
-        process = subprocess.Popen(split_command, cwd=directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        split_command = shlex.split(self.run_conf["command"])
+        process = subprocess.Popen(split_command, cwd=self.run_conf["directory"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.subprocess_pids.append(process.pid)
 
     def GetAllWindowsWithName(name, parent, matches):
@@ -212,7 +213,7 @@ class Harness(object):
     def connect_to_windows(self):
         time.sleep(1)
         global window_owners
-        open_windows = Harness.GetAllWindowsWithName(self.window_title, self.root_window, [])
+        open_windows = Harness.GetAllWindowsWithName(self.run_conf["window_title"], self.root_window, [])
         for w in open_windows:
             if w not in self.windows:
                 # Make sure we haven't opened too many instances
@@ -225,21 +226,21 @@ class Harness(object):
                 subprocess.Popen(["i3-msg", "[id=" + hex(w.id) + "]", "floating", "enable;", \
                                                                       "border", "pixel", "0"])
                 self.display.flush()
-                time.sleep(1)
+                time.sleep(.5)
                 self.display.flush()
-                w.configure(x = x_res * (loc % x_tiles), y = y_res * (loc // x_tiles), width = x_res, height = y_res)
+                w.configure(x = self.run_conf["x_res"] * (loc % x_tiles), \
+                            y = self.run_conf["y_res"] * (loc // x_tiles), \
+                            width = self.run_conf["x_res"], height = self.run_conf["y_res"])
                 self.display.flush()
                 window_owners[w.id] = self
 
     # Unused?
     def tick(self):
         # Sleep here to enforce a max fps.
-        tick_duration = 1/fps
+        tick_duration = 1 / self.run_conf["fps"]
         tick_end = time.time()
         elapsed = tick_end - self.tick_start
         sleep_length = tick_duration - elapsed
-
-        print("tick")
 
         if sleep_length > 0:
             time.sleep(sleep_length)
@@ -249,8 +250,8 @@ class Harness(object):
 
         self.tick_start = time.time()
 
-        while self.display.pending_events() > 0:
-            print(self.display.next_event())
+        # while self.display.pending_events() > 0:
+        #     print(self.display.next_event())
 
         if self.windows.count(-1) == len(self.windows):
             print("All windows closed. Exiting.")
@@ -263,7 +264,7 @@ class Harness(object):
             im = self.captures[instance].get_image(self.windows[instance].id)
             return im[:, :, 2::-1]
         else:
-            return np.zeros([y_res, x_res, 4], dtype='uint8')
+            return np.zeros([self.run_conf["y_res"], self.run_conf["x_res"], 4], dtype='uint8')
 
     def _focus_windows(self):
         for w in self.windows:
