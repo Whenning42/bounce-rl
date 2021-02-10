@@ -14,6 +14,9 @@ time_intercept:
 dlfcn_intercept:
 	g++ -fPIC -shared -o build/dlfcn_intercept.so dlfcn_intercept.cpp -ldl
 
+console:
+	g++ -o build/console.bin src/console/console.cpp -lreadline
+
 clean:
 	rm *.so
 
