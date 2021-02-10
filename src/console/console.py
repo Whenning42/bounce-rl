@@ -1,4 +1,4 @@
-# Implements the Console class that launches a command line prompt in a new XTerm window and
+# Implements a Console class that launches a command line prompt in a new XTerm window and
 # reads input from the prompt in a non-blocking manner.
 #
 # Example Usage:
