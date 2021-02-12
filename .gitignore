@@ -9,6 +9,7 @@ gl_passthrough.cpp
 src/runner
 src/focus
 __pycache__/*
+*/__pycache__/*
 memories/*
 
 # Minecraft files
