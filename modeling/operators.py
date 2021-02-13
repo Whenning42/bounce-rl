@@ -38,6 +38,20 @@ class RgbToG32(ImageOperator):
         pass
 
     def call(self, image):
-        return (.299 * image[:, 0:1, :, :] + \
-                .587 * image[:, 1:2, :, :] + \
-                .144 * image[:, 2:3, :, :])
+        return .299 * image[:, 0:1, :, :] + \
+               .587 * image[:, 1:2, :, :] + \
+               .144 * image[:, 2:3, :, :]
+
+class DatasetOperator():
+    def __init__(self, spec):
+        pass
+
+    def call(self, dataset):
+        pass
+
+class Trim(DatasetOperator):
+    def __init__(self, spec):
+        self.spec = spec
+
+    def call(self, dataset):
+        return dataset[self.spec["start"] : self.spec["end"]]

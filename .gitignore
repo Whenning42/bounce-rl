@@ -11,6 +11,7 @@ src/focus
 __pycache__/*
 */__pycache__/*
 memories/*
+*.profile
 
 # Minecraft files
 logs/*

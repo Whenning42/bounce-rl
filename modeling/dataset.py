@@ -19,8 +19,12 @@ class Dataset():
     def __len__(self):
         return len(self.image_keys)
 
-    def LoadImagesFromDir(path):
+    def LoadImagesFromDir(path, DEBUG = False):
         image_files = glob.glob(os.path.join(path, "*.png"))
+        image_files = sorted(image_files, key=lambda f: int(os.path.basename(f)[:-4]))
+        if DEBUG:
+            image_files = image_files[:50]
+
         assert(len(image_files) > 0)
 
         to_tensor = torchvision.transforms.ToTensor()
@@ -32,12 +36,12 @@ class Dataset():
 
         images = torch.empty((len(image_files), *image_shape))
         image_names = []
-        print("Loading images")
+        print("Loading image from directory: ", path)
         for i, image_file in tqdm.tqdm(enumerate(image_files), total = len(image_files)):
             image_names.append(os.path.basename(image_file))
             tensor = to_tensor(PIL.Image.open(image_file))
 
-            # Slice A channel of any RGBA images.
+            # Slice off alpha channel of any RGBA images.
             if images[i].shape[0] == tensor.shape[0]:
                 images[i] = tensor
             else:
