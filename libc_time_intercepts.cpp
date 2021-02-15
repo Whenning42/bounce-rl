@@ -21,6 +21,7 @@
 // pthread_cond_timedwait
 // sem_timedwait
 // mktime
+//
 // Not intercepted functions
 // utime
 
@@ -52,65 +53,6 @@ PFN_difftime real_difftime = nullptr;
 PFN_pthread_cond_timedwait real_pthread_cond_timedwait = nullptr;
 PFN_sem_timedwait real_sem_timedwait = nullptr;
 PFN_mktime real_mktime = nullptr;
-
-// Declare real_func that has the same signature as func
-// real_func defaults to loader function that
-//  1. Loads func and sets real_func to func
-//  2. Calls func and returns its return
-
-// LOAD_REAL(time)
-// ->
-// PFN_time real_time = loader<time>;
-
-// loader<time>
-// ->
-// time(args...) {
-//  PFN_time real_time = dlsym(RTLD_DEFAULT, time);
-//  return real_time(args...);
-// }
-
-//template<typename func>
-//func real_impl = nullptr;
-//
-//template<typename Func, typename... Args>
-//typename std::result_of<Func(Args...)>::type
-//loader(Args... args) {
-//  real_impl<Func> = (Func)dlsym(RTLD_DEFAULT, "time");
-//  return real_impl<Func>(args...);
-//}
-//
-//template<> decltype(&time) real_impl<decltype(&time)> = loader<decltype(&time)>;
-// real_impl<time> = loader<time, "time", &real_time>;
-
-//////////////////////////
-// All I want is
-// real_time is initially set to loader_time impl which loads time into real_time and returns time
-//
-// PFN_time real_time = loader_time
-// loader_time(args..) {
-//    real_time = dlsym(RTLD_DEFAULT, "time");
-//    return real_time(args..);
-// }
-//
-// for * in [list]
-// PFN_* real_* = loader_*
-// loader_*(*[args]..) {
-//    real_* = dlsym(RTLD_DEFAULT, "*");
-//    return real_*(*[args]..);
-// }
-// ///////////////////////
-
-//real_load<time>
-//real_load<gettimeofday>
-//real_load<localtime>
-//real_load<localtime_r>
-//real_load<gmtime>
-//real_load<clock_gettime>
-//real_load<gmtime_r>
-//real_load<difftime>
-//real_load<pthread_cond_timedwait>
-//real_load<sem_timedwait>
-//real_load<mktime>
 
 const int speedup = 2;
 const int MILLION = 1e6;
