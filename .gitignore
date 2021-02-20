@@ -4,12 +4,10 @@
 *.o
 image_capture.c
 build/*
-dlfcn_intercept.cpp
 gl_passthrough.cpp
 src/runner
 src/focus
-__pycache__/*
-*/__pycache__/*
+**/__pycache__/
 memories/*
 *.profile
 
