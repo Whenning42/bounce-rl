@@ -12,7 +12,6 @@ def _ConnectComponent(working_image, \
                       start_position, \
                       component_label, \
                       component_bitmap, \
-                      bitmap_offset, \
                       unlabeled_sentinel):
     to_connect = deque()
     to_connect.append(start_position)
@@ -21,12 +20,10 @@ def _ConnectComponent(working_image, \
         for d0 in range(-1, 2):
             for d1 in range(-1, 2):
                 next_pos = (position[0] + d0, position[1] + d1)
-                offset_next_pos = (next_pos[0] - bitmap_offset[0], next_pos[1] - bitmap_offset[1])
                 if not InBounds(working_image, next_pos):
                     continue
                 if working_image[next_pos] == unlabeled_sentinel:
                     working_image[next_pos] = component_label
-                    component_bitmap[offset_next_pos] = 1
                     to_connect.append(next_pos)
 
 def _CropToExtent(bitmap):
@@ -57,7 +54,6 @@ def Segment(images):
         # Here image is (C, H, W) with C = 1 so we strip the channel here
         # to get working image into a (H, W) format.
         working_image = (1 - image[0]) * kUnlabeledComponent
-        component_bitmap = 0 * working_image[:40, :40]
 
         y = images.size(2) // 2
         current_component = 1
@@ -65,17 +61,18 @@ def Segment(images):
             if y % 100 == 0:
                 print(i, ", y:", y)
             for x in range(0, images.size(3)):
+                i += working_image[y, x]
+                continue
                 if working_image[y, x] == kUnlabeledComponent:
-                    component_bitmap *= 0
                     _ConnectComponent(working_image, \
                                       (y, x), \
                                       current_component, \
-                                      component_bitmap, \
-                                      (y - 20, x - 20),
+                                      working_image, \
+                                      # (y - 20, x - 20),
                                       kUnlabeledComponent)
 
-                    components.append(_CropToExtent(component_bitmap))
+                    # components.append(_CropToExtent(component_bitmap))
                     current_component += 1
 
-        segmentations.append(components)
+        segmentations.append(working_image)
     return segmentations

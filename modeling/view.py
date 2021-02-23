@@ -12,11 +12,11 @@ class View():
         if self._MatchesSavedSpec(save_dir):
             print("Requested view will be loaded from cache.")
             # Load the materialized view if cached.
-            self.materialized_view = dataset.Dataset.LoadImagesFromDir(save_dir, DEBUG)
+            self.materialized_view = dataset.LoadImagesFromDir(save_dir, DEBUG)
         else:
             print("Requested view is not cached and will be generated.")
             # Materialize the view if it hasn't been cached.
-            source_data = dataset.Dataset.LoadImagesFromDir(source_dir, DEBUG)
+            source_data = dataset.LoadImagesFromDir(source_dir, DEBUG)
             for op in self.dataset_operators:
                 source_data = op.call(source_data)
 
