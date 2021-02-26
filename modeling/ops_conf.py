@@ -33,8 +33,23 @@ import sys
 
 sys.path.append('/home/william/Workspaces/GameHarness/src/connected_components')
 import cv_components
+import trigger_loading
+
+triggers = trigger_loading.LoadTriggers("../src/labels/compound_labels.csv", "../memories/dbg_text_processed")
 
 import time
 start = time.time()
-c = cv_components.ConnectedComponents(dbg_processed[:].images)
+c = cv_components.ConnectedComponents(dbg_processed[:200], triggers)
 print("Segmentation took:", time.time() - start, "seconds")
+
+for i in range(3):
+    print(c[i])
+
+# import pickle
+# start = time.time()
+# pickle.dump(c, open("segmentations.pickle", "wb"))
+# print("Pickleing took:", time.time() - start, "seconds")
+#
+# start = time.time()
+# c = pickle.load(open("segmentations.pickle", "rb"))
+# print("Unpickeling took:", time.time() - start, "seconds")

@@ -18,9 +18,16 @@ class Dataset():
     def __len__(self):
         return len(self.image_keys)
 
+def LoadImageFromDir(directory, filename):
+    path = os.path.join(directory, filename)
+    tensor = torchvision.transforms.ToTensor()(PIL.Image.open(path))
+    # Slice off alpha channel of any RGBA images.
+    return tensor
+
+
 def LoadImagesFromDir(path, DEBUG = False):
     image_files = glob.glob(os.path.join(path, "*.png"))
-    image_files = sorted(image_files, key=lambda f: int(os.path.basename(f)[:-4]))
+    image_files = sorted(image_files, key = lambda f: int(os.path.basename(f)[:-4]))
     if DEBUG:
         image_files = image_files[:50]
 
