@@ -14,7 +14,7 @@ def LoadTriggers(template_annotations_filename, image_directory):
     annotations = parse.LoadAnnotations(template_annotations_filename, image_directory)
     triggers = collections.defaultdict(list)
     for annotation in annotations:
-        segments = cv_components.SegmentSlice(annotation["view"])
+        segments, _ = cv_components.SegmentSlice(annotation["view"])
         for segment in segments:
             segment_size = (segment["h"], segment["w"])
             triggers[segment_size].append({"trigger_slice": segment,

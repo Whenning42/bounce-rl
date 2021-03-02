@@ -62,8 +62,8 @@ def ViewSlice(view):
 # ConenctedComponents
 # slice -> views of slice
 # image + image_key -> views of image
-def SegmentSlice(image_slice, return_labels = False):
-    label_count, labels, stats, centroids = \
+def SegmentSlice(image_slice):
+    label_count, labeled_img, stats, centroids = \
             cv2.connectedComponentsWithStatsWithAlgorithm((1 - image_slice["pixels"][0]).byte().numpy(), \
                                                           connectivity = 8, \
                                                           ltype = cv2.CV_32S, \
@@ -83,15 +83,11 @@ def SegmentSlice(image_slice, return_labels = False):
                 "src_y": src_y,
                 "w": w,
                 "h": h,
-                "pixels": torch.tensor(1 * (labels[loc_y : loc_y + h, loc_x : loc_x + w] == j))})
+                "pixels": torch.tensor(1 * (labeled_img[loc_y : loc_y + h, loc_x : loc_x + w] == j))})
 
-    if return_labels:
-        return slices, labels
-    else:
-        return slices
+    return slices, labeled_img
 
 
-# TODO: Pipe triggers into this function.
 def ConnectedComponents(dataset, triggers):
     images = dataset.images[:, :, :, :]
 
@@ -104,16 +100,30 @@ def ConnectedComponents(dataset, triggers):
                        "h": image.shape[0],
                        "pixels": image}
 
-        segments, labels = SegmentSlice(image_slice, return_labels = True)
+        segments, labels = SegmentSlice(image_slice)
+        # Double check the off by one math for calculating length here.
+        extracted = [False] * (len(segments) + 1)
+
+        # Note, j is using 0-indexing here and labels is 1-indexed.
         for j, segment in enumerate(segments):
+            cur_label = j + 1
+            if extracted[cur_label]:
+                continue
+
             matched_template = MatchTemplates(image, dataset.image_keys[i], segment, triggers)
-            # matched_template = None
             if matched_template is not None:
                 region = ViewSlice(matched_template)
-                labels[region] = (labels[region] > 0) * j
-                print("Matched")
-                print("Segment:", segment)
-                print("Template:", matched_template)
+
+                extracted_labels = np.unique(labels[region])
+                for label in extracted_labels:
+                    extracted[label] = True
+                # print("Labels to skip: ", np.unique(labels[region]))
+                # print("For current label: ", cur_label)
+                # print("From labeled region: ", labels[region])
+                labels[region] = (labels[region] > 0) * cur_label
+                # print("Matched")
+                # print("Segment:", segment)
+                # print("Template:", matched_template)
                 segment = matched_template
             final_segments.append(segment)
     return final_segments
