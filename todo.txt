@@ -1,0 +1,21 @@
+# Harness House Cleaning
+✓   1. Fix exit handler
+✓   2. Make program launching more general
+✓   3. Get MC to float on launch
+✓   4. Work on a dev console impl
+✓   5. Switch to run config files
+✓   6. Switch to integer observation keys
+-   7. WIP: Design a dataset data format
+✓   8. Record MC debug info dataset
+✓   9. Design crop and binarization ops/views
+✓  10. Materialize the cropped and binarized MC debug info datset
+
+# MC Debug Text Extraction
+✓  11. Implement CSV label parsing
+✓  12. Implement CV2 letter extraction
+✓  13. Design a compound template solution
+         Either use template matching before segmentation or post-process the segmentations
+         We're going to use a segment post-processing technique which gives the following algorithm:
+           For all labeled templates, extract their segments.
+           Then, for any extracted segment try matching the window around the segment to any labeled templates.
+-  14. Segment deduplication in extractions?
