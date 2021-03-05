@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 import torch
+import collections
 
 # TemplateIndex
 # {(h, w) -> list of CompoundTriggers}
@@ -16,7 +17,7 @@ import torch
 # - template_offset_y
 
 # ImageView
-# - src_image
+# - image_key
 # - src_x
 # - src_y
 # - w
@@ -88,6 +89,7 @@ def SegmentSlice(image_slice):
     return slices, labeled_img
 
 
+# A 'trigger' is a segment along with it's parent compound template.
 def ConnectedComponents(dataset, triggers):
     images = dataset.images[:, :, :, :]
 
@@ -101,7 +103,6 @@ def ConnectedComponents(dataset, triggers):
                        "pixels": image}
 
         segments, labels = SegmentSlice(image_slice)
-        # Double check the off by one math for calculating length here.
         extracted = [False] * (len(segments) + 1)
 
         # Note, j is using 0-indexing here and labels is 1-indexed.
@@ -117,13 +118,23 @@ def ConnectedComponents(dataset, triggers):
                 extracted_labels = np.unique(labels[region])
                 for label in extracted_labels:
                     extracted[label] = True
-                # print("Labels to skip: ", np.unique(labels[region]))
-                # print("For current label: ", cur_label)
-                # print("From labeled region: ", labels[region])
                 labels[region] = (labels[region] > 0) * cur_label
-                # print("Matched")
-                # print("Segment:", segment)
-                # print("Template:", matched_template)
                 segment = matched_template
             final_segments.append(segment)
     return final_segments
+
+def UniqueSlicePixels(image_slices):
+    print("Filtering image_slice list to unique slice pixels.")
+
+    unique_pixels = collections.defaultdict(list)
+    for image_slice in tqdm(image_slices):
+        image_dim = (image_slice["w"], image_slice["h"])
+        found = False
+        for possible_match in unique_pixels[image_dim]:
+            if torch.allclose(image_slice["pixels"], possible_match["pixels"]):
+                found = True
+                break
+
+        if not found:
+            unique_pixels[image_dim].append(image_slice)
+    return unique_pixels

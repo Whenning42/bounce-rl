@@ -1,5 +1,3 @@
 filename,file_size,file_attributes,region_count,region_id,region_shape_attributes,region_attributes
 475.png,4401,"{}",4,0,"{""name"":""rect"",""x"":0,""y"":91,""width"":278,""height"":9}","{""name"":""Box: Position""}"
 475.png,4401,"{}",4,1,"{""name"":""rect"",""x"":0,""y"":118,""width"":279,""height"":9}","{""name"":""Box: Direction""}"
-475.png,4401,"{}",4,2,"{""name"":""rect"",""x"":19,""y"":91,""width"":3,""height"":9}","{""name"":""Template: Colon""}"
-475.png,4401,"{}",4,3,"{""name"":""rect"",""x"":43,""y"":91,""width"":3,""height"":9}","{""name"":""Template: Period""}"

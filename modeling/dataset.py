@@ -24,6 +24,11 @@ def LoadImageFromDir(directory, filename):
     # Slice off alpha channel of any RGBA images.
     return tensor
 
+def  LoadFileSizes(data_dir):
+    file_sizes = {}
+    for f in os.listdir(data_dir):
+        file_sizes[f] = os.stat(os.path.join(data_dir, f)).st_size
+    return file_sizes
 
 def LoadImagesFromDir(path, DEBUG = False):
     image_files = glob.glob(os.path.join(path, "*.png"))

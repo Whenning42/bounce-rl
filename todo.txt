@@ -18,4 +18,47 @@
          We're going to use a segment post-processing technique which gives the following algorithm:
            For all labeled templates, extract their segments.
            Then, for any extracted segment try matching the window around the segment to any labeled templates.
--  14. Segment deduplication in extractions?
+✓  14. Segment consolidation/deduplication
+✓  15. Convert segments to annotation requests
+✓  16. Gather requested annotations
+
+# MC Text Workflows and Line Extraction
+-  17. Document the various required workflows
+-  18. Capture the existing workflow in ops_conf.py
+-  19. Implement a workflow that uses annotated templates to label all dataset characters
+-  20. Crop labeled dataset to specific interesting lines
+-  21. Implement LTR single line extraction
+-  22. Extract the required numbers
+-  23. Validate the data
+-  24. Done!?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+V-- Future work is below the fold --V
+
+# Possible Next Steps
+-  Data Gathering:
+-      Create a Skyrogue dataset
+-      Create an Art of Rally dataset
+-      Create a dataset DB
+-
+-  Continuation:
+-      Work on MC SLAM
+-
+-  Code health:
+-      Clean up existing codebase
+-      Explore Julia, Lisp, or C++ porting potential
