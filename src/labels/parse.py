@@ -15,7 +15,7 @@ import dataset
 # - size
 # - pixels
 
-# Note: The returned annotations image views don't have their pixels populated.
+# Note: This reloads an image for every line in the annotations file.
 def LoadAnnotations(annotation_filename, image_directory):
     with open(annotation_filename, "r") as f:
         reader = csv.DictReader(f)
@@ -37,7 +37,7 @@ def LoadAnnotations(annotation_filename, image_directory):
                     "h": h,
                     "pixels": pixels}
             annotation = {"view": view,
-                          "label": region_attributes["Label"]}
+                          "label": region_attributes["name"]}
             annotations.append(annotation)
     return annotations
 
