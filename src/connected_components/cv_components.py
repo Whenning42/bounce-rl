@@ -32,7 +32,7 @@ import collections
 # Alternatively we can just store an ImageView with src_* set to None
 
 # Returns an ImageView in 'image' for any template in 'trigger_index' that the given 'segment_view'
-# matches. Note: Triggers are f32 whereas connected components are i64.
+# matches. NOTE: Triggers are f32 whereas connected components are i64.
 def MatchTemplates(image, image_key, segment_view, triggers):
     image = image[0]
     for trigger in triggers[(segment_view["h"], segment_view["w"])]:
@@ -50,6 +50,32 @@ def MatchTemplates(image, image_key, segment_view, triggers):
                         "h": trigger["template_slice"]["h"],
                         "pixels": search_slice}
     return None
+
+# Labels the list of segments 'to_label' in place by adding the field 'name'.
+# NOTE: This modifies 'to_label'.
+#
+# labeled_segments are of form
+# "view": segment
+# "label": label string
+def LabelSegments(segments_to_label, annotated_segments):
+    annotated_segment_map = collections.defaultdict(list)
+    for annotated_segment in annotated_segments:
+        w, h = annotated_segment["view"]["w"], annotated_segment["view"]["h"]
+        annotated_segment_map[(w, h)].append(annotated_segment)
+
+    for segment in tqdm(segments_to_label, leave = False):
+        w, h = segment["w"], segment["h"]
+        for possible_match in annotated_segment_map[(w, h)]:
+            # print("Compare:")
+            # print(segment["pixels"])
+            # print(possible_match["view"]["pixels"])
+            # print(torch.allclose(segment["pixels"], possible_match["view"]["pixels"]))
+            if torch.allclose(segment["pixels"], possible_match["view"]["pixels"]):
+                segment["name"] = possible_match["label"]
+
+        if "name" not in segment:
+            segment["name"] = "UNK"
+    return segments_to_label
 
 def SliceForSegment(view):
     return (slice(view["src_y"], view["src_y"] + view["h"]), \
@@ -119,10 +145,16 @@ def ConnectedComponents(dataset, triggers):
                     extracted[label] = True
                 labels[region] = (labels[region] > 0) * cur_label
                 segment = matched_template
-                segment["pixels"] = 1 * (segment["pixels"] > 0)
+                segment["pixels"] = 1 * (segment["pixels"] < .5)
             final_segments.append(segment)
 
     return final_segments
+
+# NOTE: Modifies annotations
+def InvertAndBinarize(annotations):
+    for annotation in tqdm(annotations, leave = False):
+        annotation["view"]["pixels"] = 1 * (annotation["view"]["pixels"] < .5)
+    return annotations
 
 def UniqueSlicePixels(image_slices):
     print("Filtering image_slice list to unique slice pixels.")

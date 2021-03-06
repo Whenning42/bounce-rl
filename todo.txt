@@ -24,8 +24,8 @@
 
 # MC Text Workflows and Line Extraction
 ✓  17. Document the various required workflows
--  18. Capture the existing workflow in ops_conf.py
--  19. Implement a workflow that uses annotated templates to label all dataset characters
+✓  18. Capture the existing workflow in ops_conf.py
+✓  19. Implement a workflow that uses annotated templates to label all dataset characters
 -  20. Crop labeled dataset to specific interesting lines
 -  21. Implement LTR single line extraction
 -  22. Extract the required numbers
@@ -62,3 +62,9 @@ V-- Future work is below the fold --V
 -  Code health:
 -      Clean up existing codebase
 -      Explore Julia, Lisp, or C++ porting potential
+
+
+# Other projects to work on
+-  Tree Sim
+-  BSP-Tree
+-  Open World Game

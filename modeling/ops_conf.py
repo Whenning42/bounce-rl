@@ -12,6 +12,20 @@ crop_to_dbg = operators.Crop({
     "y_1" : 230
 })
 
+crop_to_pos = operators.Crop({
+    "x_0" : 0,
+    "y_0" : 91,
+    "x_1" : 280,
+    "y_1" : 100
+})
+
+crop_to_dir = operators.Crop({
+    "x_0" : 0,
+    "y_0" : 118,
+    "x_1" : 280,
+    "y_1" : 127
+})
+
 # This curve was designed with gimp.
 dbg_binarize = operators.CurvesGi8({
     "x_points": [.88, .90],
@@ -40,21 +54,21 @@ sys.path.append('/home/william/Workspaces/GameHarness/src/labels')
 import write
 import cv_components
 import trigger_loading
+import parse
 
 # run_mode fake enum
 REQUEST_ANNOTATIONS = 0
 LABEL_DATA = 1
 #
 
-MODE = REQUEST_ANNOTATIONS
-# mode = LABEL_DATA
+MODE = LABEL_DATA
 
 import workflows
 w = workflows.Workflow()
 COMPOUND_LABEL_PATH = "../src/labels/compound_labels.csv"
 
 triggers = w.S(trigger_loading.LoadTriggers, COMPOUND_LABEL_PATH, DATA_DIR, name = "Load Triggers")
-segments = w.S(cv_components.ConnectedComponents, dbg_processed[:100], triggers, name = "Extract Segments")
+segments = w.S(cv_components.ConnectedComponents, dbg_processed[:10], triggers, name = "Extract Segments")
 
 if MODE == REQUEST_ANNOTATIONS:
     REQUEST_FILE = "request.csv"
@@ -70,17 +84,27 @@ if MODE == REQUEST_ANNOTATIONS:
                 segments_by_image[segment["image_key"]].append(segment)
         return segments_by_image
 
-    segments_by_image = w.S(SegmentsByImage, unique_segments_by_size, name = "Group Segments By Image")
+    segments_by_image = w.S(SegmentsByImage, unique_segments_by_size, name = "Group Segments by Image")
     w.S(write.WriteSliceLabels, segments_by_image, dataset.LoadFileSizes(DATA_DIR), REQUEST_FILE, name = "Write Annotation Request")
 
 if MODE == LABEL_DATA:
-    # TODO: Implement remaining data labeling stages
-    # Load annotation segment file
-    # Perform any post processing here
-    pass
+    LABELED_SEGMENTS_FILE = "labeled_segments.csv"
+    raw_annotated_segments = w.S(parse.LoadAnnotations, LABELED_SEGMENTS_FILE, DATA_DIR, name = "Load Labeled Segments")
+    annotated_segments = w.S(cv_components.InvertAndBinarize, raw_annotated_segments, name = "Convert Loaded Labels")
+    labeled_segments = w.S(cv_components.LabelSegments, segments, annotated_segments, name = "Label All Extracted Segments")
 
-w()
-sys.exit()
+    labeled = 0
+    unlabeled = 0
+    for s in labeled_segments.out:
+        if s["name"] == "UNK":
+            unlabeled += 1
+            print(s)
+        else:
+            labeled += 1
+    print("Labeled: ", labeled)
+    print("Unlabeled: ", unlabeled)
+    # TODO: Implement remaining data labeling stages
+    # Perform any post processing here
 
 # Datastores:
 # - Slices

@@ -56,6 +56,7 @@ class Workflow():
             if isinstance(arg, Stage):
                 args[i] = arg.out
 
+        print("Running stage: ", stage.name)
         stage.out = stage.func(*args)
         end = time.time()
         if self.time_stages:

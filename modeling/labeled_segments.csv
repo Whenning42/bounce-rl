@@ -71,3 +71,4 @@ filename,file_size,file_attributes,region_count,region_id,region_shape_attribute
 545.png,4424,"{}",1,0,"{""name"":""rect"",""x"":203,""y"":200,""width"":3,""height"":1}","{""name"":""INV""}"
 815.png,4445,"{}",2,0,"{""name"":""rect"",""x"":115,""y"":65,""width"":5,""height"":3}","{""name"":""INV""}"
 815.png,4445,"{}",2,1,"{""name"":""rect"",""x"":115,""y"":68,""width"":5,""height"":4}","{""name"":""INV""}"
+480.png,4445,"{}",1,0,"{""name"":""rect"",""x"":76,""y"":137,""width"":5,""height"":7}","{""name"":""?""}"
