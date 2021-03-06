@@ -47,8 +47,8 @@ def LoadImagesFromDir(path, DEBUG = False):
 
     images = torch.empty((len(image_files), *image_shape))
     image_names = []
-    print("Loading image from directory: ", path)
-    for i, image_file in tqdm.tqdm(enumerate(image_files), total = len(image_files)):
+    print("Loading images from directory: ", path)
+    for i, image_file in tqdm.tqdm(enumerate(image_files), total = len(image_files), leave = False):
         image_names.append(os.path.basename(image_file))
         tensor = to_tensor(PIL.Image.open(image_file))
 

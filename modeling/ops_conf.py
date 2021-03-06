@@ -24,8 +24,9 @@ gameplay_trim = operators.Trim({
 })
 
 # Views
+RAW_DIR ="../memories/raw_data"
 DATA_DIR = "../memories/dbg_text_processed"
-dbg_processed = View(source_dir = "../memories/raw_data", \
+dbg_processed = View(source_dir = RAW_DIR, \
                      save_dir = DATA_DIR, \
                      dataset_operators = [gameplay_trim], \
                      image_operators = [crop_to_dbg, operators.RgbToG32(), dbg_binarize], \
@@ -34,40 +35,52 @@ dbg_processed = View(source_dir = "../memories/raw_data", \
 import sys
 
 sys.path.append('/home/william/Workspaces/GameHarness/src/connected_components')
+sys.path.append('/home/william/Workspaces/GameHarness/src/labels')
+
+import write
 import cv_components
 import trigger_loading
 
-triggers = trigger_loading.LoadTriggers("../src/labels/compound_labels.csv", "../memories/dbg_text_processed")
+# run_mode fake enum
+REQUEST_ANNOTATIONS = 0
+LABEL_DATA = 1
+#
 
-import time
-start = time.time()
-c = cv_components.ConnectedComponents(dbg_processed[:], triggers)
-print("Segmentation took:", time.time() - start, "seconds")
+MODE = REQUEST_ANNOTATIONS
+# mode = LABEL_DATA
 
-start = time.time()
-slices_map = cv_components.UniqueSlicePixels(c)
-print("Filtering to unique segments took:", time.time() - start, "seconds")
+import workflows
+w = workflows.Workflow()
+COMPOUND_LABEL_PATH = "../src/labels/compound_labels.csv"
 
-print("Unique slice count:", sum(len(slices_map[key]) for key in slices_map))
+triggers = w.S(trigger_loading.LoadTriggers, COMPOUND_LABEL_PATH, DATA_DIR)
+segments = w.S(cv_components.ConnectedComponents, dbg_processed[:100], triggers)
 
-# Pickle caching example:
-# import pickle
-# start = time.time()
-# pickle.dump(slices_map, open("unique_slices.pickle", "wb"))
-# print("Pickling took:", time.time() - start, "seconds")
+if MODE == REQUEST_ANNOTATIONS:
+    REQUEST_FILE = "request.csv"
 
-# start = time.time()
-# slices_map = pickle.load(open("unique_slices.pickle", "rb"))
-# print("Unpickeling took:", time.time() - start, "seconds")
+    unique_segments_by_size = w.S(cv_components.UniqueSlicePixels, segments)
 
-slices_for_image = collections.defaultdict(list)
-for key in slices_map:
-    for image_slice in slices_map[key]:
-        slices_for_image[image_slice["image_key"]].append(image_slice)
+    # Need better namespace isolation here. This "lambda" shouldn't have access to the stages
+    # defined above.
+    def SegmentsByImage(segments):
+        segments_by_image = collections.defaultdict(list)
+        for size in segments:
+            for segment in segments[size]:
+                segments_by_image[segment["image_key"]].append(segment)
+        return segments_by_image
 
-sys.path.append('/home/william/Workspaces/GameHarness/src/labels')
-import write
-write.WriteSliceLabels(slices_for_image, dataset.LoadFileSizes(DATA_DIR), "annotation_request.csv")
+    segments_by_image = w.S(SegmentsByImage, unique_segments_by_size)
+    w.S(write.WriteSliceLabels, segments_by_image, dataset.LoadFileSizes(DATA_DIR), REQUEST_FILE)
+
+if MODE == LABEL_DATA:
+    # TODO: Implement remaining data labeling stages
+    # Load annotation segment file
+    # Perform any post processing here
+    pass
+
+w()
+sys.exit()
 
 # Datastores:
 # - Slices

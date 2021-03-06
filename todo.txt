@@ -23,7 +23,7 @@
 ✓  16. Gather requested annotations
 
 # MC Text Workflows and Line Extraction
--  17. Document the various required workflows
+✓  17. Document the various required workflows
 -  18. Capture the existing workflow in ops_conf.py
 -  19. Implement a workflow that uses annotated templates to label all dataset characters
 -  20. Crop labeled dataset to specific interesting lines

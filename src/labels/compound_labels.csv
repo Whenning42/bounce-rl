@@ -1,4 +1,4 @@
 filename,file_size,file_attributes,region_count,region_id,region_shape_attributes,region_attributes
 475.png,4401,"{}",2,0,"{""name"":""rect"",""x"":8,""y"":2,""width"":1,""height"":7}","{""name"":""compound: i""}"
 475.png,4401,"{}",2,1,"{""name"":""rect"",""x"":45,""y"":13,""width"":1,""height"":5}","{""name"":""compound: colon""}"
-480.png,4445,"{}",1,0,"{""name"":""rect"",""x"":76,""y"":137,""width"":5,""height"":7}","{""name"":""Compound: ?""}"
+480.png,4445,"{}",1,0,"{""name"":""rect"",""x"":76,""y"":137,""width"":5,""height"":7}","{""name"":""compound: ?""}"

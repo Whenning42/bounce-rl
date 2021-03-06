@@ -32,7 +32,7 @@ import collections
 # Alternatively we can just store an ImageView with src_* set to None
 
 # Returns an ImageView in 'image' for any template in 'trigger_index' that the given 'segment_view'
-# matches.
+# matches. Note: Triggers are f32 whereas connected components are i64.
 def MatchTemplates(image, image_key, segment_view, triggers):
     image = image[0]
     for trigger in triggers[(segment_view["h"], segment_view["w"])]:
@@ -51,7 +51,7 @@ def MatchTemplates(image, image_key, segment_view, triggers):
                         "pixels": search_slice}
     return None
 
-def ViewSlice(view):
+def SliceForSegment(view):
     return (slice(view["src_y"], view["src_y"] + view["h"]), \
             slice(view["src_x"], view["src_x"] + view["w"]))
 
@@ -94,7 +94,7 @@ def ConnectedComponents(dataset, triggers):
     images = dataset.images[:, :, :, :]
 
     final_segments = []
-    for i, image in enumerate(tqdm(images)):
+    for i, image in enumerate(tqdm(images, leave = False)):
         image_slice = {"src_image": dataset.image_keys[i],
                        "src_x": 0,
                        "src_y": 0,
@@ -113,21 +113,22 @@ def ConnectedComponents(dataset, triggers):
 
             matched_template = MatchTemplates(image, dataset.image_keys[i], segment, triggers)
             if matched_template is not None:
-                region = ViewSlice(matched_template)
-
+                region = SliceForSegment(matched_template)
                 extracted_labels = np.unique(labels[region])
                 for label in extracted_labels:
                     extracted[label] = True
                 labels[region] = (labels[region] > 0) * cur_label
                 segment = matched_template
+                segment["pixels"] = 1 * (segment["pixels"] > 0)
             final_segments.append(segment)
+
     return final_segments
 
 def UniqueSlicePixels(image_slices):
     print("Filtering image_slice list to unique slice pixels.")
 
     unique_pixels = collections.defaultdict(list)
-    for image_slice in tqdm(image_slices):
+    for image_slice in tqdm(image_slices, leave = False):
         image_dim = (image_slice["w"], image_slice["h"])
         found = False
         for possible_match in unique_pixels[image_dim]:

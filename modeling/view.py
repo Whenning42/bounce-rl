@@ -23,7 +23,7 @@ class View():
             materialized_image = self._SliceView(source_data[0:1]).images[0]
             materialized_images = torch.empty((len(source_data), *materialized_image.shape))
             print("Materializing requested view.")
-            for i in tqdm.tqdm(range(len(source_data))):
+            for i in tqdm.tqdm(range(len(source_data)), leave = False):
                 data_slice = source_data[i : i + 1]
                 materialized_images[i] = self._SliceView(data_slice).images[0]
 
@@ -92,6 +92,6 @@ def WriteView(view, write_dir):
     #     print("Writing to: ", os.path.join(write_dir, datum.image_keys[0] + ".png"))
     #     to_pil(datum.image).save(os.path.join(write_dir, datum.image_keys[0] + ".png"))
     print("Writing view to disk")
-    for i in tqdm.tqdm(range(len(view))):
+    for i in tqdm.tqdm(range(len(view)), leave = False):
         datum = view[i : i + 1]
         to_pil(datum.images[0]).save(os.path.join(write_dir, datum.image_keys[0]))
