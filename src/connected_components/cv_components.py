@@ -66,10 +66,6 @@ def LabelSegments(segments_to_label, annotated_segments):
     for segment in tqdm(segments_to_label, leave = False):
         w, h = segment["w"], segment["h"]
         for possible_match in annotated_segment_map[(w, h)]:
-            # print("Compare:")
-            # print(segment["pixels"])
-            # print(possible_match["view"]["pixels"])
-            # print(torch.allclose(segment["pixels"], possible_match["view"]["pixels"]))
             if torch.allclose(segment["pixels"], possible_match["view"]["pixels"]):
                 segment["name"] = possible_match["label"]
 
@@ -155,6 +151,26 @@ def InvertAndBinarize(annotations):
     for annotation in tqdm(annotations, leave = False):
         annotation["view"]["pixels"] = 1 * (annotation["view"]["pixels"] < .5)
     return annotations
+
+def SingleLineExtraction(segments_by_image):
+    lines_by_image = collections.defaultdict(str)
+    for image_key in segments_by_image:
+        segments = segments_by_image[image_key]
+        segments.sort(key = lambda img: img["src_x"])
+
+        line = ""
+        last_end = -1
+        for s in segments:
+            if s["name"] == "UNK":
+                continue
+
+            if last_end > 0:
+                if s["src_x"] > last_end + 1:
+                    line += " "
+            line += s["name"]
+            last_end = s["src_x"] + s["w"]
+        lines_by_image[image_key] = line
+    return lines_by_image
 
 def UniqueSlicePixels(image_slices):
     print("Filtering image_slice list to unique slice pixels.")

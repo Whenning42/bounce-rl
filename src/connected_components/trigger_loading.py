@@ -5,13 +5,13 @@
 
 import sys
 sys.path.append("/home/william/Workspaces/GameHarness/src/labels")
-import parse
+import parsing
 
 import collections
 import cv_components
 
 def LoadTriggers(template_annotations_filename, image_directory):
-    annotations = parse.LoadAnnotations(template_annotations_filename, image_directory)
+    annotations = parsing.LoadAnnotations(template_annotations_filename, image_directory)
     triggers = collections.defaultdict(list)
     for annotation in annotations:
         segments, _ = cv_components.SegmentSlice(annotation["view"])

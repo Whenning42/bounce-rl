@@ -2,6 +2,8 @@ import operators
 from view import *
 from dataset import *
 import collections
+import parse
+import os
 
 # Operators
 # These points were found with gimp.
@@ -38,12 +40,17 @@ gameplay_trim = operators.Trim({
 })
 
 # Views
-RAW_DIR ="../memories/raw_data"
-DATA_DIR = "../memories/dbg_text_processed"
+RAW_DIR = "../memories/raw_data"
+
+LABEL_SOURCE_DIR = "../memories/dbg_text_processed"
+VIEW_DIR = "../memories/dbg_position"
+
+OUT_DIR = "../memories/dbg_text_processed"
+
 dbg_processed = View(source_dir = RAW_DIR, \
-                     save_dir = DATA_DIR, \
+                     save_dir = VIEW_DIR, \
                      dataset_operators = [gameplay_trim], \
-                     image_operators = [crop_to_dbg, operators.RgbToG32(), dbg_binarize], \
+                     image_operators = [crop_to_pos, operators.RgbToG32(), dbg_binarize], \
                      DEBUG = False)
 
 import sys
@@ -54,7 +61,7 @@ sys.path.append('/home/william/Workspaces/GameHarness/src/labels')
 import write
 import cv_components
 import trigger_loading
-import parse
+import parsing
 
 # run_mode fake enum
 REQUEST_ANNOTATIONS = 0
@@ -67,8 +74,8 @@ import workflows
 w = workflows.Workflow()
 COMPOUND_LABEL_PATH = "../src/labels/compound_labels.csv"
 
-triggers = w.S(trigger_loading.LoadTriggers, COMPOUND_LABEL_PATH, DATA_DIR, name = "Load Triggers")
-segments = w.S(cv_components.ConnectedComponents, dbg_processed[:10], triggers, name = "Extract Segments")
+triggers = w.S(trigger_loading.LoadTriggers, COMPOUND_LABEL_PATH, LABEL_SOURCE_DIR, name = "Load Triggers")
+segments = w.S(cv_components.ConnectedComponents, dbg_processed[:], triggers, name = "Extract Segments")
 
 if MODE == REQUEST_ANNOTATIONS:
     REQUEST_FILE = "request.csv"
@@ -85,11 +92,11 @@ if MODE == REQUEST_ANNOTATIONS:
         return segments_by_image
 
     segments_by_image = w.S(SegmentsByImage, unique_segments_by_size, name = "Group Segments by Image")
-    w.S(write.WriteSliceLabels, segments_by_image, dataset.LoadFileSizes(DATA_DIR), REQUEST_FILE, name = "Write Annotation Request")
+    w.S(write.WriteSliceLabels, segments_by_image, dataset.LoadFileSizes(LABEL_SOURCE_DIR), REQUEST_FILE, name = "Write Annotation Request")
 
 if MODE == LABEL_DATA:
     LABELED_SEGMENTS_FILE = "labeled_segments.csv"
-    raw_annotated_segments = w.S(parse.LoadAnnotations, LABELED_SEGMENTS_FILE, DATA_DIR, name = "Load Labeled Segments")
+    raw_annotated_segments = w.S(parsing.LoadAnnotations, LABELED_SEGMENTS_FILE, LABEL_SOURCE_DIR, name = "Load Labeled Segments")
     annotated_segments = w.S(cv_components.InvertAndBinarize, raw_annotated_segments, name = "Convert Loaded Labels")
     labeled_segments = w.S(cv_components.LabelSegments, segments, annotated_segments, name = "Label All Extracted Segments")
 
@@ -98,13 +105,34 @@ if MODE == LABEL_DATA:
     for s in labeled_segments.out:
         if s["name"] == "UNK":
             unlabeled += 1
-            print(s)
         else:
             labeled += 1
     print("Labeled: ", labeled)
     print("Unlabeled: ", unlabeled)
-    # TODO: Implement remaining data labeling stages
-    # Perform any post processing here
+
+    segments_by_image = collections.defaultdict(list)
+    for s in labeled_segments.out:
+        segments_by_image[s["image_key"]].append(s)
+
+    image_text = w.S(cv_components.SingleLineExtraction, segments_by_image, name = "Extract Lines")
+    for image_key in image_text.out:
+        with open(os.path.join(OUT_DIR, image_key[:-4] + "_pos.txt"), "w") as f:
+            line = image_text.out[image_key]
+            res = parse.parse("XYZ: {:f} / {:f} / {:f}", line)
+
+            if res is None:
+                print("Error during extraction for", image_key, image_text.out[image_key])
+                if image_key == "718.png":
+                    print("Resolving", image_key)
+                    line = line[1:]
+                    res = parse.parse("XYZ: {:f} / {:f} / {:f}", line)
+
+            if res is not None:
+                x, y, z = res
+                out_string = ", ".join(map(str, (x, y, z))) + "\n"
+                f.write(out_string)
+            else:
+                print("Unresolved extraction for", image_key)
 
 # Datastores:
 # - Slices
