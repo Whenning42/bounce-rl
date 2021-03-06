@@ -53,13 +53,13 @@ import workflows
 w = workflows.Workflow()
 COMPOUND_LABEL_PATH = "../src/labels/compound_labels.csv"
 
-triggers = w.S(trigger_loading.LoadTriggers, COMPOUND_LABEL_PATH, DATA_DIR)
-segments = w.S(cv_components.ConnectedComponents, dbg_processed[:100], triggers)
+triggers = w.S(trigger_loading.LoadTriggers, COMPOUND_LABEL_PATH, DATA_DIR, name = "Load Triggers")
+segments = w.S(cv_components.ConnectedComponents, dbg_processed[:100], triggers, name = "Extract Segments")
 
 if MODE == REQUEST_ANNOTATIONS:
     REQUEST_FILE = "request.csv"
 
-    unique_segments_by_size = w.S(cv_components.UniqueSlicePixels, segments)
+    unique_segments_by_size = w.S(cv_components.UniqueSlicePixels, segments, name = "Filter To Unique Segments")
 
     # Need better namespace isolation here. This "lambda" shouldn't have access to the stages
     # defined above.
@@ -70,8 +70,8 @@ if MODE == REQUEST_ANNOTATIONS:
                 segments_by_image[segment["image_key"]].append(segment)
         return segments_by_image
 
-    segments_by_image = w.S(SegmentsByImage, unique_segments_by_size)
-    w.S(write.WriteSliceLabels, segments_by_image, dataset.LoadFileSizes(DATA_DIR), REQUEST_FILE)
+    segments_by_image = w.S(SegmentsByImage, unique_segments_by_size, name = "Group Segments By Image")
+    w.S(write.WriteSliceLabels, segments_by_image, dataset.LoadFileSizes(DATA_DIR), REQUEST_FILE, name = "Write Annotation Request")
 
 if MODE == LABEL_DATA:
     # TODO: Implement remaining data labeling stages

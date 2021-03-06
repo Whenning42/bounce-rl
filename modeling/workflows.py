@@ -9,9 +9,10 @@ import time
 
 # TODO: Move stage_outs into the Stage instances.
 class Stage():
-    def __init__(self, func, args):
+    def __init__(self, func, args, name):
         self.func = func
         self.args = args
+        self.name = name
         self.out = None
 
     def __eq__(self, other):
@@ -36,14 +37,17 @@ class Workflow():
         self.stages = []
 
     # Adds the given stage to our workflow.
-    def S(self, func, *args):
-        stage = Stage(func, args)
+    def S(self, func, *args, name = None):
+        if name is None:
+            name = len(self.stages)
+
+        stage = Stage(func, args, name)
         self.stages.append(stage)
         if self.immediate:
-            self.RunStage(stage, len(self.stages) - 1)
+            self.RunStage(stage)
         return stage
 
-    def RunStage(self, stage, name):
+    def RunStage(self, stage):
         start = time.time()
 
         # Unpack stage argument values
@@ -55,7 +59,7 @@ class Workflow():
         stage.out = stage.func(*args)
         end = time.time()
         if self.time_stages:
-            print("Stage:", name, "took", end - start, "seconds")
+            print("Stage:", stage.name, "took", end - start, "seconds")
 
     def __call__(self):
         # We've already evaluated the whole pipeline
