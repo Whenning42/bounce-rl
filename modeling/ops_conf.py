@@ -14,19 +14,31 @@ crop_to_dbg = operators.Crop({
     "y_1" : 230
 })
 
+# Pos extraction config
 crop_to_pos = operators.Crop({
     "x_0" : 0,
     "y_0" : 91,
     "x_1" : 280,
     "y_1" : 100
 })
+# match_pattern = "XYZ: {:f} / {:f} / {:f}"
+# write_fields = (0, 1, 2)
+# sink_filename = lambda image_key: image_key[:-4] + "_pos.txt"
+# extraction_fixes = {"718.png": lambda line: line[1:]}
+#
 
+# Dir extraction config
 crop_to_dir = operators.Crop({
     "x_0" : 0,
     "y_0" : 118,
     "x_1" : 280,
     "y_1" : 127
 })
+match_pattern = "{} ({:f} / {:f})"
+write_fields = (1, 2)
+sink_filename = lambda image_key: image_key[:] + "_dir.txt"
+extraction_fixes = {}
+#
 
 # This curve was designed with gimp.
 dbg_binarize = operators.CurvesGi8({
@@ -43,14 +55,14 @@ gameplay_trim = operators.Trim({
 RAW_DIR = "../memories/raw_data"
 
 LABEL_SOURCE_DIR = "../memories/dbg_text_processed"
-VIEW_DIR = "../memories/dbg_position"
+VIEW_DIR = "../memories/dbg_direction"
 
 OUT_DIR = "../memories/dbg_text_processed"
 
 dbg_processed = View(source_dir = RAW_DIR, \
                      save_dir = VIEW_DIR, \
                      dataset_operators = [gameplay_trim], \
-                     image_operators = [crop_to_pos, operators.RgbToG32(), dbg_binarize], \
+                     image_operators = [crop_to_dir, operators.RgbToG32(), dbg_binarize], \
                      DEBUG = False)
 
 import sys
@@ -75,7 +87,7 @@ w = workflows.Workflow()
 COMPOUND_LABEL_PATH = "../src/labels/compound_labels.csv"
 
 triggers = w.S(trigger_loading.LoadTriggers, COMPOUND_LABEL_PATH, LABEL_SOURCE_DIR, name = "Load Triggers")
-segments = w.S(cv_components.ConnectedComponents, dbg_processed[:], triggers, name = "Extract Segments")
+segments = w.S(cv_components.ConnectedComponents, dbg_processed[:40], triggers, name = "Extract Segments")
 
 if MODE == REQUEST_ANNOTATIONS:
     REQUEST_FILE = "request.csv"
@@ -116,20 +128,21 @@ if MODE == LABEL_DATA:
 
     image_text = w.S(cv_components.SingleLineExtraction, segments_by_image, name = "Extract Lines")
     for image_key in image_text.out:
-        with open(os.path.join(OUT_DIR, image_key[:-4] + "_pos.txt"), "w") as f:
+        write_filename = sink_filename(image_key)
+        with open(os.path.join(OUT_DIR, write_filename), "w") as f:
             line = image_text.out[image_key]
-            res = parse.parse("XYZ: {:f} / {:f} / {:f}", line)
+            res = parse.parse(match_pattern, line)
 
             if res is None:
                 print("Error during extraction for", image_key, image_text.out[image_key])
-                if image_key == "718.png":
+                if image_key in extraction_fixes:
                     print("Resolving", image_key)
-                    line = line[1:]
-                    res = parse.parse("XYZ: {:f} / {:f} / {:f}", line)
+                    line = extraction_fixes[image_key](line)
+                    res = parse.parse(match_pattern, line)
 
             if res is not None:
-                x, y, z = res
-                out_string = ", ".join(map(str, (x, y, z))) + "\n"
+                fields = (res[i] for i in write_fields)
+                out_string = ", ".join(map(str, fields)) + "\n"
                 f.write(out_string)
             else:
                 print("Unresolved extraction for", image_key)
