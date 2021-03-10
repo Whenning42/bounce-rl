@@ -21,11 +21,10 @@ crop_to_pos = operators.Crop({
     "x_1" : 280,
     "y_1" : 100
 })
-# match_pattern = "XYZ: {:f} / {:f} / {:f}"
-# write_fields = (0, 1, 2)
-# sink_filename = lambda image_key: image_key[:-4] + "_pos.txt"
-# extraction_fixes = {"718.png": lambda line: line[1:]}
-#
+match_pattern = "XYZ: {:f} / {:f} / {:f}"
+write_fields = (0, 1, 2)
+sink_filename = lambda image_key: image_key[:-4] + "_pos.txt"
+extraction_fixes = {"718.png": lambda line: line[1:]}
 
 # Dir extraction config
 crop_to_dir = operators.Crop({
@@ -34,10 +33,10 @@ crop_to_dir = operators.Crop({
     "x_1" : 280,
     "y_1" : 127
 })
-match_pattern = "{} ({:f} / {:f})"
-write_fields = (1, 2)
-sink_filename = lambda image_key: image_key[:] + "_dir.txt"
-extraction_fixes = {}
+# match_pattern = "{} ({:f} / {:f})"
+# write_fields = (1, 2)
+# sink_filename = lambda image_key: image_key[:] + "_dir.txt"
+# extraction_fixes = {}
 #
 
 # This curve was designed with gimp.
@@ -55,14 +54,14 @@ gameplay_trim = operators.Trim({
 RAW_DIR = "../memories/raw_data"
 
 LABEL_SOURCE_DIR = "../memories/dbg_text_processed"
-VIEW_DIR = "../memories/dbg_direction"
+VIEW_DIR = "../memories/dbg_position"
 
 OUT_DIR = "../memories/dbg_text_processed"
 
 dbg_processed = View(source_dir = RAW_DIR, \
                      save_dir = VIEW_DIR, \
                      dataset_operators = [gameplay_trim], \
-                     image_operators = [crop_to_dir, operators.RgbToG32(), dbg_binarize], \
+                     image_operators = [crop_to_pos, operators.RgbToG32(), dbg_binarize], \
                      DEBUG = False)
 
 import sys
@@ -87,7 +86,7 @@ w = workflows.Workflow()
 COMPOUND_LABEL_PATH = "../src/labels/compound_labels.csv"
 
 triggers = w.S(trigger_loading.LoadTriggers, COMPOUND_LABEL_PATH, LABEL_SOURCE_DIR, name = "Load Triggers")
-segments = w.S(cv_components.ConnectedComponents, dbg_processed[:40], triggers, name = "Extract Segments")
+segments = w.S(cv_components.ConnectedComponents, dbg_processed[:], triggers, name = "Extract Segments")
 
 if MODE == REQUEST_ANNOTATIONS:
     REQUEST_FILE = "request.csv"

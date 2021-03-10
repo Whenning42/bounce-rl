@@ -26,11 +26,10 @@
 ✓  17. Document the various required workflows
 ✓  18. Capture the existing workflow in ops_conf.py
 ✓  19. Implement a workflow that uses annotated templates to label all dataset characters
--  20. Crop labeled dataset to specific interesting lines
--  21. Implement LTR single line extraction
--  22. Extract the required numbers
--  23. Validate the data
--  24. Done!?
+✓  20. Crop labeled dataset to specific interesting lines
+✓  21. Implement LTR single line extraction
+✓  22. Extract the required numbers
+-  23. Done!?
 
 
 
@@ -51,7 +50,18 @@
 V-- Future work is below the fold --V
 
 # Possible Next Steps
+-  Verify extracted pos and dir data
+-  Add regression tests:
+-      E2E test for label and request configuration outputs
+-  Clean up code:
+-      Simplify existing workflow stages
 -  Data Gathering:
+-      Create an optical flow dataset
+-      Collect a 60fps minecraft dataset
+-      Try existing slam on MC dataset
+-      Try existing optical flow on MC dataset
+-
+-  Other projects:
 -      Create a Skyrogue dataset
 -      Create an Art of Rally dataset
 -      Create a dataset DB
