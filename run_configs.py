@@ -15,7 +15,7 @@ configs = \
         # $ ps -eo args | grep inecraft; killall minecraft-launcher
         "command": open("minecraft_command.txt").read(),
         # One's version may differ here.
-        "window_title": "Minecraft 1.16.3",
+        "window_title": "Minecraft 1.16.5",
         "fps": 30,
         "x_res": 960,
         "y_res": 540,

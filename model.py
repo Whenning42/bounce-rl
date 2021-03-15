@@ -18,7 +18,7 @@ class Model(object):
         self.last_action = np.zeros(84)
         self.frame = 0
 
-    def save_state(self, bitmap, keymap):
+    def _save_state(self, bitmap, keymap):
         filename = str(self.frame)
         save_dir = "memories/" + self.name + "/"
 
@@ -37,7 +37,7 @@ class Model(object):
         self.frame += 1
 
         # We use a no-op model here to get a user image data.
-        self.save_state(state, action_keymap)
+        self._save_state(state, action_keymap)
         return action_keymap
 
         # Hardcode pressing enter? to get through menu screen.
@@ -52,7 +52,7 @@ class Model(object):
         else:
             action_keymap = self.last_action
 
-        self.save_state(state, action_keymap)
+        self._save_state(state, action_keymap)
 
         self.last_action = action_keymap
         return action_keymap

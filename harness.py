@@ -214,6 +214,10 @@ class Harness(object):
         time.sleep(1)
         global window_owners
         open_windows = Harness.GetAllWindowsWithName(self.run_conf["window_title"], self.root_window, [])
+
+        if len(open_windows) == 0:
+            print("Still looking for window with title: ", self.run_conf["window_title"])
+
         for w in open_windows:
             if w not in self.windows:
                 # Make sure we haven't opened too many instances
@@ -234,7 +238,6 @@ class Harness(object):
                 self.display.flush()
                 window_owners[w.id] = self
 
-    # Unused?
     def tick(self):
         # Sleep here to enforce a max fps.
         tick_duration = 1 / self.run_conf["fps"]
