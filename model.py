@@ -10,7 +10,7 @@ import random
 #   The model tries to predict the next input frame
 
 # It's worth noting that after decompression, the training bitmaps will be fairly large
-class Model(object):
+class ImageRecordAgent():
     def __init__(self):
         # Name the model after it's initialization time
         self.name = datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S:%f')

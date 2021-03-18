@@ -1,3 +1,4 @@
+# These are program configs and are independent of which agent we wish to run.
 configs = \
     [{
         "conf_title": "Skyrogue",

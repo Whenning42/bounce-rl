@@ -32,11 +32,12 @@
 ✓  22. Extract the required numbers
 
 ## MC Mapping
--  1. Add FPS tracking to image capture
--  2. Create an ROS camera source from image capture
--  3. Collect a 60fps minecraft camera calibration dataset
--  4. Collect a 60fps minecraft scene dataset
--  5. Run and evaluate ORB_SLAM3 on minecraft scene data
+-  1. Define an agent interface
+-  2. Migrate image recorder agent to use agent interface
+-  3. Write an ROS agent
+-  4. Collect a 60fps minecraft camera calibration dataset
+-  5. Collect a 60fps minecraft scene dataset
+-  6. Run and evaluate ORB_SLAM3 on minecraft scene data
 
 
 
