@@ -1,5 +1,6 @@
 import atexit
 import image_capture
+import fps_helper
 import numpy as np
 import os
 import subprocess
@@ -153,6 +154,7 @@ def suppress_error(*args):
 class Harness(object):
     def __init__(self, run_conf):
         self.run_conf = run_conf
+        self.fps_helper = fps_helper.Helper(throttle_fps = run_conf["fps"])
 
         window_count = x_tiles * y_tiles
         self.window_title = window_title
@@ -239,14 +241,7 @@ class Harness(object):
                 window_owners[w.id] = self
 
     def tick(self):
-        # Sleep here to enforce a max fps.
-        tick_duration = 1 / self.run_conf["fps"]
-        tick_end = time.time()
-        elapsed = tick_end - self.tick_start
-        sleep_length = tick_duration - elapsed
-
-        if sleep_length > 0:
-            time.sleep(sleep_length)
+        self.fps_helper()
 
         if None in self.windows:
             self.connect_to_windows()

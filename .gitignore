@@ -3,6 +3,7 @@
 *.txt
 *.o
 image_capture.c
+camera_node.c
 build/*
 gl_passthrough.cpp
 src/runner
