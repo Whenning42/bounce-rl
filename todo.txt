@@ -32,20 +32,22 @@
 ✓  22. Extract the required numbers
 
 ## MC Mapping
--  1. Define an agent interface
--  2. Migrate image recorder agent to use agent interface
--  3. Write an ROS agent
--  4. Collect a 60fps minecraft camera calibration dataset
+✓  1. Define an agent interface
+✓  2. Migrate image recorder agent to use agent interface
+✓  3. Write an ROS agent
+✓  4. Collect a 60fps minecraft camera calibration dataset
+      - Didn't collect the dataset, but did collect the calibration.
 -  5. Collect a 60fps minecraft scene dataset
--  6. Run and evaluate ORB_SLAM3 on minecraft scene data
+✓  6. Run and evaluate ORB_SLAM3 on minecraft scene data
+      - Not great tbh. Not sure if it was because of
+        bad bag-of-words vocabulary or something else.
+-  7. Run and evaluate LSD Slam on minecraft scene data?
 
-
-
-
-
-
-
-
+## Roll you own SLAM!
+-  1. Write an optical flow annotation tool.
+-  2. Collect image deltas.
+-  3. Visual odometry for frame to frame delta.
+-  4. Landmark based loop closure and bundle adjust.
 
 
 
