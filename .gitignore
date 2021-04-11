@@ -2,6 +2,7 @@
 *.so
 *.txt
 *.o
+*.out
 image_capture.c
 camera_node.c
 build/*
