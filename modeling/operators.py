@@ -42,6 +42,17 @@ class RgbToG32(ImageOperator):
                .587 * image[:, 1:2, :, :] + \
                .144 * image[:, 2:3, :, :]
 
+class Overdraw(ImageOperator):
+    def __init__(self, spec):
+        self.spec = spec
+
+    def call(self, image):
+        out = image.detach().clone()
+        for i in range(3):
+            out[:, i, self.spec["y_0"] : self.spec["y_1"], \
+                      self.spec["x_0"] : self.spec["x_1"]] = self.spec["color"][i]
+        return out
+
 class DatasetOperator():
     def __init__(self, spec):
         pass

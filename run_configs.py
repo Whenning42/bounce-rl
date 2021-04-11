@@ -17,9 +17,9 @@ configs = \
         "command": open("minecraft_command.txt").read(),
         # One's version may differ here.
         "window_title": "Minecraft 1.16.5",
-        "fps": 60,
-        "x_res": 960,
-        "y_res": 540,
+        "fps": 4,
+        "x_res": 1920,
+        "y_res": 1080   ,
     }, {
         "conf_title": "Firefox",
         "directory": "./",

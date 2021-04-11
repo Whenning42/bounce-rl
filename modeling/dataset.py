@@ -51,6 +51,7 @@ def LoadImagesFromDir(path, DEBUG = False):
     for i, image_file in tqdm.tqdm(enumerate(image_files), total = len(image_files), leave = False):
         image_names.append(os.path.basename(image_file))
         tensor = to_tensor(PIL.Image.open(image_file))
+        print(tensor.type())
 
         # Slice off alpha channel of any RGBA images.
         if images[i].shape[0] == tensor.shape[0]:

@@ -4,7 +4,10 @@ import torch
 import os
 import glob
 
+from memory_profiler import profile
 class View():
+    # If DEBUG = True then only a small slice of the dataset is loaded and processed.
+    @profile
     def __init__(self, source_dir, save_dir, dataset_operators, image_operators, DEBUG = True):
         self.dataset_operators = dataset_operators
         self.image_operators = image_operators

@@ -5,8 +5,8 @@ import ros
 
 harness = Harness(run_configs.LoadConfig("Minecraft"))
 
-# agent = model.ImageRecordAgent()
-agent = ros.ROSCameraNode(960, 540)
+agent = model.ImageRecordAgent()
+# agent = ros.ROSCameraNode(960, 540)
 
 from PIL import Image
 import numpy as np
