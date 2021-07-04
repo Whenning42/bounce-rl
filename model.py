@@ -23,13 +23,16 @@ class ImageRecordAgent:
         filename = str(self.frame)
         save_dir = "memories/" + self.name + "/"
 
-        im = Image.fromarray(bitmap)
-        im.save(save_dir + filename + self.extension)
+        if (self.extension == '.bmp'):
+            np.savez(save_dir + filename, bitmap)
+        else:
+            im = Image.fromarray(bitmap)
+            im.save(save_dir + filename + self.extension)
 
         keymap_file = open(save_dir + filename + ".keymap", "w")
         keymap.astype('uint8').tofile(keymap_file)
 
-        timestamp = datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S:%f')
+        timestamp = datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S:%f') + "\n"
         timestamp_file = open(save_dir + filename + ".timestamp", "w")
         timestamp_file.write(timestamp)
 

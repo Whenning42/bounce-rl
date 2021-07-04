@@ -1,7 +1,7 @@
 from harness import *
 import run_configs
 import model
-import ros
+# import ros
 
 config = run_configs.LoadConfig("Minecraft")
 harness = Harness(config)
