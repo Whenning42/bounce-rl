@@ -17,7 +17,9 @@ configs = \
         "command": open("minecraft_command.txt").read(),
         # One's version may differ here.
         "window_title": "Minecraft 1.16.5",
-        "fps": 4,
+        "fps": 60,
+        # Pass in bmp to disable compression
+        "extension": ".bmp",
         "x_res": 1920,
         "y_res": 1080   ,
     }, {

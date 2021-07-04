@@ -10,20 +10,21 @@ import random
 #   The model tries to predict the next input frame
 
 # It's worth noting that after decompression, the training bitmaps will be fairly large
-class ImageRecordAgent():
-    def __init__(self):
+class ImageRecordAgent:
+    def __init__(self, extension = ".png"):
         # Name the model after it's initialization time
         self.name = datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S:%f')
         os.mkdir("memories/" + self.name)
         self.last_action = np.zeros(84)
         self.frame = 0
+        self.extension = extension
 
     def _save_state(self, bitmap, keymap):
         filename = str(self.frame)
         save_dir = "memories/" + self.name + "/"
 
         im = Image.fromarray(bitmap)
-        im.save(save_dir + filename + ".png")
+        im.save(save_dir + filename + self.extension)
 
         keymap_file = open(save_dir + filename + ".keymap", "w")
         keymap.astype('uint8').tofile(keymap_file)

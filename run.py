@@ -3,9 +3,14 @@ import run_configs
 import model
 import ros
 
-harness = Harness(run_configs.LoadConfig("Minecraft"))
+config = run_configs.LoadConfig("Minecraft")
+harness = Harness(config)
 
-agent = model.ImageRecordAgent()
+if "extension" in config:
+    agent = model.ImageRecordAgent(config["extension"])
+else:
+    agent = model.ImageRecordAgent()
+
 # agent = ros.ROSCameraNode(960, 540)
 
 from PIL import Image
