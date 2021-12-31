@@ -16,22 +16,6 @@ import Xlib.protocol
 
 REOPEN_CLOSED_WINDOWS = False
 
-# Skyrogue config.
-# Skyrogue tries launches steam if the working directory isn't the game's directory.
-# directory = "/home/william/.local/share/Steam/steamapps/common/Sky Rogue"
-# command = "./skyrogue.x86"
-# window_title = "Sky Rogue"
-
-# MC config.
-directory = "./"
-command = open("minecraft_command.txt").read()
-window_title = "Minecraft 1.16.3"
-
-# Firefox config.
-# directory = "./"
-# command = "firefox"
-# window_title = "Mozilla Firefox"
-
 x_tiles = 1
 y_tiles = 1
 
@@ -154,10 +138,10 @@ def suppress_error(*args):
 class Harness(object):
     def __init__(self, run_conf):
         self.run_conf = run_conf
-        self.fps_helper = fps_helper.Helper(throttle_fps = run_conf["fps"])
+        self.fps_helper = fps_helper.Helper(throttle_fps = run_conf.get("fps"))
 
         window_count = x_tiles * y_tiles
-        self.window_title = window_title
+        self.window_title = run_conf["window_title"]
         self.tick_start = time.time()
         # Pass in the display here
         self.display = display.Display()
@@ -260,6 +244,7 @@ class Harness(object):
     def get_screen(self, instance = 0):
         if self.windows[instance] is not None:
             im = self.captures[instance].get_image(self.windows[instance].id)
+            # return im
             return im[:, :, 2::-1]
         else:
             return np.zeros([self.run_conf["y_res"], self.run_conf["x_res"], 4], dtype='uint8')
