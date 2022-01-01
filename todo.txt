@@ -5,4 +5,5 @@
     - Document Cython setup
 
 - Features:
-    - Set up art of rally reward function evaluation and recording
+    - Extend image capture to support offset capture regions
+    - Implement the reward agent config defined in run_configs.py
