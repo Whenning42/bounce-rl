@@ -1,9 +1,10 @@
 - Clean-up:
-    - Move classic CV pipeline into its own project
-    - Move or delete GPU compression code
-    - Move or delete ROS integration code
     - Document Cython setup
 
-- Features:
+- Harness Features:
     - Extend image capture to support offset capture regions
+    - Move image capture into a harness library
+    - Migrate harness launcher from using app configs to run configs
+
+- Reward Features:
     - Implement the reward agent config defined in run_configs.py
