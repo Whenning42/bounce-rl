@@ -13,7 +13,7 @@ import random
 class ImageRecordAgent:
     def __init__(self, extension = ".png"):
         # Name the model after it's initialization time
-        self.name = datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S:%f')
+        self.name = datetime.utcnow().strftime("%Y-%m-%d_%H:%M:%S:%f")
         os.mkdir("memories/" + self.name)
         self.last_action = np.zeros(84)
         self.frame = 0
@@ -23,16 +23,13 @@ class ImageRecordAgent:
         filename = str(self.frame)
         save_dir = "memories/" + self.name + "/"
 
-        if (self.extension == '.bmp'):
-            np.savez(save_dir + filename, bitmap)
-        else:
-            im = Image.fromarray(bitmap)
-            im.save(save_dir + filename + self.extension)
+        im = Image.fromarray(bitmap)
+        im.save(save_dir + filename + self.extension)
 
         keymap_file = open(save_dir + filename + ".keymap", "w")
         keymap.astype('uint8').tofile(keymap_file)
 
-        timestamp = datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S:%f') + "\n"
+        timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H:%M:%S:%f") + "\n"
         timestamp_file = open(save_dir + filename + ".timestamp", "w")
         timestamp_file.write(timestamp)
 
