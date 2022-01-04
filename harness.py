@@ -7,6 +7,7 @@ import subprocess
 import signal
 import time
 import shlex
+import keyboard
 from model import *
 
 from Xlib import display
@@ -19,110 +20,6 @@ REOPEN_CLOSED_WINDOWS = False
 x_tiles = 1
 y_tiles = 1
 
-class Keyboard(object):
-    PRESS = 1
-    RELEASE = -1
-    SHIFT_MOD = 1
-    CTRL_MOD = 4
-    ALT_MOD = 8
-
-    def __init__(self, display, window):
-        self.last_keymap = np.zeros(84)
-        self.focused_window = window
-        self.display = display
-
-    def _mask_keymap(keymap):
-        keymap[0] = 0 # reserved
-        keymap[58] = 0 # caps lock
-        keymap[69] = 0 # num lock
-        keymap[70] = 0 # scroll lock
-        return keymap
-
-    def _assert_keymap_is_masked(keymap):
-        assert(keymap[0] == 0)
-        assert(keymap[58] == 0)
-        assert(keymap[69] == 0)
-        assert(keymap[70] == 0)
-
-    def keycode_for_key_name(key_name):
-        keycode = Xlib.XK.string_to_keysym(key_name)
-        assert(keycode is not None)
-        return keycode - 8 # Convert X11 keycodes to linux ones
-
-    # Toggles keys to
-    def set_keymap(self, keymap):
-        keymap = Keyboard._mask_keymap(keymap)
-        # keymap is an 84 element long 0-1 array corresponding to linux keycodes 0-83
-        # Sets a scancode bitmap encoding
-        toggled_keys = keymap - self.last_keymap
-        modifier = Keyboard.modifier_state(keymap)
-        for i in range(84):
-            if toggled_keys[i] == 1:
-                self.press_key(i, modifier)
-            elif toggled_keys[i] == -1:
-                self.release_key(i, modifier)
-        self.last_keymap = keymap
-
-    def modifier_state(keymap):
-        # LShift keycode: 50 state: 1
-        # RShift keycode: 62 state: 1
-        # LCtrl  keycode: 37 state: 4
-        # RCtrl  keycode:105 state: 4 # Not in our keymap
-        # LAlt   keycode: 64 state: 8
-        # RAlt   keycode:108 state: 8 # Not in our keymap
-        return (keymap[50] or keymap[62]) * Keyboard.SHIFT_MOD + \
-               (keymap[37]) * Keyboard.CTRL_MOD + \
-               (keymap[64]) * Keyboard.ALT_MOD
-
-    def press_key(self, key_name, modifier = 0):
-        self.press_key(keycode_for_key_name(key_name), modifier)
-
-    def press_key(self, keycode, modifier = 0):
-        self._change_key(keycode, Keyboard.PRESS, modifier)
-
-    def release_key(self, key_name, modifier = 0):
-        self.release_key(keycode_for_key_name(key_name), modifier)
-
-    def release_key(self, keycode, modifier = 0):
-        self._change_key(keycode, Keyboard.RELEASE, modifier)
-
-    def _change_key(self, keycode, direction, modifier=0):
-        modifier = int(modifier)
-        keycode = keycode + 8 # Convert linux keycodes to X11 ones
-        root = self.display.screen().root
-
-        if direction == Keyboard.PRESS:
-            event = Xlib.protocol.event.KeyPress(
-                    detail = keycode,
-                    time = 0,
-                    root = root,
-                    window = self.focused_window,
-                    child = Xlib.X.NONE,
-                    root_x = 0,
-                    root_y = 0,
-                    event_x = 1,
-                    event_y = 1,
-                    state = modifier,
-                    same_screen = 0)
-        elif direction == Keyboard.RELEASE:
-            event = Xlib.protocol.event.KeyRelease(
-                    detail = keycode,
-                    time = 0,
-                    root = root,
-                    window = self.focused_window,
-                    child = Xlib.X.NONE,
-                    root_x = 0,
-                    root_y = 0,
-                    event_x = 1,
-                    event_y = 1,
-                    state = modifier,
-                    same_screen = 0)
-        else:
-            assert(False)
-
-        self.display.send_event(self.focused_window, event, True, Xlib.X.KeyPress | Xlib.X.KeyRelease)
-        self.display.flush()
-
 window_owners = {}
 
 def handle_error(*args):
@@ -132,16 +29,19 @@ def handle_error(*args):
     else:
         print("Orphan window closed:", window_id)
 
+# A no-op error handler.
 def suppress_error(*args):
     pass
 
 class Harness(object):
-    def __init__(self, run_conf):
-        self.run_conf = run_conf
-        self.fps_helper = fps_helper.Helper(throttle_fps = run_conf.get("fps"))
+    def __init__(self, app_config, run_config):
+        self.app_config = app_config
+        self.run_config = run_config
+        self.fps_helper = fps_helper.Helper(throttle_fps \
+                                        = self.run_config.get("max_tick_rate"))
 
         window_count = x_tiles * y_tiles
-        self.window_title = run_conf["window_title"]
+        self.window_title = self.app_config["window_title"]
         self.tick_start = time.time()
         # Pass in the display here
         self.display = display.Display()
@@ -160,9 +60,12 @@ class Harness(object):
 
         self.windows = [None for _ in range(window_count)]
         self.keyboards = [None for _ in range(window_count)]
-        self.captures = \
-                [image_capture.ImageCapture(self.run_conf["x_res"], self.run_conf["y_res"]) \
-                  for _ in range(window_count)]
+
+        self.captures = []
+        # self.captures = \
+        #         [image_capture.ImageCapture(self.run_config["x_res"], \
+        #                                     self.run_config["y_res"]) \
+        #           for _ in range(window_count)]
 
     def kill_subprocesses(self):
         for pid in self.subprocess_pids:
@@ -183,8 +86,8 @@ class Harness(object):
         assert(False)
 
     def open_new_window(self):
-        split_command = shlex.split(self.run_conf["command"])
-        process = subprocess.Popen(split_command, cwd=self.run_conf["directory"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        split_command = shlex.split(self.app_config["command"])
+        process = subprocess.Popen(split_command, cwd=self.app_config["directory"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.subprocess_pids.append(process.pid)
 
     def GetAllWindowsWithName(name, parent, matches):
@@ -199,10 +102,10 @@ class Harness(object):
     def connect_to_windows(self):
         time.sleep(1)
         global window_owners
-        open_windows = Harness.GetAllWindowsWithName(self.run_conf["window_title"], self.root_window, [])
+        open_windows = Harness.GetAllWindowsWithName(self.app_config["window_title"], self.root_window, [])
 
         if len(open_windows) == 0:
-            print("Still looking for window with title: ", self.run_conf["window_title"])
+            print("Still looking for window with title: ", self.app_config["window_title"])
 
         for w in open_windows:
             if w not in self.windows:
@@ -210,7 +113,7 @@ class Harness(object):
                 assert(None in self.windows)
                 loc = self.windows.index(None)
                 self.windows[loc] = w
-                self.keyboards[loc] = Keyboard(self.display, w)
+                self.keyboards[loc] = keyboard.Keyboard(self.display, w)
                 print(w)
                 print(hex(w.id))
                 subprocess.Popen(["i3-msg", "[id=" + hex(w.id) + "]", "floating", "enable;", \
@@ -218,9 +121,9 @@ class Harness(object):
                 self.display.flush()
                 time.sleep(.5)
                 self.display.flush()
-                w.configure(x = self.run_conf["x_res"] * (loc % x_tiles), \
-                            y = self.run_conf["y_res"] * (loc // x_tiles), \
-                            width = self.run_conf["x_res"], height = self.run_conf["y_res"])
+                w.configure(x = self.run_config["x_res"] * (loc % x_tiles), \
+                            y = self.run_config["y_res"] * (loc // x_tiles), \
+                            width = self.run_config["x_res"], height = self.run_config["y_res"])
                 self.display.flush()
                 window_owners[w.id] = self
 
@@ -232,8 +135,11 @@ class Harness(object):
 
         self.tick_start = time.time()
 
-        # while self.display.pending_events() > 0:
-        #     print(self.display.next_event())
+        # Run on_tick only if we're connected to all windows.
+        if None not in self.windows:
+            callback = self.run_config.get("on_tick")
+            if callback is not None:
+                callback.on_tick()
 
         if self.windows.count(-1) == len(self.windows):
             print("All windows closed. Exiting.")
@@ -241,13 +147,14 @@ class Harness(object):
 
         return True
 
+    # TODO: Broken by callback refactor.
     def get_screen(self, instance = 0):
         if self.windows[instance] is not None:
             im = self.captures[instance].get_image(self.windows[instance].id)
             # return im
             return im[:, :, 2::-1]
         else:
-            return np.zeros([self.run_conf["y_res"], self.run_conf["x_res"], 4], dtype='uint8')
+            return np.zeros([self.run_config["y_res"], self.run_config["x_res"], 4], dtype='uint8')
 
     def _focus_windows(self):
         for w in self.windows:
@@ -275,5 +182,13 @@ class Harness(object):
                 continue
             keyboard.set_keymap(keymap)
 
-    def setup_reward(self, reward_class):
-        self.get_reward = reward_class.get_reward
+    # Takes a ROI of format ("x", "y", "w", "h") and returns a function that can
+    # be called to capture a np array of the pixels in that region.
+    # TODO: Add support for running from multiple instances.
+    def add_capture(self, region):
+        INSTANCE = 0
+        x, y, w, h = region
+        capture = image_capture.ImageCapture(x, y, w, h)
+        self.captures.append(capture)
+        return lambda: capture.get_image(self.windows[INSTANCE].id)
+

@@ -13,6 +13,8 @@ src/focus
 memories/*
 *.profile
 *.pickle
+tmp
+out/*
 
 # Minecraft files
 logs/*

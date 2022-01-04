@@ -11,8 +11,8 @@ cdef class ImageCapture:
     cdef int _width
     cdef int _height
 
-    def __cinit__(self, width, height):
-        self._image_capture = image_capture.SetupImageCapture(width, height)
+    def __cinit__(self, x, y, width, height):
+        self._image_capture = image_capture.SetupImageCapture(x, y, width, height)
         self._width = width
         self._height = height
 
@@ -30,8 +30,8 @@ cdef class ImageCapture:
 
     @staticmethod
     def set_error_handler(on_error_py):
-        image_capture.SetErrorHandler(mim, <void*>on_error_py)
+        image_capture.SetErrorHandler(error_caller, <void*>on_error_py)
 
-cdef int mim(Display* display, XErrorEvent* error, void* on_error_py):
+cdef int error_caller(Display* display, XErrorEvent* error, void* on_error_py):
     (<object>on_error_py)()
     return 0

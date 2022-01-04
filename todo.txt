@@ -1,10 +1,15 @@
 - Clean-up:
     - Document Cython setup
+    - Check if recognition model has an inference mode that uses less VRAM
+    - Fix reparenting race crash
 
 - Harness Features:
-    - Extend image capture to support offset capture regions
-    - Move image capture into a harness library
-    - Migrate harness launcher from using app configs to run configs
+    ✓ Extend image capture to support offset capture regions
+    ✓ Move image capture into a harness library
+    ✓ Migrate harness launcher from using app configs to run configs
+
+- Refactoring:
+    - Add model_lib to project.
 
 - Reward Features:
-    - Implement the reward agent config defined in run_configs.py
+    ✓ Implement the reward agent config defined in run_configs.py

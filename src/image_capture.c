@@ -16,10 +16,14 @@ struct ImageCapture {
   XImage *image;
   XShmSegmentInfo shminfo;
   void* handler;
+  int x;
+  int y;
 };
 
-capture_t SetupImageCapture(int width, int height) {
+capture_t SetupImageCapture(int x, int y, int width, int height) {
   struct ImageCapture* capture = malloc(sizeof(struct ImageCapture));
+  capture->x = x;
+  capture->y = y;
 
   Display *display = XOpenDisplay(NULL);
   int screen = XDefaultScreen(display);
@@ -52,7 +56,7 @@ char *CaptureImage(const capture_t capture_h, Window window) {
   const struct ImageCapture* capture = capture_h;
 
   clock_t start = clock();
-  XShmGetImage(capture->display, window, capture->image, 0, 0, AllPlanes);
+  XShmGetImage(capture->display, window, capture->image, capture->x, capture->y, AllPlanes);
   double duration = ((double)(clock() - start)) / CLOCKS_PER_SEC;
 
   return capture->image->data;
