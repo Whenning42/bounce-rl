@@ -11,10 +11,14 @@ class TestArtOfRallyReward(unittest.TestCase):
         reverse_roi = np.array(Image.open("test/rewards/golden_reverse.png"))
         penalized_roi = np.array(Image.open("test/rewards/golden_penalized.png"))
 
-        is_reverse_logits = reward.predict_is_reverse(reverse_roi)
-        is_penalized_logits = reward.predict_is_penalized(penalized_roi)
-        print("Is reverse pred: ", torch.nn.functional.softmax(is_reverse_logits))
-        print("Is penalized pred: ", torch.nn.functional.softmax(is_reverse_logits))
+        is_reverse_logits = reward.predict_is_reverse(reverse_roi)[0]
+        is_penalized_logits = reward.predict_is_penalized(penalized_roi)[0]
+
+        is_reverse_prob = torch.nn.functional.softmax(is_reverse_logits, dim = 0)
+        is_penalized_prob = torch.nn.functional.softmax(is_penalized_logits, dim = 0)
+
+        self.assertTrue(.93 <= is_reverse_prob[1] < 1)
+        self.assertTrue(.93 <= is_penalized_prob[1] < 1)
 
 if __name__ == "__main__":
     unittest.main()
