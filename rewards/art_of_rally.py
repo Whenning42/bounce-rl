@@ -48,6 +48,7 @@ class ArtOfRallyReward():
         self.is_reverse_model.eval()
         self.is_penalized_model = model_lib.BinaryClassifier("models/is_penalized_classifier.pth").to(device)
         self.is_penalized_model.eval()
+        self.device = device
         self.frame = start_frame
 
     def _plot_reward(self, frame, features):
@@ -75,18 +76,20 @@ class ArtOfRallyReward():
         self.capture_is_penalized = harness.add_capture(util.LoadJSON("annotations.json")["is_penalized"]["roi"]["region"])
 
     def predict_detect_speed(self, detect_speed_roi):
-        return self.detect_speed_model([detect_speed_roi])[0]
+        return self.detect_speed_model([detect_speed_roi])
 
     def predict_is_reverse(self, is_reverse_roi):
         is_reverse_x = is_reverse_roi
         is_reverse_x = self.is_reverse_model.ConvertToDomain(is_reverse_x)
         is_reverse_x = torch.unsqueeze(is_reverse_x, 0)
+        is_reverse_x = is_reverse_x.to(self.device)
         return self.is_reverse_model(is_reverse_x)
 
     def predict_is_penalized(self, is_penalized_roi):
         is_penalized_x = is_penalized_roi
         is_penalized_x = self.is_penalized_model.ConvertToDomain(is_penalized_x)
         is_penalized_x = torch.unsqueeze(is_penalized_x, 0)
+        is_penalized_x = is_penalized_x.to(self.device)
         return self.is_penalized_model(is_penalized_x)
 
     def on_tick(self):
@@ -95,9 +98,9 @@ class ArtOfRallyReward():
         is_reverse_roi = np.flip(self.capture_is_reverse()[:, :, :3], axis = 2).copy()
         is_penalized_roi = np.flip(self.capture_is_penalized()[:, :, :3], axis = 2).copy()
 
-        predicted_detect_speed = self.predict_detect_speed(detect_speed_roi)
-        predicted_is_reverse = self.is_reverse_model(is_reverse_roi)
-        predicted_is_penalized = self.is_penalized_model(is_penalized_roi)
+        predicted_detect_speed = self.predict_detect_speed(detect_speed_roi)[0]
+        predicted_is_reverse = self.predict_is_reverse(is_reverse_roi)[0]
+        predicted_is_penalized = self.predict_is_penalized(is_penalized_roi)[0]
 
         predicted_reward = _compute_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
         if self.plot_output:
