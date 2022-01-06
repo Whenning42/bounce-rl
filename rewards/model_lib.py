@@ -46,12 +46,6 @@ class SpeedClassifier():
         preds = [self.recognizer.recognize(im).replace("o", "0") for im in tight_cropped]
         return preds
 
-def Log(m, x, y):
-    for v in x:
-        print("GIVEN MAX: ", torch.max(v))
-        print("GIVEN STD: ", torch.std(v))
-        print("GIVEN MEAN: ", torch.mean(v))
-
 # A simple binary classifier.
 # If path is None, uses a pretrained resnet18 backbone with an untrained last layer.
 # If path is not None, loads a saved model from the given path.
@@ -62,7 +56,6 @@ def BinaryClassifier(path = None, trainable_trunk = False):
 
     # Extends the model with NormalizeTensor as the .ConvertToDomain().
     setattr(model, 'ConvertToDomain', NormalizeTensor)
-    model.register_forward_hook(Log)
 
     if trainable_trunk == False:
         for param in model.parameters():

@@ -45,7 +45,9 @@ class ArtOfRallyReward():
         else:
             self.detect_speed_model = model_lib.SpeedClassifier() # Will be on "cuda:0"
         self.is_reverse_model = model_lib.BinaryClassifier("models/is_reverse_classifier.pth").to(device)
+        self.is_reverse_model.eval()
         self.is_penalized_model = model_lib.BinaryClassifier("models/is_penalized_classifier.pth").to(device)
+        self.is_penalized_model.eval()
         self.frame = start_frame
 
     def _plot_reward(self, frame, features):
