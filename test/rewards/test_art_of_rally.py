@@ -5,7 +5,7 @@ from rewards.art_of_rally import *
 import torch.nn.functional
 
 class TestArtOfRallyReward(unittest.TestCase):
-    def test(self):
+    def test_reward(self):
         reward = ArtOfRallyReward(device = "cpu", disable_speed_detection = True)
 
         reverse_roi = np.array(Image.open("test/rewards/golden_reverse.png"))
