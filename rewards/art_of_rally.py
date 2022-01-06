@@ -29,19 +29,23 @@ def _compute_reward(speed, is_reverse, is_penalized):
     return speed * speed_mul - penalty
 
 class ArtOfRallyReward():
-    def __init__(self, plot_output = False, out_dir = None, start_frame = 0):
+    def __init__(self, plot_output = False, out_dir = None, device = "cuda:1", start_frame = 0, disable_speed_detection = False):
         self.plot_output = plot_output
         self.out_dir = out_dir
-        pathlib.Path(self.out_dir).mkdir(parents = True, exist_ok = True)
+        if plot_output:
+            pathlib.Path(self.out_dir).mkdir(parents = True, exist_ok = True)
 
         # The capture methods are initialized in set_harness().
         self.capture_detect_speed = None
         self.capture_is_reverse = None
         self.capture_is_penalized = None
 
-        self.detect_speed_model = model_lib.SpeedClassifier() # Will be on "cuda:0"
-        self.is_reverse_model = model_lib.BinaryClassifier("models/is_reverse_classifier.pth", "cuda:1")
-        self.is_penalized_model = model_lib.BinaryClassifier("models/is_penalized_classifier.pth", "cuda:1")
+        if disable_speed_detection:
+            self.detect_speed_model = None
+        else:
+            self.detect_speed_model = model_lib.SpeedClassifier() # Will be on "cuda:0"
+        self.is_reverse_model = model_lib.BinaryClassifier("models/is_reverse_classifier.pth").to(device)
+        self.is_penalized_model = model_lib.BinaryClassifier("models/is_penalized_classifier.pth").to(device)
         self.frame = start_frame
 
     def _plot_reward(self, frame, features):
@@ -68,20 +72,30 @@ class ArtOfRallyReward():
         self.capture_is_reverse = harness.add_capture(util.LoadJSON("annotations.json")["is_reverse"]["roi"]["region"])
         self.capture_is_penalized = harness.add_capture(util.LoadJSON("annotations.json")["is_penalized"]["roi"]["region"])
 
+    def predict_detect_speed(self, detect_speed_roi):
+        return self.detect_speed_model([detect_speed_roi])[0]
+
+    def predict_is_reverse(self, is_reverse_roi):
+        is_reverse_x = is_reverse_roi
+        is_reverse_x = self.is_reverse_model.ConvertToDomain(is_reverse_x)
+        is_reverse_x = torch.unsqueeze(is_reverse_x, 0)
+        return self.is_reverse_model(is_reverse_x)
+
+    def predict_is_penalized(self, is_penalized_roi):
+        is_penalized_x = is_penalized_roi
+        is_penalized_x = self.is_penalized_model.ConvertToDomain(is_penalized_x)
+        is_penalized_x = torch.unsqueeze(is_penalized_x, 0)
+        return self.is_penalized_model(is_penalized_x)
+
     def on_tick(self):
         detect_speed_roi = self.capture_detect_speed()
         # Captured gives (w, h, c) w/ c == 4, BGRA
         is_reverse_roi = np.flip(self.capture_is_reverse()[:, :, :3], axis = 2).copy()
         is_penalized_roi = np.flip(self.capture_is_penalized()[:, :, :3], axis = 2).copy()
 
-        # Convert from captured formats to models' expected formats.
-        detect_speed_roi_x = [detect_speed_roi]
-        is_reverse_roi_x = torch.from_numpy(np.expand_dims(np.transpose(is_reverse_roi, (2, 0, 1)), axis = 0)).float()
-        is_penalized_roi_x = torch.from_numpy(np.expand_dims(np.transpose(is_penalized_roi, (2, 0, 1)), axis = 0)).float()
-
-        predicted_detect_speed = self.detect_speed_model(detect_speed_roi_x)[0]
-        predicted_is_reverse = self.is_reverse_model(is_reverse_roi_x)[0]
-        predicted_is_penalized = self.is_penalized_model(is_penalized_roi_x)[0]
+        predicted_detect_speed = self.predict_detect_speed(detect_speed_roi)
+        predicted_is_reverse = self.is_reverse_model(is_reverse_roi)
+        predicted_is_penalized = self.is_penalized_model(is_penalized_roi)
 
         predicted_reward = _compute_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
         if self.plot_output:

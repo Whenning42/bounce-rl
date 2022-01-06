@@ -6,7 +6,8 @@ from torchvision import transforms
 
 # Given a PIL image, returns an imagenet normalized pytorch tensor.
 def NormalizeTensor(image):
-    image = transforms.functional.pil_to_tensor(image)
+    if not isinstance(image, torch.Tensor):
+        image = transforms.functional.to_tensor(image)
     image = transforms.functional.convert_image_dtype(image, torch.float32)
     image = transforms.functional.normalize(image, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     return image
@@ -45,6 +46,12 @@ class SpeedClassifier():
         preds = [self.recognizer.recognize(im).replace("o", "0") for im in tight_cropped]
         return preds
 
+def Log(m, x, y):
+    for v in x:
+        print("GIVEN MAX: ", torch.max(v))
+        print("GIVEN STD: ", torch.std(v))
+        print("GIVEN MEAN: ", torch.mean(v))
+
 # A simple binary classifier.
 # If path is None, uses a pretrained resnet18 backbone with an untrained last layer.
 # If path is not None, loads a saved model from the given path.
@@ -55,6 +62,7 @@ def BinaryClassifier(path = None, trainable_trunk = False):
 
     # Extends the model with NormalizeTensor as the .ConvertToDomain().
     setattr(model, 'ConvertToDomain', NormalizeTensor)
+    model.register_forward_hook(Log)
 
     if trainable_trunk == False:
         for param in model.parameters():
