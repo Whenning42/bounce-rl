@@ -137,9 +137,10 @@ class Harness(object):
 
         # Run on_tick only if we're connected to all windows.
         if None not in self.windows:
-            callback = self.run_config.get("on_tick")
-            if callback is not None:
-                callback.on_tick()
+            callbacks = self.run_config.get("on_tick")
+            if callbacks is not None:
+                for callback in callbacks:
+                    callback.on_tick()
 
         if self.windows.count(-1) == len(self.windows):
             print("All windows closed. Exiting.")
