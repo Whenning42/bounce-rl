@@ -150,6 +150,7 @@ class Harness(object):
 
     # TODO: Broken by callback refactor.
     def get_screen(self, instance = 0):
+        return np.zeros((1, 1))
         if self.windows[instance] is not None:
             im = self.captures[instance].get_image(self.windows[instance].id)
             # return im

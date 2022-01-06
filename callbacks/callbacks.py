@@ -19,7 +19,7 @@ class ScreenshotCallback():
         self.capture_frame = harness.add_capture((0, 0, 1920, 1080))
 
     def on_tick(self):
-        captured_frame = self.capture_frame()
+        captured_frame = self.capture_frame()[:, :, 2::-1]
 
         filename = f"{self.frame:04d}.png"
         im = Image.fromarray(captured_frame)
