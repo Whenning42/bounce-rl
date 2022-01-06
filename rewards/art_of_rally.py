@@ -29,7 +29,7 @@ def _compute_reward(speed, is_reverse, is_penalized):
     return speed * speed_mul - penalty
 
 class ArtOfRallyReward():
-    def __init__(self, plot_output = False, out_dir = None):
+    def __init__(self, plot_output = False, out_dir = None, start_frame = 0):
         self.plot_output = plot_output
         self.out_dir = out_dir
         pathlib.Path(self.out_dir).mkdir(parents = True, exist_ok = True)
@@ -42,7 +42,7 @@ class ArtOfRallyReward():
         self.detect_speed_model = model_lib.SpeedClassifier() # Will be on "cuda:0"
         self.is_reverse_model = model_lib.BinaryClassifier("models/is_reverse_classifier.pth", "cuda:1")
         self.is_penalized_model = model_lib.BinaryClassifier("models/is_penalized_classifier.pth", "cuda:1")
-        self.frame = 0
+        self.frame = start_frame
 
     def _plot_reward(self, frame, features):
         label = ""

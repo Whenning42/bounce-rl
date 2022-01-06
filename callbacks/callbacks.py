@@ -1,13 +1,8 @@
 # An class for predicting the current reward for an Art of Rally game running in the Harness.
 
 import harness
-import util
-import rewards.model_lib as model_lib
-import matplotlib.pyplot as plt
-import numpy as np
 import pathlib
-import torch
-import os
+from PIL import Image
 
 class ScreenshotCallback():
     def __init__(self, out_dir = None, start_frame = 0):
@@ -28,6 +23,6 @@ class ScreenshotCallback():
 
         filename = f"{self.frame:04d}.png"
         im = Image.fromarray(captured_frame)
-        im.save(save_dir + filename)
+        im.save(self.out_dir + filename)
 
         self.frame += 1
