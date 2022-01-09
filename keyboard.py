@@ -4,6 +4,11 @@ import Xlib.XK
 import Xlib.protocol
 import numpy as np
 
+def keysym_for_key_name(key_name):
+    keysym = Xlib.XK.string_to_keysym(key_name)
+    assert(keysym is not None)
+    return keysym
+
 class Keyboard(object):
     PRESS = 1
     RELEASE = -1
@@ -28,11 +33,6 @@ class Keyboard(object):
         assert(keymap[58] == 0)
         assert(keymap[69] == 0)
         assert(keymap[70] == 0)
-
-    def keycode_for_key_name(key_name):
-        keycode = Xlib.XK.string_to_keysym(key_name)
-        assert(keycode is not None)
-        return keycode - 8 # Convert X11 keycodes to linux ones
 
     # Toggles keys to
     def set_keymap(self, keymap):
@@ -60,20 +60,22 @@ class Keyboard(object):
                (keymap[64]) * Keyboard.ALT_MOD
 
     def press_key(self, key_name, modifier = 0):
-        self.press_key(keycode_for_key_name(key_name), modifier)
+        keysym = keysym_for_key_name(key_name)
+        self._press_key(keysym, modifier)
 
-    def press_key(self, keycode, modifier = 0):
-        self._change_key(keycode, Keyboard.PRESS, modifier)
+    def _press_key(self, keysym, modifier = 0):
+        self._change_key(keysym, Keyboard.PRESS, modifier)
 
     def release_key(self, key_name, modifier = 0):
-        self.release_key(keycode_for_key_name(key_name), modifier)
+        keysym = keysym_for_key_name(key_name)
+        self._release_key(keysym, modifier)
 
-    def release_key(self, keycode, modifier = 0):
-        self._change_key(keycode, Keyboard.RELEASE, modifier)
+    def _release_key(self, keysym, modifier = 0):
+        self._change_key(keysym, Keyboard.RELEASE, modifier)
 
-    def _change_key(self, keycode, direction, modifier=0):
+    def _change_key(self, keysym, direction, modifier=0):
         modifier = int(modifier)
-        keycode = keycode + 8 # Convert linux keycodes to X11 ones
+        keycode = self.display.keysym_to_keycode(keysym)
         root = self.display.screen().root
 
         if direction == Keyboard.PRESS:
