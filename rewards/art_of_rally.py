@@ -25,8 +25,8 @@ def _compute_reward(speed, is_reverse, is_penalized):
         speed_mul *= -1
     penalty = 0
     if is_penalized:
-        penalty = 10
-    return speed * speed_mul - penalty
+        penalty = 5
+    return speed * speed_mul - penalty, speed * speed_mul
 
 class ArtOfRallyReward():
     def __init__(self, plot_output = False, out_dir = None, device = "cuda:1", start_frame = 0, disable_speed_detection = False):
@@ -107,11 +107,17 @@ class ArtOfRallyReward():
         predicted_is_reverse = self.predict_is_reverse(is_reverse_roi)[0]
         predicted_is_penalized = self.predict_is_penalized(is_penalized_roi)[0]
 
-        predicted_reward = _compute_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
+        outs = _compute_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
+        if outs is not None:
+            predicted_reward, estimated_speed = outs
+        else:
+            predicted_reward, estimated_speed = -1, 0
+
         if self.plot_output:
             self._plot_reward(self.frame, {"detect_speed": [detect_speed_roi, predicted_detect_speed],
                                       "is_reverse": [is_reverse_roi, predicted_is_reverse],
                                       "is_penalized": [is_penalized_roi, predicted_is_penalized],
                                       "reward": [None, predicted_reward]})
+        
         self.frame += 1
-        return predicted_reward
+        return predicted_reward, estimated_speed

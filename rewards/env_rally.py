@@ -30,10 +30,12 @@ class ArtOfRallyEnv(gym.core.Env):
         self.action_space = gym.spaces.MultiDiscrete([3, 3])
         # Input space is in xlib XK key strings with XK_ left off.
         self.input_space = ["Up", "Down", "Left", "Right"]
-        self.observation_shape = (Y_RES, X_RES, 3)
-        self.observation_space = gym.spaces.Box(low = np.zeros(self.observation_shape), 
-                                                high = np.ones(self.observation_shape) * 255,
-                                                dtype = np.uint8)
+        self.pixel_shape = (Y_RES, X_RES, 3)
+        self.pixel_space = gym.spaces.Box(low = np.zeros(self.pixel_shape), 
+                                          high = np.ones(self.pixel_shape) * 255,
+                                          dtype = np.uint8)
+        self.speed_space = gym.spaces.Box(low = -float("inf"), high = float("inf"), shape = (1,))
+        self.observation_space = gym.spaces.Dict({"pixels": self.pixel_space, "speed": self.speed_space})
 
     def wait_for_harness_init(self):
         while self.harness.ready == False:
@@ -51,10 +53,10 @@ class ArtOfRallyEnv(gym.core.Env):
         # is that the game could reach different states to reset from (main menu,
         # race finish, mid-race, possibly others?)
         print("ArtOfRallyEnv.reset is partially unimplemented.")
-        ret = self.harness.get_screen()
-        print(ret.shape)
-        print(ret.dtype)
-        return ret
+        pixels = self.harness.get_screen()
+        print(pixels.shape)
+        print(pixels.dtype)
+        return {"pixels": pixels, "speed": np.array((0,))}
 
     def close(self):
         print("ArtOfRallyEnv.close is unimplemented.")
@@ -84,8 +86,9 @@ class ArtOfRallyEnv(gym.core.Env):
 
         time.sleep(.3)
 
-        state = self.harness.get_screen()
-        reward = self.reward_callback.on_tick()
+        pixels = self.harness.get_screen()
+        reward, speed = self.reward_callback.on_tick()
+        state = {"pixels": pixels, "speed": np.array((speed,))}
 
         # Apply action to the harness's keyboard
         done = False
