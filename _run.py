@@ -13,10 +13,12 @@ screenshot_callback = callbacks.ScreenshotCallback(out_dir = OUT_DIR, start_fram
 run_config = {
     "title": "Art of Rally reward eval",
     "app": "Art of Rally",
-    "max_tick_rate": 20,
-    "on_tick": (art_of_rally_reward_callback, screenshot_callback),
+    "max_tick_rate": None,
+#    "on_tick": (art_of_rally_reward_callback, screenshot_callback),
+    "on_tick": (art_of_rally_reward_callback,),
     "x_res": 1920,
     "y_res": 1080,
+    "scale": 1,
 }
 app_config = run_configs.LoadAppConfig(run_config["app"])
 harness = Harness(app_config, run_config)

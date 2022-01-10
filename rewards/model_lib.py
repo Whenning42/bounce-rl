@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 import keras_ocr
+import util
+import matplotlib.pyplot as plt
 from torchvision import transforms
 
 # Given a PIL image, returns an imagenet normalized pytorch tensor.
@@ -43,7 +45,10 @@ class SpeedClassifier():
     # images should be a list of np arrays of format (h, w, c)
     def __call__(self, images):
         tight_cropped = self.Preprocess(images)
-        preds = [self.recognizer.recognize(im).replace("o", "0") for im in tight_cropped]
+#        plt.imshow(tight_cropped[0])
+        preds = [self.recognizer.recognize(im).replace("o", "0").replace("s", "5").replace("b", "8").replace("d", "0").replace("t", "7").replace("g", "9") for im in tight_cropped]
+        print("predicted: ", preds)
+#        plt.show()
         return preds
 
 # A simple binary classifier.

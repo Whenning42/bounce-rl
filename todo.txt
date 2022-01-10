@@ -1,7 +1,10 @@
+- Priority:
+    - Get harness/art_of_rally running as a gym env and connect to SB3 agent.
+
 - Clean-up:
     - Document Cython setup
     - Check if recognition model has an inference mode that uses less VRAM
-    - Fix reparenting race crash
+    - Fix window open reparenting crash
 
 - Harness Features:
     ✓ Extend image capture to support offset capture regions
@@ -11,5 +14,21 @@
 - Refactoring:
     - Add model_lib to project.
 
-- Reward Features:
+- Reward:
     ✓ Implement the reward agent config defined in run_configs.py
+    - Evaluate the various binary classifiers for expected performance (validation error and its variance with generalization in mind)
+        - Collect ~100 more positive is_reverse and is penalized samples and ~50 more negatives
+        - Extend eval script to support viewing sample accuracy distribution over time
+        - Extend eval script to support training with multiple seeds and offsets (We want to see mean validation error and 10th percentile validation error)
+
+- Reinforcement learning:
+    - Figure out what pieces we need:
+        - Actions, State, and Rewards need to be handed to agent controller
+        - Need to implement the agent controller (Schedules epoch learning)
+        - Do we need an env reset option? (Only once the AI can win)
+        - Need to find a good implementation of a blackbox RL algorithm
+
+- Cool tangents:
+    - It'd be nice to have a tool that makes moving files safer and easier
+    - It'd be nice to have an interactive plot of sample errors so I could view the actual errors
+

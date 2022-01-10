@@ -8,6 +8,7 @@ import signal
 import time
 import shlex
 import keyboard
+import util
 from model import *
 
 from Xlib import display
@@ -60,12 +61,9 @@ class Harness(object):
 
         self.windows = [None for _ in range(window_count)]
         self.keyboards = [None for _ in range(window_count)]
-
         self.captures = []
-        # self.captures = \
-        #         [image_capture.ImageCapture(self.run_config["x_res"], \
-        #                                     self.run_config["y_res"]) \
-        #           for _ in range(window_count)]
+        self.full_screen_capture = None
+        self.ready = False
 
     def kill_subprocesses(self):
         for pid in self.subprocess_pids:
@@ -125,7 +123,11 @@ class Harness(object):
                             y = self.run_config["y_res"] * (loc // x_tiles), \
                             width = self.run_config["x_res"], height = self.run_config["y_res"])
                 self.display.flush()
+                self.full_screen_capture = self.add_capture((0, 0, self.run_config["x_res"], self.run_config["y_res"]))
                 window_owners[w.id] = self
+
+        if not None in self.windows:
+            self.ready = True
 
     def tick(self):
         self.fps_helper()
@@ -148,15 +150,8 @@ class Harness(object):
 
         return True
 
-    # TODO: Broken by callback refactor.
     def get_screen(self, instance = 0):
-        return np.zeros((1, 1))
-        if self.windows[instance] is not None:
-            im = self.captures[instance].get_image(self.windows[instance].id)
-            # return im
-            return im[:, :, 2::-1]
-        else:
-            return np.zeros([self.run_config["y_res"], self.run_config["x_res"], 4], dtype='uint8')
+        return util.npBGRAtoRGB(self.full_screen_capture())
 
     def _focus_windows(self):
         for w in self.windows:
@@ -189,6 +184,7 @@ class Harness(object):
     # TODO: Add support for running from multiple instances.
     def add_capture(self, region):
         INSTANCE = 0
+        region = [round(c * self.run_config["scale"]) for c in region]
         x, y, w, h = region
         capture = image_capture.ImageCapture(x, y, w, h)
         self.captures.append(capture)

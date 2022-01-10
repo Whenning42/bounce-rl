@@ -25,13 +25,16 @@ def _compute_reward(speed, is_reverse, is_penalized):
         speed_mul *= -1
     penalty = 0
     if is_penalized:
-        penalty = 50
+        penalty = 10
     return speed * speed_mul - penalty
 
 class ArtOfRallyReward():
     def __init__(self, plot_output = False, out_dir = None, device = "cuda:1", start_frame = 0, disable_speed_detection = False):
         self.plot_output = plot_output
         self.out_dir = out_dir
+        self.device = device
+        self.frame = start_frame
+
         if plot_output:
             pathlib.Path(self.out_dir).mkdir(parents = True, exist_ok = True)
 
@@ -48,8 +51,6 @@ class ArtOfRallyReward():
         self.is_reverse_model.eval()
         self.is_penalized_model = model_lib.BinaryClassifier("models/is_penalized_classifier.pth").to(device)
         self.is_penalized_model.eval()
-        self.device = device
-        self.frame = start_frame
 
     def _plot_reward(self, frame, features):
         label = ""
@@ -94,9 +95,13 @@ class ArtOfRallyReward():
 
     def on_tick(self):
         detect_speed_roi = self.capture_detect_speed()
+        if detect_speed_roi.shape != (32, 96, 4):
+            print(detect_speed_roi.shape)
+            assert(detect_speed_roi.shape == (16, 48, 4))
+            detect_speed_roi = detect_speed_roi.repeat(2, axis = 0).repeat(2, axis = 1)
         # Captured gives (w, h, c) w/ c == 4, BGRA
-        is_reverse_roi = np.flip(self.capture_is_reverse()[:, :, :3], axis = 2).copy()
-        is_penalized_roi = np.flip(self.capture_is_penalized()[:, :, :3], axis = 2).copy()
+        is_reverse_roi = util.npBGRAtoRGB(self.capture_is_reverse())
+        is_penalized_roi = util.npBGRAtoRGB(self.capture_is_penalized())
 
         predicted_detect_speed = self.predict_detect_speed(detect_speed_roi)[0]
         predicted_is_reverse = self.predict_is_reverse(is_reverse_roi)[0]
@@ -109,3 +114,4 @@ class ArtOfRallyReward():
                                       "is_penalized": [is_penalized_roi, predicted_is_penalized],
                                       "reward": [None, predicted_reward]})
         self.frame += 1
+        return predicted_reward
