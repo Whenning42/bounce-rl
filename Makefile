@@ -1,5 +1,3 @@
-# Note we should be careful about 32 vs 64 bit libraries.
-
 all:
 	mkdir -p build
 	python gl_inject.py
