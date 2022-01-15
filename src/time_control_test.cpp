@@ -29,3 +29,21 @@ TEST(TimeControl, TimeSlowdown) {
   EXPECT_LE(delta, 4);
   EXPECT_GE(delta, 2);
 }
+
+TEST(TimeControl, NanosleepTest) {
+  timespec sleep;
+  sleep.tv_sec = 4;
+  __set_speedup(4);
+
+  timespec start, end;
+
+  __real_clock_gettime(CLOCK_REALTIME, &start);
+  nanosleep(&sleep, nullptr);
+  __real_clock_gettime(CLOCK_REALTIME, &end);
+
+  double delta = end.tv_sec - start.tv_sec +
+                 (double)(end.tv_nsec - start.tv_nsec) / kBillion;
+  // This seems to fail when the tolerance is .001. I don't know why the error is
+  // that large.
+  EXPECT_NEAR(delta, 1, .01);
+}

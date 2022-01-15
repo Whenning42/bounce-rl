@@ -69,6 +69,9 @@ struct timespec clock_origins_fake[4];
 // Helpers functions.
 namespace {
 
+// To reduce to number of clocks we have to fetch each time we change our speedup,
+// we only use a few real clocks, and redirect calls for the other clock, to this
+// set of base clocks (REALTIME, MONOTONIC, PROCESS_CPUTIME_ID, THREAD_CPUTIME_ID).
 int base_clock(int clkid) {
   switch (clkid) {
     case CLOCK_REALTIME:
@@ -215,7 +218,9 @@ int nanosleep(const struct timespec* req, struct timespec* rem) {
   timespec goal_req = *req / speedup;
   timespec goal_rem;
   int ret = real_nanosleep(&goal_req, &goal_rem);
-  *rem = goal_rem * speedup;
+  if (rem) {
+    *rem = goal_rem * speedup;
+  }
   return ret;
 }
 
@@ -257,4 +262,9 @@ void __sleep_for_nanos(uint64_t nanos) {
   n.tv_sec = nanos / BILLION;
   n.tv_nsec = nanos % BILLION;
   real_nanosleep(&n, nullptr);
+}
+
+int __real_clock_gettime(int clkid, timespec* t) {
+  LAZY_LOAD_REAL(clock_gettime);
+  return real_clock_gettime(clkid, t);
 }
