@@ -66,6 +66,27 @@ int speed_file = 0;
 struct timespec clock_origins_real[4];
 struct timespec clock_origins_fake[4];
 
+timespec operator-(const timespec& t1, const timespec& t0) {
+  timespec out;
+  int64_t sec_delta = t1.tv_sec - t0.tv_sec;
+  int64_t nsec_delta = t1.tv_nsec - t0.tv_nsec;
+  if (nsec_delta > BILLION) {
+    sec_delta += 1;
+    nsec_delta -= BILLION;
+  } else if (nsec_delta < 0) {
+    sec_delta -= 1;
+    nsec_delta += BILLION;
+  }
+  out.tv_sec = sec_delta;
+  out.tv_nsec = nsec_delta;
+  return out;
+}
+
+std::ostream& operator<<(std::ostream& o, const timespec& t) {
+  o << "tv_sec: " << t.tv_sec << " " << "tv_nsec: " << t.tv_nsec;
+  return o;
+}
+
 // Helpers functions.
 namespace {
 
@@ -99,22 +120,6 @@ int base_clock(int clkid) {
   }
 }
 
-timespec operator-(const timespec& t1, const timespec& t0) {
-  timespec out;
-  int64_t sec_delta = t1.tv_sec - t0.tv_sec;
-  int64_t nsec_delta = t1.tv_nsec - t0.tv_nsec;
-  if (nsec_delta > BILLION) {
-    sec_delta += 1;
-    nsec_delta -= BILLION;
-  } else if (nsec_delta < 0) {
-    sec_delta -= 1;
-    nsec_delta += BILLION;
-  }
-  out.tv_sec = sec_delta;
-  out.tv_nsec = nsec_delta;
-  return out;
-}
-
 timespec operator+(const timespec& t1, const timespec& t0) {
   timespec neg_t0;
   neg_t0.tv_sec = -t0.tv_sec;
@@ -122,7 +127,7 @@ timespec operator+(const timespec& t1, const timespec& t0) {
   return t1 - neg_t0;
 }
 
-timespec operator*(const timespec& t, float s) {
+timespec operator*(const timespec& t, double s) {
   timespec out;
 
   double s_sec = t.tv_sec * s;
@@ -130,7 +135,7 @@ timespec operator*(const timespec& t, float s) {
 
   int64_t s_sec_int = s_sec;
   double s_sec_dec = s_sec - s_sec_int;
-  int64_t s_nsec_int = (s_nsec + BILLION * s_sec_dec) / BILLION;
+  int64_t s_nsec_int = s_nsec + BILLION * s_sec_dec;
 
   if (s_nsec_int > BILLION) {
     s_sec_int += 1;
@@ -145,7 +150,7 @@ timespec operator*(const timespec& t, float s) {
   return out;
 }
 
-timespec operator/(const timespec& t, float s) {
+timespec operator/(const timespec& t, double s) {
   return t * (1 / s);
 }
 
@@ -209,7 +214,7 @@ int clock_gettime(clockid_t clk_id, struct timespec *tp) {
 
 clock_t clock() {
   timespec tp = fake_time(CLOCK_PROCESS_CPUTIME_ID);
-  return tp.tv_sec * CLOCKS_PER_SEC + tp.tv_nsec * CLOCKS_PER_SEC / BILLION;
+  return (tp.tv_sec + (double)(tp.tv_nsec) / BILLION) * CLOCKS_PER_SEC;
 }
 
 // NOTE: The error semantics for the sleep family of functions isn't preserved in these wrappers.
@@ -225,11 +230,11 @@ int nanosleep(const struct timespec* req, struct timespec* rem) {
 }
 
 int usleep(useconds_t usec) {
-  timespec goal_nanosleep;
-  double goal_usec = (double)(usec) * speedup;
-  goal_nanosleep.tv_sec = goal_usec / MILLION;
-  goal_nanosleep.tv_nsec = (uint64_t)(goal_usec * 1000) % BILLION;
-  nanosleep(&goal_nanosleep, nullptr);
+  timespec orig_nanosleep;
+  orig_nanosleep.tv_sec = usec / MILLION;
+  orig_nanosleep.tv_nsec = (uint64_t)(usec * 1000) % BILLION;
+  // Time speedup happens in the call to our override nanosleep.
+  nanosleep(&orig_nanosleep, nullptr);
   return 0;
 }
 
