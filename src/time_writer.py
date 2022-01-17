@@ -1,10 +1,13 @@
 import subprocess
 import time
 import struct
+import posix
 
 def SetSpeedup(speedup):
-    with open("/tmp/time_control", "wb") as f:
-        f.write(struct.pack("f", speedup))
+    speedup = float(speedup)
+    # Opening the file for reading and writing prevents blocking until a reader opens the file.
+    f = posix.open("/tmp/time_control", posix.O_RDWR)
+    posix.write(f, struct.pack("f", speedup))
 
 if __name__ == "__main__":
     for speedup in [12, 18]:
