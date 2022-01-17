@@ -10,3 +10,7 @@ time_control:
 time_control_test:
 	g++ -g3 -o ../build/time_control_test time_control_test.cpp time_control.cpp -ldl -lgtest_main -lgtest
 	../build/time_control_test
+
+time_writier_test:
+	g++ child.cpp
+	python time_writer.py

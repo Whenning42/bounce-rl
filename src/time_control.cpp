@@ -183,26 +183,29 @@ void try_updating_speedup() {
   if (!speed_file) {
     speed_file = open(FIFO, O_RDONLY | O_NONBLOCK);
     if (!speed_file) {
-      printf("Failed to open fifo.\n");
       return;
-    } else {
-      printf("Successfully opened fifo.\n");
     }
   }
 
-  float speedup_to_set;
+  bool should_change_speed = false;
+  float changed_speed = 0;;
+
   if (test_update) {
-    speedup_to_set = new_speedup;
+    changed_speed = new_speedup;
     test_update = 0;
+    should_change_speed = true;
   }
 
   char buf[64];
   ssize_t read_num = read(speed_file, &buf, 64);
   if (read_num > 0) {
-    speedup_to_set = *(buf + read_num - 4);
-    printf("Changing speed-up to: %f\n", speedup);
+    changed_speed = *(float*)(buf + read_num - 4);
+    should_change_speed = true;
   }
-  update_speedup(speedup_to_set);
+
+  if (should_change_speed) {
+    update_speedup(changed_speed);
+  }
 }
 
 timespec fake_time(int clock) {
