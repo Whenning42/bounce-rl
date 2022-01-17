@@ -73,6 +73,15 @@ class Keyboard(object):
     def _release_key(self, keysym, modifier = 0):
         self._change_key(keysym, Keyboard.RELEASE, modifier)
 
+    def key_sequence(self, keys):
+        for key in keys:
+            self.release_key(key)
+            time.sleep(.01)
+            self.press_key(key)
+            time.sleep(.2)
+            self.release_key(key)
+            time.sleep(.2)
+
     def _change_key(self, keysym, direction, modifier=0):
         modifier = int(modifier)
         keycode = self.display.keysym_to_keycode(keysym)

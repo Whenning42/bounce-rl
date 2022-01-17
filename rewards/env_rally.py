@@ -1,5 +1,6 @@
 import rewards
 import rewards.art_of_rally
+import src.time_writer
 import time
 import run_configs
 from harness import Harness
@@ -18,7 +19,11 @@ class ArtOfRallyEnv(gym.core.Env):
             "x_res": 1920,
             "y_res": 1080,
             "scale": .5,
+            "run_rate": 8,
+            "pause_rate": .01,
+            "step_duration": .250,
         }
+        self.run_config = run_config
         app_config = run_configs.LoadAppConfig(run_config["app"])
         harness = Harness(app_config, run_config)
         art_of_rally_reward_callback.attach_to_harness(harness)
@@ -31,7 +36,7 @@ class ArtOfRallyEnv(gym.core.Env):
         # Input space is in xlib XK key strings with XK_ left off.
         self.input_space = ["Up", "Down", "Left", "Right"]
         self.pixel_shape = (Y_RES, X_RES, 3)
-        self.pixel_space = gym.spaces.Box(low = np.zeros(self.pixel_shape), 
+        self.pixel_space = gym.spaces.Box(low = np.zeros(self.pixel_shape),
                                           high = np.ones(self.pixel_shape) * 255,
                                           dtype = np.uint8)
         self.speed_space = gym.spaces.Box(low = -float("inf"), high = float("inf"), shape = (1,))
@@ -49,10 +54,11 @@ class ArtOfRallyEnv(gym.core.Env):
 
     def reset(self):
         self.wait_for_harness_init()
-        # TODO: Could consider implementing with a keyboard macro. The hard-part
-        # is that the game could reach different states to reset from (main menu,
-        # race finish, mid-race, possibly others?)
-        print("ArtOfRallyEnv.reset is partially unimplemented.")
+
+        # NOTE: This will likely fail if the enviroment isn't currently in a race.
+        self.harness.keyboards[0].key_sequence(["Escape", "Down", "Enter", "Enter"])
+        time.sleep(2)
+
         pixels = self.harness.get_screen()
         print(pixels.shape)
         print(pixels.dtype)
@@ -60,7 +66,7 @@ class ArtOfRallyEnv(gym.core.Env):
 
     def close(self):
         print("ArtOfRallyEnv.close is unimplemented.")
-        # This environment can't clean itself up.
+        # This environment can't close itself.
         pass
 
     def step(self, action):
@@ -84,7 +90,9 @@ class ArtOfRallyEnv(gym.core.Env):
                 print(f"    {self.input_space[2 * i]}    ")
                 print(f"<<< {self.input_space[2 * i + 1]} >>>")
 
-        time.sleep(.3)
+        src.time_writer.SetSpeed(run_config["run_rate"])
+        time.sleep(run_config["step_duration"] / run_config["run_rate"])
+        src.time_writer.SetSpeed(run_config["pause_rate"])
 
         pixels = self.harness.get_screen()
         reward, speed = self.reward_callback.on_tick()
