@@ -3,10 +3,14 @@ import time
 import struct
 import posix
 
+f = None
+
 def SetSpeedup(speedup):
+    global f
     speedup = float(speedup)
     # Opening the file for reading and writing prevents blocking until a reader opens the file.
-    f = posix.open("/tmp/time_control", posix.O_RDWR)
+    if f is None:
+        f = posix.open("/tmp/time_control", posix.O_RDWR | posix.O_CREAT)
     posix.write(f, struct.pack("f", speedup))
 
 if __name__ == "__main__":

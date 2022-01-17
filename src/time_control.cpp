@@ -11,6 +11,8 @@
 #include <fcntl.h>
 #include <semaphore.h>
 #include <math.h>
+#include <mutex>
+#include <atomic>
 
 const char* FIFO = "/tmp/time_control";
 const int NUM_CLOCKS = 4;
@@ -48,29 +50,33 @@ PFN_TYPEDEF(sleep);
 PFN_TYPEDEF(clock_nanosleep);
 
 // Global
-PFN_time real_time = nullptr;
-PFN_gettimeofday real_gettimeofday = nullptr;
-PFN_clock_gettime real_clock_gettime = nullptr;
-PFN_clock real_clock = nullptr;
-PFN_nanosleep real_nanosleep = nullptr;
-PFN_usleep real_usleep = nullptr;
-PFN_sleep real_sleep = nullptr;
-PFN_clock_nanosleep real_clock_nanosleep = nullptr;
+std::atomic<PFN_time> real_time = nullptr;
+std::atomic<PFN_gettimeofday> real_gettimeofday = nullptr;
+std::atomic<PFN_clock_gettime> real_clock_gettime = nullptr;
+std::atomic<PFN_clock> real_clock = nullptr;
+std::atomic<PFN_nanosleep> real_nanosleep = nullptr;
+std::atomic<PFN_usleep> real_usleep = nullptr;
+std::atomic<PFN_sleep> real_sleep = nullptr;
+std::atomic<PFN_clock_nanosleep> real_clock_nanosleep = nullptr;
 
 const int MILLION = 1000000;
 const int BILLION = 1000000000;
 
-float speedup = 1;
-int speed_file = 0;
+std::mutex update_mutex;
+int speed_file = 0; // guarded by binary_semaphore.
 
 int test_update = 0;
 float new_speedup = 0;
 
-struct timespec clock_origins_real[4];
-struct timespec clock_origins_fake[4];
+struct ClockState {
+  float speedup = 1;
+  timespec clock_origins_real[4];
+  timespec clock_origins_fake[4];
+};
+std::atomic<ClockState> global_clock_state;
 
 float get_speedup() {
-  return speedup;
+  return global_clock_state.load().speedup;
 }
 
 timespec operator-(const timespec& t1, const timespec& t0) {
@@ -166,25 +172,36 @@ timespec fake_time_impl(int clock) {
   clock = base_clock(clock);
   timespec real;
   real_clock_gettime(clock, &real);
-  timespec real_delta = real - clock_origins_real[clock];
-  return clock_origins_fake[clock] + real_delta * speedup;
+  ClockState clock_state = global_clock_state;
+  timespec real_delta = real - clock_state.clock_origins_real[clock];
+  return clock_state.clock_origins_fake[clock] + real_delta * clock_state.speedup;
 }
 
 void update_speedup(float new_speed) {
+ClockState new_state;
   for (int clock = 0; clock < NUM_CLOCKS; clock++) {
     timespec fake = fake_time_impl(clock);
-    real_clock_gettime(clock, &clock_origins_real[clock]);
-    clock_origins_fake[clock] = fake;
+    real_clock_gettime(clock, &new_state.clock_origins_real[clock]);
+    new_state.clock_origins_fake[clock] = fake;
   }
-  speedup = new_speed;
+  printf("New speed: %f\n", new_speed);
+  new_state.speedup = new_speed;
+  global_clock_state = new_state;
 }
 
 void try_updating_speedup() {
+  if (!update_mutex.try_lock()) {
+    return;
+  }
+
   if (!speed_file) {
+    printf("Opening speed file.\n");
     speed_file = open(FIFO, O_RDONLY | O_NONBLOCK);
     if (!speed_file) {
       return;
     }
+  } else {
+    printf("Speed file is open.\n");
   }
 
   bool should_change_speed = false;
@@ -198,17 +215,25 @@ void try_updating_speedup() {
 
   char buf[64];
   ssize_t read_num = read(speed_file, &buf, 64);
+  printf("Read %d bytes.\n", read_num);
   if (read_num > 0) {
+    printf("Reading float at offset: %d\n", read_num - 4);
     changed_speed = *(float*)(buf + read_num - 4);
     should_change_speed = true;
+  } else {
+    printf("Leaving speedup at: %f\n", global_clock_state.load().speedup);
   }
 
   if (should_change_speed) {
+    printf("Changing speed to: %f\n", changed_speed);
     update_speedup(changed_speed);
   }
+
+  update_mutex.unlock();
 }
 
 timespec fake_time(int clock) {
+  setlinebuf(stdout);
   try_updating_speedup();
   return fake_time_impl(clock);
 }
@@ -238,8 +263,10 @@ clock_t clock() {
 
 // NOTE: The error semantics for the sleep family of functions isn't preserved in these wrappers.
 int nanosleep(const struct timespec* req, struct timespec* rem) {
+  setlinebuf(stdout);
   try_updating_speedup();
   LAZY_LOAD_REAL(nanosleep);
+  float speedup = global_clock_state.load().speedup;
   timespec goal_req = *req / speedup;
   timespec goal_rem;
   int ret = real_nanosleep(&goal_req, &goal_rem);
@@ -269,6 +296,7 @@ unsigned int sleep(unsigned int seconds) {
 
 int clock_nanosleep(clockid_t clockid, int flags, const struct timespec* request, struct timespec* remain) {
   LAZY_LOAD_REAL(clock_nanosleep);
+  float speedup = global_clock_state.load().speedup;
   timespec goal_req = *request / speedup;
   timespec goal_rem;
   int ret = real_clock_nanosleep(clockid, flags, &goal_req, &goal_rem);
