@@ -60,11 +60,18 @@ PFN_clock_nanosleep real_clock_nanosleep = nullptr;
 const int MILLION = 1000000;
 const int BILLION = 1000000000;
 
-float speedup = 5;
+float speedup = 1;
 int speed_file = 0;
+
+int test_update = 0;
+float new_speedup = 0;
 
 struct timespec clock_origins_real[4];
 struct timespec clock_origins_fake[4];
+
+float get_speedup() {
+  return speedup;
+}
 
 timespec operator-(const timespec& t1, const timespec& t0) {
   timespec out;
@@ -177,16 +184,25 @@ void try_updating_speedup() {
     speed_file = open(FIFO, O_RDONLY | O_NONBLOCK);
     if (!speed_file) {
       printf("Failed to open fifo.\n");
+      return;
+    } else {
+      printf("Successfully opened fifo.\n");
     }
+  }
+
+  float speedup_to_set;
+  if (test_update) {
+    speedup_to_set = new_speedup;
+    test_update = 0;
   }
 
   char buf[64];
   ssize_t read_num = read(speed_file, &buf, 64);
   if (read_num > 0) {
-    speedup = *(buf + read_num - 4);
-    update_speedup(speedup);
+    speedup_to_set = *(buf + read_num - 4);
     printf("Changing speed-up to: %f\n", speedup);
   }
+  update_speedup(speedup_to_set);
 }
 
 timespec fake_time(int clock) {
@@ -219,6 +235,7 @@ clock_t clock() {
 
 // NOTE: The error semantics for the sleep family of functions isn't preserved in these wrappers.
 int nanosleep(const struct timespec* req, struct timespec* rem) {
+  try_updating_speedup();
   LAZY_LOAD_REAL(nanosleep);
   timespec goal_req = *req / speedup;
   timespec goal_rem;
@@ -240,11 +257,10 @@ int usleep(useconds_t usec) {
 
 unsigned int sleep(unsigned int seconds) {
   LAZY_LOAD_REAL(nanosleep);
-  double goal_seconds = seconds / speedup;
-  timespec goal_nanosleep;
-  goal_nanosleep.tv_sec = goal_seconds;
-  goal_nanosleep.tv_nsec = (uint64_t)(goal_seconds * BILLION) % BILLION;
-  real_nanosleep(&goal_nanosleep, nullptr);
+  timespec sleep;
+  sleep.tv_sec = seconds;
+  sleep.tv_nsec = 0;
+  nanosleep(&sleep, nullptr);
   return 0;
 }
 
@@ -258,7 +274,8 @@ int clock_nanosleep(clockid_t clockid, int flags, const struct timespec* request
 }
 
 void __set_speedup(float speedup) {
-  update_speedup(speedup);
+  test_update = 1;
+  new_speedup = speedup;
 }
 
 void __sleep_for_nanos(uint64_t nanos) {

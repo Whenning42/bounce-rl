@@ -10,8 +10,9 @@ double timespec_to_sec(timespec t) {
 }
 
 TEST(TimeControl, Time) {
-  time_t start_time = time(nullptr);
   __set_speedup(30);
+
+  time_t start_time = time(nullptr);
   __sleep_for_nanos(kBillion);
   time_t end_time = time(nullptr);
   time_t delta = end_time - start_time;
@@ -45,7 +46,6 @@ TEST(TimeControl, ClockGettimeSubsecond) {
 
 TEST(TimeControl, ClockGettimeWallClocks) {
   timespec start, end, end2;
-  const std::vector<float> speedups = {5, 10};
   const std::vector<int> wall_clocks = {CLOCK_REALTIME, CLOCK_MONOTONIC,
     CLOCK_MONOTONIC_RAW, CLOCK_REALTIME_COARSE, CLOCK_MONOTONIC_COARSE,
     CLOCK_BOOTTIME, CLOCK_REALTIME_ALARM, CLOCK_BOOTTIME_ALARM
