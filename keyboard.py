@@ -3,6 +3,7 @@ import Xlib.X
 import Xlib.XK
 import Xlib.protocol
 import numpy as np
+import time
 
 def keysym_for_key_name(key_name):
     keysym = Xlib.XK.string_to_keysym(key_name)
