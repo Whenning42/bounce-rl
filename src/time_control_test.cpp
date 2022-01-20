@@ -126,3 +126,12 @@ TEST(TimeControl, Sleep) {
 
   EXPECT_NEAR(timespec_to_sec(end - start), 1, .01);
 }
+
+TEST(TimeControl, MulOperator) {
+  timespec t_1_5;
+  t_1_5.tv_sec = 1;
+  t_1_5.tv_nsec = 500 * kMillion;
+
+  EXPECT_EQ(((t_1_5) * 4.0).tv_sec, 6);
+  EXPECT_EQ(((t_1_5) * 4.0).tv_nsec, 0);
+}

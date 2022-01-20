@@ -101,6 +101,26 @@ std::ostream& operator<<(std::ostream& o, const timespec& t) {
   return o;
 }
 
+timespec operator*(const timespec& t, double s) {
+  timespec out;
+
+  double s_sec = t.tv_sec * s;
+  double s_nsec = t.tv_nsec * s;
+
+  int64_t s_sec_int = s_sec;
+  double s_sec_dec = s_sec - s_sec_int;
+  int64_t s_nsec_int = s_nsec + BILLION * s_sec_dec;
+
+  int64_t mod = (s_nsec_int % BILLION + BILLION) % BILLION;
+
+  s_sec_int += (s_nsec_int - mod) / BILLION;
+  s_nsec_int = mod;
+
+  out.tv_sec = s_sec_int;
+  out.tv_nsec = s_nsec_int;
+  return out;
+}
+
 // Helpers functions.
 namespace {
 
@@ -139,29 +159,6 @@ timespec operator+(const timespec& t1, const timespec& t0) {
   neg_t0.tv_sec = -t0.tv_sec;
   neg_t0.tv_nsec = -t0.tv_nsec;
   return t1 - neg_t0;
-}
-
-timespec operator*(const timespec& t, double s) {
-  timespec out;
-
-  double s_sec = t.tv_sec * s;
-  double s_nsec = t.tv_nsec * s;
-
-  int64_t s_sec_int = s_sec;
-  double s_sec_dec = s_sec - s_sec_int;
-  int64_t s_nsec_int = s_nsec + BILLION * s_sec_dec;
-
-  if (s_nsec_int > BILLION) {
-    s_sec_int += 1;
-    s_nsec_int -= BILLION;
-  } else if (s_nsec_int < 0) {
-    s_sec_int -= 1;
-    s_nsec_int += BILLION;
-  }
-
-  out.tv_sec = s_sec_int;
-  out.tv_nsec = s_nsec_int;
-  return out;
 }
 
 timespec operator/(const timespec& t, double s) {
@@ -272,8 +269,7 @@ clock_t clock() {
 int nanosleep(const struct timespec* req, struct timespec* rem) {
   try_updating_speedup();
   LAZY_LOAD_REAL(nanosleep);
-//  float speedup = global_clock_state.load().speedup;
-  float speedup = 1;
+  float speedup = global_clock_state.load().speedup;
   timespec goal_req = *req / speedup;
   timespec goal_rem;
   int ret = real_nanosleep(&goal_req, &goal_rem);
@@ -304,8 +300,7 @@ unsigned int sleep(unsigned int seconds) {
 int clock_nanosleep(clockid_t clockid, int flags, const struct timespec* request, struct timespec* remain) {
   LAZY_LOAD_REAL(clock_nanosleep);
   float speedup = global_clock_state.load().speedup;
-  timespec goal_req = *request;
-  // timespec goal_req = *request / speedup;
+  timespec goal_req = *request / speedup;
   timespec goal_rem;
   int ret = real_clock_nanosleep(clockid, flags, &goal_req, &goal_rem);
   *remain = goal_rem * speedup;
