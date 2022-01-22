@@ -66,6 +66,7 @@ std::atomic<PFN_clock_nanosleep> real_clock_nanosleep = nullptr;
 
 // Statically initialize our global pointers.
 class InitPFNs {
+ public:
   InitPFNs() {
     LAZY_LOAD_REAL(time);
     LAZY_LOAD_REAL(gettimeofday);
@@ -77,7 +78,6 @@ class InitPFNs {
     LAZY_LOAD_REAL(clock_nanosleep);
   }
 };
-InitPFNs init_pfns;
 
 std::mutex update_mutex;
 int speed_file = 0; // guarded by update_mutex.
@@ -91,10 +91,6 @@ struct ClockState {
   timespec clock_origins_real[4];
   timespec clock_origins_fake[4];
 };
-
-float get_speedup() {
-  return global_clock_state.load().speedup;
-}
 
 timespec operator-(const timespec& t1, const timespec& t0) {
   timespec out;
@@ -181,28 +177,33 @@ timespec operator/(const timespec& t, double s) {
   return t * (1 / s);
 }
 
-timespec fake_time_impl(int clk_id, ClockState* clock) {
+timespec fake_time_impl(int clk_id, const ClockState* clock) {
   clk_id = base_clock(clk_id);
   timespec real;
   real_clock_gettime(clk_id, &real);
+  // std::cout << "Real time fetched: " << real << std::endl;
   timespec real_delta = real - clock->clock_origins_real[clk_id];
-  return clock->clock_origins_fake[clk_id] + real_delta * clock_state->speedup;
+  // std::cout << "Real baseline:     " << clock->clock_origins_real[clk_id] << std::endl;
+  // std::cout << "Fake baseline:     " << clock->clock_origins_fake[clk_id] << std::endl;
+  return clock->clock_origins_fake[clk_id] + real_delta * clock->speedup;
 }
 
-void update_speedup(float new_speed, ClockState* clock, bool should_init = false) {
-  ClockState new_state;
-  new_state.speedup = new_speed;
+void update_speedup(float new_speed, const ClockState* read_clock, ClockState* write_clock, bool should_init = false) {
+  ClockState new_clock;
+  new_clock.speedup = new_speed;
   for (int clk_id = 0; clk_id < NUM_CLOCKS; clk_id++) {
-    real_clock_gettime(clk_id, &clock.clock_origins_real[clock_id]);
+    real_clock_gettime(clk_id, &new_clock.clock_origins_real[clk_id]);
     timespec fake;
     if (should_init) {
       real_clock_gettime(clk_id, &fake);
     } else {
-      fake = fake_time_impl(clk_id);
+      fake = fake_time_impl(clk_id, read_clock);
     }
-    clock->clock_origins_fake[clock] = fake;
+    // std::cout << "Real baseline new: " << new_clock.clock_origins_real[clk_id] << std::endl;
+    // std::cout << "Fake baseline new: " << fake << std::endl;
+    new_clock.clock_origins_fake[clk_id] = fake;
   }
-  global_clock_state = new_state;
+  *write_clock = new_clock;
 }
 
 bool get_new_speed(float* new_speed) {
@@ -211,7 +212,7 @@ bool get_new_speed(float* new_speed) {
     // printf("Opening speed file.\n");
     speed_file = open(FIFO, O_RDONLY | O_NONBLOCK);
     if (!speed_file) {
-      return;
+      return false;
     }
   } else {
     // printf("Speed file is open.\n");
@@ -226,31 +227,32 @@ bool get_new_speed(float* new_speed) {
     *new_speed = *(float*)(buf + read_num - 4);
     changed_speed = true;
   }
-  return changed_speed
+  return changed_speed;
 }
 
 ClockState init_clock() {
   ClockState clock;
-  update_speedup(INITIAL_SPEED, &clock, /*should_init=*/true);
+  update_speedup(INITIAL_SPEED, /*read_clock=*/nullptr, &clock, /*should_init=*/true);
   return clock;
 }
 
 timespec fake_time(int clk_id) {
+  static InitPFNs init_static_pfns;
   int orig_errno = errno;
 
   struct TaggedClockPtr {
-    int tag;
-    ClockState* clock_state;
+    int64_t tag;
+    ClockState* clock;
   };
-  assert(TaggedClockPtr().is_lock_free());
+  // TaggedClockPtr isn't necessarily lock-free.
 
   static ClockState clock_0 = init_clock();
   static ClockState clock_1 = init_clock();
-  static std::atomic<TaggedClockPtr> read_clock = {0, &clock_0};
+  static std::atomic<TaggedClockPtr> read_clock = TaggedClockPtr{0, &clock_0};
   static std::atomic<int> clock_tag;
 
   // Try updating fake time.
-  { 
+  {
     static std::atomic<bool> write_lock = false;
     static std::atomic<ClockState*> write_clock = &clock_1;
 
@@ -262,30 +264,37 @@ timespec fake_time(int clk_id) {
 
     float new_speed;
     bool change_speed = get_new_speed(&new_speed);
+    if (test_update) {
+      change_speed = true;
+      new_speed = new_speedup;
+      test_update = 0;
+      // printf("Setting speed to: %f\n", new_speed);
+    }
+
     if (change_speed) {
+        TaggedClockPtr old_read_clock = read_clock.load();
+
         // Write to the write clock's state.
-        update_speedup(new_speed, write_clock);
+        update_speedup(new_speed, old_read_clock.clock, write_clock);
 
         // Move the newly written clock into read_clock and make the other clock the write_clock.
-        TaggedClockPtr new_read_clock = {read_clock.load().tag + 1, write_clock};
-        TaggedClockPtr old_read_clock = read_clock.exchange(new_read_clock);
+        TaggedClockPtr new_read_clock = {old_read_clock.tag + 1, write_clock};
+        read_clock.store(new_read_clock);
         write_clock = old_read_clock.clock;
     }
 
     // Release the write lock.
-    write_lock.set(false);
+    write_lock.store(false);
   }
 cont:
 
   clk_id = base_clock(clk_id);
-  timespec real;
-  real_clock_gettime(clk_id, &real);
   timespec fake;
+  TaggedClockPtr local_clock;
   do {
-    TaggedClockPtr local_clock = read_clock.load();
+    local_clock = read_clock.load();
     fake = fake_time_impl(clk_id, local_clock.clock);
   } while (local_clock.tag != read_clock.load().tag);
-
 
   errno = orig_errno;
   return fake;
@@ -328,7 +337,7 @@ clock_t clock() {
 //   }
 //   return ret;
 // }
-// 
+//
 // int usleep(useconds_t usec) {
 //   timespec orig_nanosleep;
 //   orig_nanosleep.tv_sec = usec / MILLION;
@@ -337,7 +346,7 @@ clock_t clock() {
 //   nanosleep(&orig_nanosleep, nullptr);
 //   return 0;
 // }
-// 
+//
 // unsigned int sleep(unsigned int seconds) {
 //   LAZY_LOAD_REAL(nanosleep);
 //   timespec sleep;
@@ -346,7 +355,7 @@ clock_t clock() {
 //   nanosleep(&sleep, nullptr);
 //   return 0;
 // }
-// 
+//
 // int clock_nanosleep(clockid_t clockid, int flags, const struct timespec* request, struct timespec* remain) {
 //   LAZY_LOAD_REAL(clock_nanosleep);
 //   float speedup = global_clock_state.load().speedup;
