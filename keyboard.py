@@ -77,11 +77,11 @@ class Keyboard(object):
     def key_sequence(self, keys):
         for key in keys:
             self.release_key(key)
-            time.sleep(.01)
+            time.sleep(.4)
             self.press_key(key)
-            time.sleep(.2)
+            time.sleep(.4)
             self.release_key(key)
-            time.sleep(.2)
+            time.sleep(.4)
 
     def _change_key(self, keysym, direction, modifier=0):
         modifier = int(modifier)
