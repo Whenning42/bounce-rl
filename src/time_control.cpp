@@ -46,7 +46,9 @@ const int BILLION = 1000000000;
 }
 
 PFN_TYPEDEF(time);
-PFN_TYPEDEF(gettimeofday);
+// gettimeofday's decltype has a no_except that throws a warning
+// when we use PFN_TYPEDEF.
+typedef int (*PFN_gettimeofday)(timeval*, void*);
 PFN_TYPEDEF(clock_gettime);
 PFN_TYPEDEF(clock);
 PFN_TYPEDEF(nanosleep);
@@ -79,9 +81,8 @@ class InitPFNs {
   }
 };
 
-std::mutex update_mutex;
-int speed_file = 0; // guarded by update_mutex.
-bool clock_init = false; // guarded by update_mutex.
+// Guarded by write lock in fake_time.
+int speed_file = 0;
 
 int test_update = 0;
 float new_speedup = 0;
@@ -240,21 +241,14 @@ timespec fake_time(int clk_id) {
   static InitPFNs init_static_pfns;
   int orig_errno = errno;
 
-  struct TaggedClockPtr {
-    int64_t tag;
-    ClockState* clock;
-  };
-  // TaggedClockPtr isn't necessarily lock-free.
-
-  static ClockState clock_0 = init_clock();
-  static ClockState clock_1 = init_clock();
-  static std::atomic<TaggedClockPtr> read_clock = TaggedClockPtr{0, &clock_0};
+  static ClockState clocks[2] = {init_clock(), init_clock()};
+  static std::atomic<uint64_t> read_clock = 0;
   static std::atomic<int> clock_tag;
 
   // Try updating fake time.
   {
     static std::atomic<bool> write_lock = false;
-    static std::atomic<ClockState*> write_clock = &clock_1;
+    static std::atomic<uint64_t> write_clock = 1;
 
     // If we can't get write lock, break.
     bool was_locked = write_lock.exchange(true);
@@ -268,19 +262,17 @@ timespec fake_time(int clk_id) {
       change_speed = true;
       new_speed = new_speedup;
       test_update = 0;
-      // printf("Setting speed to: %f\n", new_speed);
     }
 
     if (change_speed) {
-        TaggedClockPtr old_read_clock = read_clock.load();
+        uint64_t old_read_clock = read_clock.load();
 
         // Write to the write clock's state.
-        update_speedup(new_speed, old_read_clock.clock, write_clock);
+        update_speedup(new_speed, &clocks[old_read_clock % 2], &clocks[write_clock % 2]);
 
         // Move the newly written clock into read_clock and make the other clock the write_clock.
-        TaggedClockPtr new_read_clock = {old_read_clock.tag + 1, write_clock};
-        read_clock.store(new_read_clock);
-        write_clock = old_read_clock.clock;
+        read_clock.store(write_clock);
+        write_clock = write_clock + 1;
     }
 
     // Release the write lock.
@@ -290,11 +282,11 @@ cont:
 
   clk_id = base_clock(clk_id);
   timespec fake;
-  TaggedClockPtr local_clock;
+  uint64_t local_clock;
   do {
     local_clock = read_clock.load();
-    fake = fake_time_impl(clk_id, local_clock.clock);
-  } while (local_clock.tag != read_clock.load().tag);
+    fake = fake_time_impl(clk_id, &clocks[local_clock % 2]);
+  } while (local_clock != read_clock.load());
 
   errno = orig_errno;
   return fake;
