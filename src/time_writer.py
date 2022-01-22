@@ -11,6 +11,7 @@ def SetSpeedup(speedup):
     # Opening the file for reading and writing prevents blocking until a reader opens the file.
     if f is None:
         f = posix.open("/tmp/time_control", posix.O_RDWR | posix.O_CREAT)
+    posix.truncate("/tmp/time_control", 0)
     posix.write(f, struct.pack("f", speedup))
 
 if __name__ == "__main__":
