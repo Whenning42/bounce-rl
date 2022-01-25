@@ -34,7 +34,7 @@ class ArtOfRallyEnv(gym.core.Env):
 
         self.action_space = gym.spaces.MultiDiscrete([3, 3])
         # Input space is in xlib XK key strings with XK_ left off.
-        self.input_space = ["Up", "Down", "Left", "Right"]
+        self.input_space = (("Up", "Down"), ("Left", "Right"))
         self.pixel_shape = (Y_RES, X_RES, 3)
         self.pixel_space = gym.spaces.Box(low = np.zeros(self.pixel_shape),
                                           high = np.ones(self.pixel_shape) * 255,
@@ -55,6 +55,7 @@ class ArtOfRallyEnv(gym.core.Env):
     def reset(self):
         self.wait_for_harness_init()
 
+        keyboard.set_held_keys(set())
         # NOTE: This will likely fail if the enviroment isn't currently in a race.
         self.harness.keyboards[0].key_sequence(["Escape", "Down", "Enter", "Enter"])
         time.sleep(2)
@@ -73,22 +74,12 @@ class ArtOfRallyEnv(gym.core.Env):
         self.wait_for_harness_init()
 
         # Run keyboard presses for the given the gym action.
+        key_set = set()
         for i, v in enumerate(action):
             if v == 0:
-                self.harness.keyboards[0].press_key(self.input_space[2 * i])
-                self.harness.keyboards[0].release_key(self.input_space[2 * i + 1])
-                print(f"<<< {self.input_space[2 * i]} >>>")
-                print(f"    {self.input_space[2 * i + 1]}    ")
-            elif v == 1:
-                self.harness.keyboards[0].release_key(self.input_space[2 * i])
-                self.harness.keyboards[0].release_key(self.input_space[2 * i + 1])
-                print(f"    {self.input_space[2 * i]}    ")
-                print(f"    {self.input_space[2 * i + 1]}    ")
-            elif v == 2:
-                self.harness.keyboards[0].release_key(self.input_space[2 * i])
-                self.harness.keyboards[0].press_key(self.input_space[2 * i + 1])
-                print(f"    {self.input_space[2 * i]}    ")
-                print(f"<<< {self.input_space[2 * i + 1]} >>>")
+                continue
+            key_set.add(self.input_space[i][v - 1])
+        keyboard.set_held_keys(key_set)
 
         src.time_writer.SetSpeed(run_config["run_rate"])
         time.sleep(run_config["step_duration"] / run_config["run_rate"])

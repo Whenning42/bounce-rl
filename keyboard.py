@@ -22,6 +22,8 @@ class Keyboard(object):
         self.focused_window = window
         self.display = display
 
+        self.held_set = set()
+
     def _mask_keymap(keymap):
         keymap[0] = 0 # reserved
         keymap[58] = 0 # caps lock
@@ -35,7 +37,6 @@ class Keyboard(object):
         assert(keymap[69] == 0)
         assert(keymap[70] == 0)
 
-    # Toggles keys to
     def set_keymap(self, keymap):
         keymap = Keyboard._mask_keymap(keymap)
         # keymap is an 84 element long 0-1 array corresponding to linux keycodes 0-83
@@ -48,6 +49,27 @@ class Keyboard(object):
             elif toggled_keys[i] == -1:
                 self.release_key(i, modifier)
         self.last_keymap = keymap
+
+    # Takes a set of key names to be held down and performs the key presses and releases
+    # that get the keyboard to that state.
+    # This function is oblivious to key presses and releases that occur from
+    # any other method of this class and so calling this and other methods may be
+    # error prone.
+    def set_held_keys(self, key_set):
+        pressed = set()
+        released = set()
+
+        for key in key_set:
+            if key not in self.held_set:
+                pressed.add(key)
+        for key in self.held_set:
+            if key not in key_set:
+                released.add(key)
+        for key in pressed:
+            self.press_key(key)
+        for key in released:
+            self.release_key(key)
+        self.held_set = key_set
 
     def modifier_state(keymap):
         # LShift keycode: 50 state: 1
@@ -76,12 +98,11 @@ class Keyboard(object):
 
     def key_sequence(self, keys):
         for key in keys:
-            self.release_key(key)
-            time.sleep(.4)
+            time.sleep(.1)
             self.press_key(key)
-            time.sleep(.4)
+            time.sleep(.25)
             self.release_key(key)
-            time.sleep(.4)
+            time.sleep(.25)
 
     def _change_key(self, keysym, direction, modifier=0):
         modifier = int(modifier)
