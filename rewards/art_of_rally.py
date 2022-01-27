@@ -115,9 +115,9 @@ class ArtOfRallyReward():
 
         if self.plot_output:
             self._plot_reward(self.frame, {"detect_speed": [detect_speed_roi, predicted_detect_speed],
-                                      "is_reverse": [is_reverse_roi, predicted_is_reverse],
-                                      "is_penalized": [is_penalized_roi, predicted_is_penalized],
-                                      "reward": [None, predicted_reward]})
+                                           "is_reverse": [is_reverse_roi, predicted_is_reverse],
+                                           "is_penalized": [is_penalized_roi, predicted_is_penalized],
+                                           "reward": [None, predicted_reward]})
         
         self.frame += 1
         return predicted_reward, estimated_speed

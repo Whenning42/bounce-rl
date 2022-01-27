@@ -57,10 +57,9 @@ class ArtOfRallyEnv(gym.core.Env):
 
     def reset(self):
         self.wait_for_harness_init()
-
         self.episode_steps = 0
 
-        keyboard.set_held_keys(set())
+        self.harness.keyboards[0].set_held_keys(set())
         # NOTE: This will likely fail if the enviroment isn't currently in a race.
         self.harness.keyboards[0].key_sequence(["Escape", "Down", "Return", "Return"])
         time.sleep(2)
@@ -82,7 +81,7 @@ class ArtOfRallyEnv(gym.core.Env):
             if v == 0:
                 continue
             key_set.add(self.input_space[i][v - 1])
-        keyboard.set_held_keys(key_set)
+        self.harness.keyboards[0].set_held_keys(key_set)
 
         src.time_writer.SetSpeedup(self.run_config["run_rate"])
         time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])

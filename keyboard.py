@@ -56,20 +56,29 @@ class Keyboard(object):
     # any other method of this class and so calling this and other methods may be
     # error prone.
     def set_held_keys(self, key_set):
-        pressed = set()
-        released = set()
-
-        for key in key_set:
-            if key not in self.held_set:
-                pressed.add(key)
+        # Implements re-press key mode.
         for key in self.held_set:
-            if key not in key_set:
-                released.add(key)
-        for key in pressed:
-            self.press_key(key)
-        for key in released:
             self.release_key(key)
+        time.sleep(.01)
+        for key in key_set:
+            self.press_key(key)
         self.held_set = key_set
+
+        # Implements delta key mode.
+        # pressed = set()
+        # released = set()
+
+        # for key in key_set:
+        #     if key not in self.held_set:
+        #         pressed.add(key)
+        # for key in self.held_set:
+        #     if key not in key_set:
+        #         released.add(key)
+        # for key in pressed:
+        #     self.press_key(key)
+        # for key in released:
+        #     self.release_key(key)
+        # self.held_set = key_set
 
     def modifier_state(keymap):
         # LShift keycode: 50 state: 1
