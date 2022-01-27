@@ -20,7 +20,7 @@ class ArtOfRallyEnv(gym.core.Env):
             "y_res": 1080,
             "scale": .5,
             "run_rate": 8,
-            "pause_rate": .01,
+            "pause_rate": .25,
             "step_duration": .250,
         }
         self.run_config = run_config
@@ -42,6 +42,9 @@ class ArtOfRallyEnv(gym.core.Env):
         self.speed_space = gym.spaces.Box(low = -float("inf"), high = float("inf"), shape = (1,))
         self.observation_space = gym.spaces.Dict({"pixels": self.pixel_space, "speed": self.speed_space})
 
+        self.episode_steps = 0
+        self.total_steps = 0
+
     def wait_for_harness_init(self):
         while self.harness.ready == False:
             self.harness.tick()
@@ -55,14 +58,14 @@ class ArtOfRallyEnv(gym.core.Env):
     def reset(self):
         self.wait_for_harness_init()
 
+        self.episode_steps = 0
+
         keyboard.set_held_keys(set())
         # NOTE: This will likely fail if the enviroment isn't currently in a race.
-        self.harness.keyboards[0].key_sequence(["Escape", "Down", "Enter", "Enter"])
+        self.harness.keyboards[0].key_sequence(["Escape", "Down", "Return", "Return"])
         time.sleep(2)
 
         pixels = self.harness.get_screen()
-        print(pixels.shape)
-        print(pixels.dtype)
         return {"pixels": pixels, "speed": np.array((0,))}
 
     def close(self):
@@ -81,20 +84,27 @@ class ArtOfRallyEnv(gym.core.Env):
             key_set.add(self.input_space[i][v - 1])
         keyboard.set_held_keys(key_set)
 
-        src.time_writer.SetSpeed(run_config["run_rate"])
-        time.sleep(run_config["step_duration"] / run_config["run_rate"])
-        src.time_writer.SetSpeed(run_config["pause_rate"])
+        src.time_writer.SetSpeedup(self.run_config["run_rate"])
+        time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
+        src.time_writer.SetSpeedup(self.run_config["pause_rate"])
+
+        self.episode_steps += 1
+        self.total_steps += 1
+
+        done = False
+        if self.episode_steps % 480 == 0:
+            print("Reached 480 steps, ending episode. Total steps", self.total_steps, flush = True)
+            done = True
 
         pixels = self.harness.get_screen()
         reward, speed = self.reward_callback.on_tick()
         state = {"pixels": pixels, "speed": np.array((speed,))}
 
         # Apply action to the harness's keyboard
-        done = False
         info = {}
         if reward is None:
             reward = -1
             info["reward_was_none"] = True
 
-        print(f"Returning reward {reward}")
+        # print(f"Returning reward {reward}")
         return state, reward, done, info

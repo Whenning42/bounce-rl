@@ -47,7 +47,7 @@ class SpeedClassifier():
         tight_cropped = self.Preprocess(images)
 #        plt.imshow(tight_cropped[0])
         preds = [self.recognizer.recognize(im).replace("o", "0").replace("s", "5").replace("b", "8").replace("d", "0").replace("t", "7").replace("g", "9") for im in tight_cropped]
-        print("predicted: ", preds)
+#        print("predicted: ", preds)
 #        plt.show()
         return preds
 

@@ -96,7 +96,7 @@ class ArtOfRallyReward():
     def on_tick(self):
         detect_speed_roi = self.capture_detect_speed()
         if detect_speed_roi.shape != (32, 96, 4):
-            print(detect_speed_roi.shape)
+            # print(detect_speed_roi.shape)
             assert(detect_speed_roi.shape == (16, 48, 4))
             detect_speed_roi = detect_speed_roi.repeat(2, axis = 0).repeat(2, axis = 1)
         # Captured gives (w, h, c) w/ c == 4, BGRA

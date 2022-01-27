@@ -35,6 +35,13 @@ app_configs = \
         "window_title": "art of rally",
         "x_res": 1920,
         "y_res": 1080,
+    }, {
+        "conf_title": "Art of Rally Demo",
+        "directory": "/home/william",
+        "command": "/home/william/Downloads/Linux/artofrally_demo.x64",
+        "window_title": "art of rally",
+        "x_res": 1920,
+        "y_res": 1080,
     }]
 
 def LoadAppConfig(config_title):
