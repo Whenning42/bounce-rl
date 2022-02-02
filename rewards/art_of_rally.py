@@ -25,7 +25,7 @@ def _compute_reward(speed, is_reverse, is_penalized):
         speed_mul *= -1
     penalty = 0
     if is_penalized:
-        penalty = 5
+        penalty = 25
     return speed * speed_mul - penalty, speed * speed_mul
 
 class ArtOfRallyReward():
