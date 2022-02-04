@@ -4,7 +4,7 @@ import model
 import rewards.art_of_rally
 import callbacks.callbacks as callbacks
 
-START_FRAME = 238
+START_FRAME = 0
 OUT_DIR = "out/"
 
 art_of_rally_reward_callback = \
@@ -13,12 +13,12 @@ screenshot_callback = callbacks.ScreenshotCallback(out_dir = OUT_DIR, start_fram
 run_config = {
     "title": "Art of Rally reward eval",
     "app": "Art of Rally",
-    "max_tick_rate": None,
+    "max_tick_rate": 5,
 #    "on_tick": (art_of_rally_reward_callback, screenshot_callback),
-    "on_tick": (art_of_rally_reward_callback,),
+    "on_tick": (screenshot_callback,),
     "x_res": 1920,
     "y_res": 1080,
-    "scale": 1,
+    "scale": .5,
 }
 app_config = run_configs.LoadAppConfig(run_config["app"])
 harness = Harness(app_config, run_config)
