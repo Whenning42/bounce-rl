@@ -46,7 +46,7 @@ class ArtOfRallyReward():
         if disable_speed_detection:
             self.detect_speed_model = None
         else:
-            self.detect_speed_model = model_lib.SpeedClassifier() # Will be on "cuda:0"
+            self.detect_speed_model = model_lib.SpeedClassificationSVM("models/svm.pkl")
         self.is_reverse_model = model_lib.BinaryClassifier("models/is_reverse_classifier.pth").to(device)
         self.is_reverse_model.eval()
         self.is_penalized_model = model_lib.BinaryClassifier("models/is_penalized_classifier.pth").to(device)
@@ -124,6 +124,5 @@ class ArtOfRallyReward():
                                            "is_reverse": [is_reverse_roi, predicted_is_reverse],
                                            "is_penalized": [is_penalized_roi, predicted_is_penalized],
                                            "true_reward": [None, true_reward]})
-        
         self.frame += 1
         return shaped_reward, estimated_speed, true_reward
