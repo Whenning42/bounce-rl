@@ -15,7 +15,7 @@ def TimeBlock(name):
         yield
     finally:
         interval = time.perf_counter() - start
-        print(f"Block {name} took {round(interval * 1000)} milliseconds")
+        print(f"Block {name} took {interval * 1000:.2f} milliseconds")
 
 def npBGRAtoRGB(array):
     return np.flip(array[:, :, :3], axis = 2).copy()
