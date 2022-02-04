@@ -9,7 +9,7 @@ import pathlib
 import torch
 import os
 
-def _compute_reward(speed, is_reverse, is_penalized):
+def _compute_reward(speed, is_reverse, is_penalized, penalty_value = 25):
     is_reverse = is_reverse[1] > is_reverse[0]
     is_penalized = is_penalized[1] > is_penalized[0]
 
@@ -25,7 +25,7 @@ def _compute_reward(speed, is_reverse, is_penalized):
         speed_mul *= -1
     penalty = 0
     if is_penalized:
-        penalty = 25
+        penalty = penalty_value
     return speed * speed_mul - penalty, speed * speed_mul
 
 class ArtOfRallyReward():
@@ -38,7 +38,7 @@ class ArtOfRallyReward():
         if plot_output:
             pathlib.Path(self.out_dir).mkdir(parents = True, exist_ok = True)
 
-        # The capture methods are initialized in set_harness().
+        # The capture methods are initialized in attach_to_harness().
         self.capture_detect_speed = None
         self.capture_is_reverse = None
         self.capture_is_penalized = None
@@ -109,15 +109,21 @@ class ArtOfRallyReward():
 
         outs = _compute_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
         if outs is not None:
-            predicted_reward, estimated_speed = outs
+            true_reward, estimated_speed = outs
         else:
-            predicted_reward, estimated_speed = -1, 0
+            true_reward, estimated_speed = -1, 0
+
+        shaped_out = _compute_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized, penalty_value = 60)
+        if shaped_out is not None:
+            shaped_reward, _ = shaped_out
+        else:
+            shaped_reward = -1
 
         if self.plot_output:
             self._plot_reward(self.frame, {"detect_speed": [detect_speed_roi, predicted_detect_speed],
                                            "is_reverse": [is_reverse_roi, predicted_is_reverse],
                                            "is_penalized": [is_penalized_roi, predicted_is_penalized],
-                                           "reward": [None, predicted_reward]})
+                                           "true_reward": [None, true_reward]})
         
         self.frame += 1
-        return predicted_reward, estimated_speed
+        return shaped_reward, estimated_speed, true_reward

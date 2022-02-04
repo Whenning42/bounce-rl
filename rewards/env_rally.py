@@ -96,11 +96,11 @@ class ArtOfRallyEnv(gym.core.Env):
             done = True
 
         pixels = self.harness.get_screen()
-        reward, speed = self.reward_callback.on_tick()
+        reward, speed, true_reward = self.reward_callback.on_tick()
         state = {"pixels": pixels, "speed": np.array((speed,))}
 
-        # Apply action to the harness's keyboard
         info = {}
+        info["true_reward"] = true_reward
         if reward is None:
             reward = -1
             info["reward_was_none"] = True
