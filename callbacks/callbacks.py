@@ -3,6 +3,7 @@
 import harness
 import pathlib
 from PIL import Image
+import os
 
 class ScreenshotCallback():
     def __init__(self, out_dir = None, start_frame = 0):
@@ -23,6 +24,6 @@ class ScreenshotCallback():
 
         filename = f"{self.frame:04d}.png"
         im = Image.fromarray(captured_frame)
-        im.save(self.out_dir + filename)
+        im.save(os.path.join(self.out_dir, filename))
 
         self.frame += 1
