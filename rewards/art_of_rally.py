@@ -46,7 +46,7 @@ class ArtOfRallyReward():
         if disable_speed_detection:
             self.detect_speed_model = None
         else:
-            self.detect_speed_model = model_lib.SpeedClassificationSVM("models/svm.pkl")
+            self.detect_speed_model = model_lib.SpeedRecognitionSVM("models/svm.pkl")
         self.is_reverse_model = model_lib.BinaryClassifier("models/is_reverse_classifier.pth").to(device)
         self.is_reverse_model.eval()
         self.is_penalized_model = model_lib.BinaryClassifier("models/is_penalized_classifier.pth").to(device)
@@ -94,16 +94,13 @@ class ArtOfRallyReward():
         return self.is_penalized_model(is_penalized_x)
 
     def on_tick(self):
-        detect_speed_roi = self.capture_detect_speed()
-        if detect_speed_roi.shape != (32, 96, 4):
-            # print(detect_speed_roi.shape)
-            assert(detect_speed_roi.shape == (16, 48, 4))
-            detect_speed_roi = detect_speed_roi.repeat(2, axis = 0).repeat(2, axis = 1)
+        detect_speed_roi = util.npBGRAtoRGB(self.capture_detect_speed())
         # Captured gives (w, h, c) w/ c == 4, BGRA
         is_reverse_roi = util.npBGRAtoRGB(self.capture_is_reverse())
         is_penalized_roi = util.npBGRAtoRGB(self.capture_is_penalized())
 
-        predicted_detect_speed = self.predict_detect_speed(detect_speed_roi)[0]
+        # Convert predicted list of single char strings into a string.
+        predicted_detect_speed = "".join(list(self.predict_detect_speed(detect_speed_roi)[0]))
         predicted_is_reverse = self.predict_is_reverse(is_reverse_roi)[0]
         predicted_is_penalized = self.predict_is_penalized(is_penalized_roi)[0]
 
@@ -125,4 +122,5 @@ class ArtOfRallyReward():
                                            "is_penalized": [is_penalized_roi, predicted_is_penalized],
                                            "true_reward": [None, true_reward]})
         self.frame += 1
+        print("Predicted reward:", true_reward, flush = True)
         return shaped_reward, estimated_speed, true_reward

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-import keras_ocr
+# import keras_ocr
 from torchvision import transforms
 import sklearn
 import sklearn.pipeline
@@ -9,6 +9,7 @@ import sklearn.preprocessing
 import sklearn.svm
 import joblib
 import itertools
+import matplotlib.pyplot as plt
 
 # Given a PIL image, returns an imagenet normalized pytorch tensor.
 def NormalizeTensor(image):
@@ -39,6 +40,7 @@ def SpeedPreprocess(images):
 
 # A text recognition model with hard-coded pre-processing logic and a pretrained
 # text recognizer.
+# NOTE: Uncomment keras_ocr import to use this class.
 class SpeedClassifier():
     def __init__(self):
         self.recognizer = keras_ocr.recognition.Recognizer()
@@ -80,7 +82,7 @@ class SpeedRecognitionSVM():
                     extracted.append(s)
 
             for s in extracted:
-                s = s[3:, :8]
+                s = s[2:-1, :8]
                 right = (8 - s.shape[1]) // 2
                 left = 8 - s.shape[1] - right
                 s = np.pad(s, ((0, 0), (left, right)), mode = 'constant')
@@ -107,6 +109,9 @@ class SpeedRecognitionSVM():
         for image in images:
             digit_ims = self._get_digits([image])[0]
             features = [digit_im.flatten() for digit_im in digit_ims]
+            if len(features) == 0:
+                pred_sets.append([])
+                continue
             preds = self._svm.predict(features)
             pred_sets.append(preds)
         return pred_sets

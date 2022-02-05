@@ -6,12 +6,14 @@ import run_configs
 from harness import Harness
 import gym
 import numpy as np
+import callbacks.callbacks as callbacks
 
 class ArtOfRallyEnv(gym.core.Env):
     def __init__(self):
         X_RES = 960
         Y_RES = 540
         art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False)
+        screenshot_callback = callbacks.ScreenShotCallbacks(out_dir = "out/record")
         run_config = {
             "title": "Art of Rally reward eval",
             "app": "Art of Rally",
@@ -25,12 +27,15 @@ class ArtOfRallyEnv(gym.core.Env):
         }
         self.run_config = run_config
         app_config = run_configs.LoadAppConfig(run_config["app"])
+
         harness = Harness(app_config, run_config)
         art_of_rally_reward_callback.attach_to_harness(harness)
+        screenshot_callback.attach_to_harness(harness)
 
         self.harness = harness
+        # Reward callback is called by env.
         self.reward_callback = art_of_rally_reward_callback
-        # TODO: Set up the keyboard.
+        self.screenshot_callback = screenshot_callback
 
         self.action_space = gym.spaces.MultiDiscrete([3, 3])
         # Input space is in xlib XK key strings with XK_ left off.
@@ -82,6 +87,8 @@ class ArtOfRallyEnv(gym.core.Env):
                 continue
             key_set.add(self.input_space[i][v - 1])
         self.harness.keyboards[0].set_held_keys(key_set)
+        if self.episode_steps % 20 == 0:
+            self.screenshot_callback.on_tick()
 
         src.time_writer.SetSpeedup(self.run_config["run_rate"])
         time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
