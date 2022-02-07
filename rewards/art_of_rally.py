@@ -9,7 +9,7 @@ import pathlib
 import torch
 import os
 
-def _compute_reward(speed, is_reverse, is_penalized, penalty_value = 25):
+def _compute_reward(speed, is_reverse, is_penalized, penalty_value = 25, baseline_value = 0):
     is_reverse = is_reverse[1] > is_reverse[0]
     is_penalized = is_penalized[1] > is_penalized[0]
 
@@ -26,7 +26,7 @@ def _compute_reward(speed, is_reverse, is_penalized, penalty_value = 25):
     penalty = 0
     if is_penalized:
         penalty = penalty_value
-    return speed * speed_mul - penalty, speed * speed_mul
+    return speed * speed_mul - penalty + baseline_value, speed * speed_mul
 
 class ArtOfRallyReward():
     def __init__(self, plot_output = False, out_dir = None, device = "cuda:1", start_frame = 0, disable_speed_detection = False):
@@ -110,7 +110,7 @@ class ArtOfRallyReward():
         else:
             true_reward, estimated_speed = -1, 0
 
-        shaped_out = _compute_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized, penalty_value = 60)
+        shaped_out = _compute_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized, penalty_value = 40, baseline_value = -25)
         if shaped_out is not None:
             shaped_reward, _ = shaped_out
         else:
@@ -122,5 +122,4 @@ class ArtOfRallyReward():
                                            "is_penalized": [is_penalized_roi, predicted_is_penalized],
                                            "true_reward": [None, true_reward]})
         self.frame += 1
-        print("Predicted reward:", true_reward, flush = True)
         return shaped_reward, estimated_speed, true_reward

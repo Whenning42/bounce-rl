@@ -9,11 +9,11 @@ import numpy as np
 import callbacks.callbacks as callbacks
 
 class ArtOfRallyEnv(gym.core.Env):
-    def __init__(self):
+    def __init__(self, out_dir = None):
         X_RES = 960
         Y_RES = 540
         art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False)
-        screenshot_callback = callbacks.ScreenShotCallbacks(out_dir = "out/record")
+        screenshot_callback = callbacks.ScreenshotCallback(out_dir = out_dir)
         run_config = {
             "title": "Art of Rally reward eval",
             "app": "Art of Rally",
@@ -87,7 +87,7 @@ class ArtOfRallyEnv(gym.core.Env):
                 continue
             key_set.add(self.input_space[i][v - 1])
         self.harness.keyboards[0].set_held_keys(key_set)
-        if self.episode_steps % 20 == 0:
+        if self.total_steps % 100 == 0:
             self.screenshot_callback.on_tick()
 
         src.time_writer.SetSpeedup(self.run_config["run_rate"])
@@ -112,5 +112,5 @@ class ArtOfRallyEnv(gym.core.Env):
             reward = -1
             info["reward_was_none"] = True
 
-        # print(f"Returning reward {reward}")
+        # print(f"Returning reward {reward}", flush = True)
         return state, reward, done, info
