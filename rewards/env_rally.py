@@ -42,7 +42,7 @@ class ArtOfRallyEnv(gym.core.Env):
         self.action_space = gym.spaces.MultiDiscrete([3, 3])
         # Input space is in xlib XK key strings with XK_ left off.
         self.input_space = (("Up", "Down"), ("Left", "Right"))
-        self.pixel_shape = (Y_RES // DOWNSAMPLE, X_RES // DOWNSAMPLE, 3)
+        self.pixel_shape = (Y_RES // DOWNSAMPLE, X_RES // DOWNSAMPLE, 1)
         self.pixel_space = gym.spaces.Box(low = np.zeros(self.pixel_shape),
                                           high = np.ones(self.pixel_shape) * 255,
                                           dtype = np.uint8)
@@ -74,7 +74,7 @@ class ArtOfRallyEnv(gym.core.Env):
         self.harness.keyboards[0].key_sequence(["Escape", "Down", "Return", "Return"])
         time.sleep(2)
 
-        pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE]
+        pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE, 0:1]
         return pixels
         # return {"pixels": pixels, "speed": np.array((0,))}
 
@@ -108,7 +108,7 @@ class ArtOfRallyEnv(gym.core.Env):
             print("Reached 480 steps, ending episode. Total steps", self.total_steps, flush = True)
             done = True
 
-        pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE]
+        pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE, 0:1]
         reward, speed, true_reward = self.reward_callback.on_tick()
         state = {"pixels": pixels, "speed": np.array((speed,))}
 
