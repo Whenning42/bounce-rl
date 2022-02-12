@@ -8,32 +8,91 @@ import numpy as np
 import pathlib
 import torch
 import os
+import gin
 
-def _compute_reward(speed, is_reverse, is_penalized, penalty_value = 25, baseline_value = 0):
+def _GetVel(speed, is_reverse):
     is_reverse = is_reverse[1] > is_reverse[0]
-    is_penalized = is_penalized[1] > is_penalized[0]
+    if not speed.isnumeric():
+        return None
+    vel = int(speed)
+    if is_reverse:
+        vel *= -1
+    return vel
 
+@gin.configurable
+def LinearReward(speed, is_reverse, is_penalized, penalty_value = 25, baseline_value = 0):
     if None in (speed, is_reverse, is_penalized):
         return None
 
-    if not speed.isnumeric():
+    is_penalized = is_penalized[1] > is_penalized[0]
+
+    vel = _GetVel(speed, is_reverse)
+    if vel is None:
         return None
 
-    speed = int(speed)
-    speed_mul = 1
-    if is_reverse:
-        speed_mul *= -1
     penalty = 0
     if is_penalized:
         penalty = penalty_value
-    return speed * speed_mul - penalty + baseline_value, speed * speed_mul
 
+    return vel - penalty + baseline_value
+
+@gin.configurable
+# TODO: Make function more parameterizable
+def TimeReward(speed, is_reverse, is_penalized, penalty_value = 1):
+    if None in (speed, is_reverse, is_penalized):
+        return None
+
+    is_penalized = is_penalized[1] > is_penalized[0]
+
+    vel = _GetVel(speed, is_reverse)
+    if vel is None:
+        return None
+
+    if vel < 0:
+        p = -1
+    elif vel < 5:
+        p = 6.0 / 70 * vel - 1
+    else:
+        p = -4.0 / (vel + 2)
+
+    penalty = 0
+    if is_penalized:
+        penalty = penalty_value
+
+    return p - penalty
+
+@gin.configurable
+def SteadyReward(speed, is_reverse, is_penalized, penalty_value = 1):
+    if None in (speed, is_reverse, is_penalized):
+        return None
+
+    is_penalized = is_penalized[1] > is_penalized[0]
+
+    vel = _GetVel(speed, is_reverse)
+    if vel is None:
+        return None
+
+    if vel < 0:
+        p = -1
+    elif vel < 5:
+        p = -1 + 2 * vel / 5
+    else:
+        p = 1
+
+    penalty = 0
+    if is_penalized:
+        penalty = penalty_value
+
+    return p - penalty
+
+@gin.configurable
 class ArtOfRallyReward():
-    def __init__(self, plot_output = False, out_dir = None, device = "cuda:1", start_frame = 0, disable_speed_detection = False):
+    def __init__(self, plot_output = False, out_dir = None, device = "cuda:1", start_frame = 0, disable_speed_detection = False, reward_fn = TimeReward):
         self.plot_output = plot_output
         self.out_dir = out_dir
         self.device = device
         self.frame = start_frame
+        self.shaped_reward = reward_fn
 
         if plot_output:
             pathlib.Path(self.out_dir).mkdir(parents = True, exist_ok = True)
@@ -104,16 +163,16 @@ class ArtOfRallyReward():
         predicted_is_reverse = self.predict_is_reverse(is_reverse_roi)[0]
         predicted_is_penalized = self.predict_is_penalized(is_penalized_roi)[0]
 
-        outs = _compute_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
-        if outs is not None:
-            true_reward, estimated_speed = outs
-        else:
-            true_reward, estimated_speed = -1, 0
+        speed = _GetVel(predicted_detect_speed, predicted_is_reverse)
+        if speed is None:
+            speed = 0
 
-        shaped_out = _compute_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized, penalty_value = 40, baseline_value = -25)
-        if shaped_out is not None:
-            shaped_reward, _ = shaped_out
-        else:
+        true_reward = LinearReward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
+        if true_reward is None:
+            true_reward = -1
+
+        shaped_reward = self.shaped_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
+        if shaped_reward is None:
             shaped_reward = -1
 
         if self.plot_output:
@@ -122,4 +181,4 @@ class ArtOfRallyReward():
                                            "is_penalized": [is_penalized_roi, predicted_is_penalized],
                                            "true_reward": [None, true_reward]})
         self.frame += 1
-        return shaped_reward, estimated_speed, true_reward
+        return shaped_reward, speed / 30 - .5, true_reward

@@ -8,6 +8,8 @@ import gym
 import numpy as np
 import callbacks.callbacks as callbacks
 
+DOWNSAMPLE = 2
+
 class ArtOfRallyEnv(gym.core.Env):
     def __init__(self, out_dir = None):
         X_RES = 960
@@ -40,15 +42,18 @@ class ArtOfRallyEnv(gym.core.Env):
         self.action_space = gym.spaces.MultiDiscrete([3, 3])
         # Input space is in xlib XK key strings with XK_ left off.
         self.input_space = (("Up", "Down"), ("Left", "Right"))
-        self.pixel_shape = (Y_RES, X_RES, 3)
+        self.pixel_shape = (Y_RES // DOWNSAMPLE, X_RES // DOWNSAMPLE, 3)
         self.pixel_space = gym.spaces.Box(low = np.zeros(self.pixel_shape),
                                           high = np.ones(self.pixel_shape) * 255,
                                           dtype = np.uint8)
         self.speed_space = gym.spaces.Box(low = -float("inf"), high = float("inf"), shape = (1,))
-        self.observation_space = gym.spaces.Dict({"pixels": self.pixel_space, "speed": self.speed_space})
+        # self.observation_space = gym.spaces.Dict({"pixels": self.pixel_space, "speed": self.speed_space})
+        self.observation_space = self.pixel_space
 
         self.episode_steps = 0
         self.total_steps = 0
+
+        self.wait_for_harness_init()
 
     def wait_for_harness_init(self):
         while self.harness.ready == False:
@@ -69,8 +74,9 @@ class ArtOfRallyEnv(gym.core.Env):
         self.harness.keyboards[0].key_sequence(["Escape", "Down", "Return", "Return"])
         time.sleep(2)
 
-        pixels = self.harness.get_screen()
-        return {"pixels": pixels, "speed": np.array((0,))}
+        pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE]
+        return pixels
+        # return {"pixels": pixels, "speed": np.array((0,))}
 
     def close(self):
         print("ArtOfRallyEnv.close is unimplemented.")
@@ -102,7 +108,7 @@ class ArtOfRallyEnv(gym.core.Env):
             print("Reached 480 steps, ending episode. Total steps", self.total_steps, flush = True)
             done = True
 
-        pixels = self.harness.get_screen()
+        pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE]
         reward, speed, true_reward = self.reward_callback.on_tick()
         state = {"pixels": pixels, "speed": np.array((speed,))}
 
@@ -113,4 +119,4 @@ class ArtOfRallyEnv(gym.core.Env):
             info["reward_was_none"] = True
 
         # print(f"Returning reward {reward}", flush = True)
-        return state, reward, done, info
+        return pixels, reward, done, info
