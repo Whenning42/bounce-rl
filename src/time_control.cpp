@@ -1,3 +1,10 @@
+// This library is used to control the time acceleration of another process.
+//
+// To setup time acceleration for the client process run:
+//   $ LD_PRELOAD=./time_control.so TIME_CHANNEL=n my_process
+//
+// To control the time acceleration from the controller process use the interface in time_writer.py.
+
 #include <cassert>
 #include <dlfcn.h>
 #include <stdio.h>
@@ -15,8 +22,9 @@
 #include <atomic>
 
 const char* FIFO = "/tmp/time_control";
-const int NUM_CLOCKS = 4;
+const char* CHANNEL_VAR_NAME = "TIME_CHANNEL";
 
+const int NUM_CLOCKS = 4;
 const float INITIAL_SPEED = 1;
 
 const int MILLION = 1000000;
@@ -211,7 +219,12 @@ bool get_new_speed(float* new_speed) {
   bool changed_speed = false;
   if (!speed_file) {
     // printf("Opening speed file.\n");
-    speed_file = open(FIFO, O_RDONLY | O_NONBLOCK);
+    std::string file_name = FIFO;
+    if (std::getenv(CHANNEL_VAR_NAME)) {
+      file_name += std::getenv(CHANNEL_VAR_NAME);
+    }
+
+    speed_file = open(file_name.c_str(), O_RDONLY | O_NONBLOCK);
     if (!speed_file) {
       return false;
     }
@@ -316,7 +329,7 @@ clock_t clock() {
   return (tp.tv_sec + (double)(tp.tv_nsec) / BILLION) * CLOCKS_PER_SEC;
 }
 
-// // NOTE: The error semantics for the sleep family of functions isn't preserved in these wrappers.
+// // NOTE: The error semantics for sleep functions isn't preserved in these wrappers.
 // int nanosleep(const struct timespec* req, struct timespec* rem) {
 //   try_updating_speedup();
 //   LAZY_LOAD_REAL(nanosleep);
