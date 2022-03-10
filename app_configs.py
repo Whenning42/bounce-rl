@@ -42,6 +42,13 @@ app_configs = \
         "window_title": "art of rally",
         "x_res": 1920,
         "y_res": 1080,
+    }, {
+        "conf_title": "Art of Rally (Multi)",
+        "directory": "/home/william/Games/art_of_rally$i/game",
+        "command": "./art_of_rally.x64",
+        "window_title": "art of rally",
+        "x_res": 1920,
+        "y_res": 1080,
     }]
 
 def LoadAppConfig(config_title):

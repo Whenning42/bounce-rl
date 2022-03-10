@@ -2,7 +2,7 @@ import rewards
 import rewards.art_of_rally
 import src.time_writer
 import time
-import run_configs
+import app_configs
 from harness import Harness
 import gym
 import numpy as np
@@ -28,7 +28,7 @@ class ArtOfRallyEnv(gym.core.Env):
             "step_duration": .250,
         }
         self.run_config = run_config
-        app_config = run_configs.LoadAppConfig(run_config["app"])
+        app_config = app_configs.LoadAppConfig(run_config["app"])
 
         harness = Harness(app_config, run_config)
         art_of_rally_reward_callback.attach_to_harness(harness)
