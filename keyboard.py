@@ -148,5 +148,12 @@ class Keyboard(object):
             # Unsupported direction
             assert(False)
 
-        self.display.send_event(self.focused_window, event, True, Xlib.X.KeyPress | Xlib.X.KeyRelease)
+        # Focus the window we're sending the event to.
+        for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]:
+            w = self.focused_window
+            e = Xlib.protocol.event.FocusIn(display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal)
+            self.display.send_event(w, e)
+            self.display.flush()
+
+        self.display.send_event(self.focused_window, event, False, Xlib.X.KeyPress | Xlib.X.KeyRelease)
         self.display.flush()
