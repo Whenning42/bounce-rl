@@ -9,17 +9,15 @@ import time
 import shlex
 import keyboard
 import util
+import string
 from model import *
 
-from Xlib import display
+from Xlib import display, Xatom
 import Xlib.X
 import Xlib.XK
 import Xlib.protocol
 
 REOPEN_CLOSED_WINDOWS = False
-
-x_tiles = 1
-y_tiles = 1
 
 window_owners = {}
 
@@ -30,18 +28,29 @@ def handle_error(*args):
     else:
         print("Orphan window closed:", window_id)
 
+# Caller has to unpack the property return value.
+# For "_NET_WM_PID" property, it's an array of ints. For other types I'm not sure.
+def query_window_property(display, window, property_name, property_type):
+    property_name_atom = display.get_atom(property_name)
+    result = window.get_full_property(property_name_atom, property_type)
+    if result:
+        return result.value
+    return None
+
 # A no-op error handler.
 def suppress_error(*args):
     pass
 
 class Harness(object):
-    def __init__(self, app_config, run_config):
+    def __init__(self, app_config, run_config, instance = None):
         self.app_config = app_config
         self.run_config = run_config
+        self.instance = instance
+
         self.fps_helper = fps_helper.Helper(throttle_fps \
                                         = self.run_config.get("max_tick_rate"))
 
-        window_count = x_tiles * y_tiles
+        window_count = 1
         self.window_title = self.app_config["window_title"]
         self.tick_start = time.time()
         # Pass in the display here
@@ -85,13 +94,27 @@ class Harness(object):
 
     def open_new_window(self):
         split_command = shlex.split(self.app_config["command"])
-        process = subprocess.Popen(split_command, cwd=self.app_config["directory"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        directory_template = string.Template(self.app_config["directory"])
+        directory = directory_template.substitute(i = self.instance)
+        process = subprocess.Popen(split_command, cwd=directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.subprocess_pids.append(process.pid)
+
+    # Return True if the window's process is a descendant any of the child_pids.
+    def is_owned(self, window, child_pids):
+        # TODO: I could change the window connection algorithm to not
+        # use _NET_WM_PID.
+        window_pid_result = query_property(self.display, window, '_NET_WM_PID', Xatom.CARDINAL)
+        assert window_pid_result is not None, "Harness requires the running window manager to implement _NET_WM_PID annotations."
+        window_pid = pid_result[0]
+        window_ps = psutil.Process(window_pid)
+        while window_ps is not None:
+            if window_ps.pid() in child_pids:
+                return True
+            window_ps = window_ps.parent()
+        return False
 
     def GetAllWindowsWithName(name, parent, matches):
         for child in parent.query_tree().children:
-            #if child.get_wm_name() is not None:
-            #    print("Child: " + child.get_wm_name())
             if child.get_wm_name() == name:
                 matches.append(child)
             matches = Harness.GetAllWindowsWithName(name, child, matches)
@@ -101,11 +124,11 @@ class Harness(object):
         time.sleep(1)
         global window_owners
         open_windows = Harness.GetAllWindowsWithName(self.app_config["window_title"], self.root_window, [])
-
-        if len(open_windows) == 0:
+        owned_windows = [w for w in open_windows if self.is_owned(w, self.subprocess_pids)]
+        if len(owned_windows) == 0:
             print("Still looking for window with title: ", self.app_config["window_title"])
 
-        for w in open_windows:
+        for w in owned_windows:
             if w not in self.windows:
                 # Make sure we haven't opened too many instances
                 assert(None in self.windows)
@@ -114,14 +137,20 @@ class Harness(object):
                 self.keyboards[loc] = keyboard.Keyboard(self.display, w)
                 print(w)
                 print(hex(w.id))
+                # Make the window floating and borderless.
                 subprocess.Popen(["i3-msg", "[id=" + hex(w.id) + "]", "floating", "enable;", \
                                                                       "border", "pixel", "0"])
                 self.display.flush()
                 time.sleep(.5)
                 self.display.flush()
-                w.configure(x = self.run_config["x_res"] * (loc % x_tiles), \
-                            y = self.run_config["y_res"] * (loc // x_tiles), \
-                            width = self.run_config["x_res"], height = self.run_config["y_res"])
+
+                if self.instance is None:
+                    pos = 1
+                else:
+                    pos = self.instace
+                w.configure(x = int(self.run_config["scale"] * self.run_config["x_res"] * (pos % self.run_config["row_size"])), \
+                            y = int(self.run_config["scale"] * self.run_config["y_res"] * (pos // self.run_config["row_size"])), \
+                            width = int(self.run_config["scale"] * self.run_config["x_res"]), height = int(self.run_config["scale"] * self.run_config["y_res"]))
                 self.display.flush()
                 self.full_screen_capture = self.add_capture((0, 0, self.run_config["x_res"], self.run_config["y_res"]))
                 window_owners[w.id] = self
@@ -157,7 +186,6 @@ class Harness(object):
         for w in self.windows:
             if w is None:
                 continue
-            # I'm unsure which detail to send so I send all of them to be cautious, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]
             for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual]:
                 e = Xlib.protocol.event.FocusIn(display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal)
                 self.display.send_event(w, e)
