@@ -18,11 +18,14 @@ import socket
 import select
 import atexit
 import struct
+import datetime
 import os
 
 # Global first constructed XMessageStream. This is used by main to get the server
 # timestamp.
 first_stream = None
+
+GENERIC_EVENT_CODE = 35
 
 def pad(n):
     return n + (4 - (n % 4)) % 4
@@ -43,8 +46,8 @@ class XByteStream():
 
     # Commits data from the byte_buffer to the message buffer.
     def commit_message(self, message_len):
-        self.messages.append(self.byte_buffer[self.message_end : \
-                                              self.message_end + message_len])
+        self.messages.append(bytearray(self.byte_buffer[self.message_end : \
+                                              self.message_end + message_len]))
         self.message_end += message_len
 
     def consume(self, data):
@@ -59,7 +62,7 @@ class XByteStream():
             print("Consuming client received connection setup of", len(self.byte_buffer), "bytes")
             code, major, minor, additional_data_len = struct.unpack('BxHHH', self.byte_buffer[:8])
             assert code == 1, "Client received unexpected connection code " + str(code)
-            total_len = 8 + additional_data_len
+            total_len = 8 + additional_data_len * 4
             if l >= total_len:
                 print("Client finished setup")
                 self.commit_message(total_len)
@@ -68,16 +71,31 @@ class XByteStream():
 
         print("Buffer length:", l)
         while l - self.message_end >= 32:
-            code, reply_length = struct.unpack('BxH', self.byte_buffer[self.message_end : self.message_end + 4])
+            code, reply_length = struct.unpack('BxxxI', self.byte_buffer[self.message_end : self.message_end + 8])
             is_event = code > 1
             is_reply = code == 1
             is_error = code == 0
             print("Code:", code, "reply_len:", reply_length)
 
-            if is_event or is_error:
+            if is_event:
+                code = struct.unpack('B', self.byte_buffer[self.message_end : self.message_end + 1])
+                print("Event:", code)
+                additional_length = 0
+                if code == GENERIC_EVENT_CODE:
+                    print("Handling generic event")
+                    additional_length = struct.unpack('I', self.byte_buffer[self.message_end + 4 : self.message_end + 8])
+
+                full_length = 32 + 4 * additional_length
+                if l - self.message_end >= full_length:
+                    self.commit_message(full_length)
+                    continue
+            if is_error:
+                code = struct.unpack('xB', self.byte_buffer[self.message_end : self.message_end + 2])
+                print("Error:", code)
                 self.commit_message(32)
                 continue
             if is_reply:
+                print("Reply")
                 full_length = 32 + 4 * reply_length
                 if l - self.message_end >= full_length:
                     self.commit_message(full_length)
@@ -114,9 +132,10 @@ class XServerToClientStream:
             mills += 1
         return mills
 
-    def setup_timestamp(self, current_timestamp):
+    def setup_timestamp(self, event_message):
+        timestamp = struct.unpack('I', event_message[4:8])
         self.origin_time = datetime.datetime.now()
-        self.origin_mills = current_timestamp
+        self.origin_mills = timestamp
 
     # Note: This requires the caller to have set the correct timestamp on the event if the event
     # type has a timestamp.
@@ -126,31 +145,42 @@ class XServerToClientStream:
 
         sequence_number = self.sequence_number + 1
         self.offset += 1
-        struct.pack_into('BBH', event, 0, code, detail, sequence_num)
+        struct.pack_into('BBH', event, 2, sequence_num)
 
         self.byte_stream.append_message(event)
         self.byte_stream.flush()
 
     def sendmsg(self, buffers, anc_data):
-        self.byte_stream.socket.sendmsg([], anc_data)
+        # self.byte_stream.socket.sendmsg([], anc_data)
         for data in buffers:
             self.byte_stream.consume(data)
             for i, message in enumerate(self.byte_stream.messages):
                 self.byte_stream.messages[i] = self.process(message)
         self.byte_stream.flush()
 
+        unflushed_len = len(self.byte_stream.byte_buffer)
+        if unflushed_len > 0:
+            print("Unflushed:", unflushed_len, "on socket:", self.byte_stream.socket)
+
     def code_has_timestamp(self, code):
         return code in [2, 3, 4, 5, 6, 7, 8, 28, 29, 30, 31]
 
     def process(self, message):
-        sequence_num = (struct.unpack('H', message[2:4])[0] + self.offset) % 2 ** 16
+        code, sequence_num = struct.unpack('BxH', message[:4])
+        sequence_num = (sequence_num + self.offset) % 2 ** 16
         struct.pack_into('H', message, 2, sequence_num)
 
+        # Setup the stream's tracking timestamp if the event gives us a timestamp.
         if self.origin_time is None and self.code_has_timestamp(code):
-            self.setup_timestamp(message.timestamp)
+            self.setup_timestamp(message)
+
+        return message
 
     def close(self):
         self.byte_stream.socket.close()
+
+    def get_socket(self):
+        return self.byte_stream.socket
 
 class XClientToServerStream:
     def __init__(self, socket):
@@ -165,10 +195,7 @@ class XClientToServerStream:
             l = len(self.connection_bytes)
             if l < 12:
                 return
-            print("Consuming connection setup of", len(self.connection_bytes), "bytes")
             endianess, major, minor, name_len, data_len = struct.unpack('BxHHHH', self.connection_bytes[:10])
-            print("Endianess:", endianess)
-
             self.is_little_endian = chr(endianess) == 'l'
             assert self.is_little_endian, "XProxy only supports little endian connections"
             self.is_connected = True
@@ -177,6 +204,12 @@ class XClientToServerStream:
         self.socket.sendmsg(buffers, anc_data)
         for data in buffers:
             self.consume(data)
+
+    def close(self):
+        self.socket.close()
+
+    def get_socket(self):
+        return self.socket
 
 def _display_path(display_num):
     return "/tmp/.X11-unix/X" + str(display_num)
@@ -209,7 +242,7 @@ class Proxy():
             # print("select")
             ### print("desc:", [s.fileno() for s in self.sockets])
             read, _, _ = select.select(self.sockets, [], [])
-            ### print("read:", [s.fileno() for s in read])
+            # print("read:", [s.fileno() for s in read])
             for rs in read:
                 if rs is self.client_socket:
                     # Create sockets for the client connection and display connection.
@@ -238,7 +271,7 @@ class Proxy():
                     if mirror_socket is None:
                         assert False, "No mirror"
 
-                    recv_data, anc_data, flags, _ = rs.recvmsg(int(5e5), int(1e3))
+                    recv_data, anc_data, flags, _ = rs.recvmsg(int(5e5), int(1e4))
                     assert (flags & socket.MSG_TRUNC == 0) and (flags & socket.MSG_CTRUNC == 0)
 
                     l = len(recv_data)
@@ -250,7 +283,7 @@ class Proxy():
                         ### print("Client connection closed")
                         mirror_socket.close()
                         self.sockets.remove(rs)
-                        self.sockets.remove(mirror_socket)
+                        self.sockets.remove(mirror_socket.get_socket())
                         self.mirrors.pop(rs, None)
                         self.mirrors.pop(mirror_socket, None)
                         break
@@ -266,7 +299,7 @@ class Proxy():
                         # the client socket.
                         rs.close()
                         self.sockets.remove(rs)
-                        self.sockets.remove(mirror_socket)
+                        self.sockets.remove(mirror_socket.get_socket())
                         self.mirrors.pop(rs, None)
                         self.mirrors.pop(mirror_socket, None)
                         break
@@ -303,7 +336,6 @@ def ToWire(ev):
     same_screen = ev.same_screen
     return struct.pack('BBHIIIIHHHHHBx', code, detail, sequence_number, time, root,
         event, child, root_x, root_y, event_x, event_y, state, same_screen)
-
 
 import threading
 import time
