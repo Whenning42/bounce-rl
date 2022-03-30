@@ -38,6 +38,7 @@ class XByteStream():
         self.byte_buffer = bytes()
         self.socket = socket
         self.connecting = True
+        self.anc_data = []
 
     # Add the given message to the back of the message queue
     def append_message(self, message):
@@ -49,6 +50,9 @@ class XByteStream():
         self.messages.append(bytearray(self.byte_buffer[self.message_end : \
                                               self.message_end + message_len]))
         self.message_end += message_len
+
+    def consume_anc(self, anc_data):
+        self.anc_data = anc_data
 
     def consume(self, data):
         self.byte_buffer += data
@@ -104,14 +108,18 @@ class XByteStream():
                     break
 
     def flush(self):
+        data = bytearray()
         for m in self.messages:
-            print("Sending bytes:", len(m))
-            sent = self.socket.send(m)
-            assert sent == len(m)
+            data += m
+        data += self.byte_buffer[self.message_end:]
 
-        self.byte_buffer = self.byte_buffer[self.message_end:]
+        sent = self.socket.sendmsg([data], self.anc_data)
+        assert sent == len(data)
+
+        self.byte_buffer = bytearray()
         self.message_end = 0
         self.messages = []
+        self.anc_data = []
 
 class XServerToClientStream:
     def __init__(self, socket):
@@ -151,11 +159,12 @@ class XServerToClientStream:
         self.byte_stream.flush()
 
     def sendmsg(self, buffers, anc_data):
+        self.byte_stream.consume_anc(anc_data)
         # self.byte_stream.socket.sendmsg([], anc_data)
         for data in buffers:
             self.byte_stream.consume(data)
-            for i, message in enumerate(self.byte_stream.messages):
-                self.byte_stream.messages[i] = self.process(message)
+        for i, message in enumerate(self.byte_stream.messages):
+            self.byte_stream.messages[i] = self.process(message)
         self.byte_stream.flush()
 
         unflushed_len = len(self.byte_stream.byte_buffer)
