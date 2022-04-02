@@ -1,5 +1,6 @@
-# Proxies a new X11 display to an existing one. This is useful logging X-protocol
-# traffic from an app or for injecting messages between the server and app.
+# Proxies a new X11 display to an existing one. This is useful for injecting or filtering messages
+# between the server and clients. Injecting is not implemented (details of why are in
+# serial_numbers.txt). Custom filtering is implemented.
 #
 # To run an app through the proxy, start the proxy server with
 #   $ python proxy.py
@@ -127,37 +128,6 @@ class XServerToClientStream:
         self.sequence_number = 0
         self.byte_stream = XByteStream(socket)
 
-        self.origin_time = None
-        self.origin_mills = None
-
-    def current_timestamp(self):
-        assert self.origin_time is not None, "XMessageStream.current_timestamp can't be called before the proxy has seen an XEvent timestamp."
-
-        mills = int(1000 * (datetime.datetime.now() - self.origin_time).total_seconds())
-        mills = (mills - self.origin_mills) % (2 ** 32)
-        # Never return a timestamp of 0 since it's reservered in the protocol.
-        if mills == 0:
-            mills += 1
-        return mills
-
-    def setup_timestamp(self, event_message):
-        timestamp = struct.unpack('I', event_message[4:8])
-        self.origin_time = datetime.datetime.now()
-        self.origin_mills = timestamp
-
-    # Note: This requires the caller to have set the correct timestamp on the event if the event
-    # type has a timestamp.
-    def inject(self, event):
-        code, detail, sequence_num = struct.unpack('BBH', event)
-        assert code > 1, "inject currently only supports injecting events, not replies"
-
-        sequence_number = self.sequence_number + 1
-        self.offset += 1
-        struct.pack_into('BBH', event, 2, sequence_num)
-
-        self.byte_stream.append_message(event)
-        self.byte_stream.flush()
-
     def sendmsg(self, buffers, anc_data):
         self.byte_stream.consume_anc(anc_data)
         # self.byte_stream.socket.sendmsg([], anc_data)
@@ -171,18 +141,8 @@ class XServerToClientStream:
         if unflushed_len > 0:
             print("Unflushed:", unflushed_len, "on socket:", self.byte_stream.socket)
 
-    def code_has_timestamp(self, code):
-        return code in [2, 3, 4, 5, 6, 7, 8, 28, 29, 30, 31]
-
     def process(self, message):
-        code, sequence_num = struct.unpack('BxH', message[:4])
-        sequence_num = (sequence_num + self.offset) % 2 ** 16
-        struct.pack_into('H', message, 2, sequence_num)
-
-        # Setup the stream's tracking timestamp if the event gives us a timestamp.
-        if self.origin_time is None and self.code_has_timestamp(code):
-            self.setup_timestamp(message)
-
+        # TODO: Implement filtering.
         return message
 
     def close(self):
@@ -240,9 +200,7 @@ class Proxy():
         self.sockets = [self.client_socket]
         self.mirrors = {}
 
-        self.client_injection_socket = []
         self.i = 0
-
         self.max_p = 0
 
     def run(self):
@@ -322,30 +280,6 @@ class Proxy():
                 # print("Failed to inject message")
                 pass
 
-def KeyPressEvent():
-    return KeyEvent(2)
-
-def KeyReleaseEvent():
-    return KeyEvent(3)
-
-def ToWire(ev):
-    # TODO: Mint sequence and current times.
-    code = ev.type
-    detail = ev.detail
-    sequence_number = 0
-    time = first_stream.current_timestamp()
-    root = ev.root.id
-    event = ev.window.id
-    child = ev.child
-    root_x = ev.root_x
-    root_y = ev.root_y
-    event_x = ev.event_x
-    event_y = ev.event_y
-    state = ev.state
-    same_screen = ev.same_screen
-    return struct.pack('BBHIIIIHHHHHBx', code, detail, sequence_number, time, root,
-        event, child, root_x, root_y, event_x, event_y, state, same_screen)
-
 import threading
 import time
 import Xlib.display
@@ -361,15 +295,5 @@ if __name__ == "__main__":
     window_id = int(input("Enter window id:"), 0)
     window = display.create_resource_object('window', window_id)
     keyboard = Keyboard(display, window)
-
-    while True:
-        input("Again?")
-        window.set_input_focus(Xlib.X.RevertToParent, Xlib.X.CurrentTime)
-        display.sync()
-
-        proxy.inject(ToWire(keyboard.get_key_x_event("RETURN", Keyboard.PRESS)))
-        time.sleep(.3)
-        proxy.inject(ToWire(keyboard.get_key_x_event("RETURN", Keyboard.RELEASE)))
-        time.sleep(.3)
 
     t.join()
