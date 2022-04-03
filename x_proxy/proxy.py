@@ -26,6 +26,9 @@ import os
 # timestamp.
 first_stream = None
 
+FOCUS_IN = 9
+FOCUS_OUT = 10
+LAST_STANDARD_EVENT = 34
 GENERIC_EVENT_CODE = 35
 
 def pad(n):
@@ -35,11 +38,18 @@ def pad(n):
 class XByteStream():
     def __init__(self, socket):
         self.message_end = 0
+        self.sent_end = 0
         self.messages = []
+
+        # Holds bytes to send and bytes to process. The sent_end will be >= message_end.
         self.byte_buffer = bytes()
         self.socket = socket
         self.connecting = True
         self.anc_data = []
+
+        self.bytes_to_discard = 0
+
+        self.focused = None
 
     # Add the given message to the back of the message queue
     def append_message(self, message):
@@ -52,15 +62,40 @@ class XByteStream():
                                               self.message_end + message_len]))
         self.message_end += message_len
 
+    def discard_bytes(self, discard_bytes):
+        self.bytes_to_discard += discard_bytes
+        remaining = len(self.byte_buffer[self.message_end:])
+
+        if remaining < discard_bytes:
+            self.bytes_to_discard -= remaining
+            self.byte_buffer = self.byte_buffer[:self.message_end]
+        else:
+            self.bytes_to_discard = 0
+            self.byte_buffer = self.byte_buffer[:self.message_end] + self.byte_buffer[self.message_end + 32:]
+
+    def should_filter_event(self, event_code):
+        # Filter FocusOut events.
+        if self.focused is None:
+            return False
+
+        return (self.focused and event_code == FOCUS_IN) \
+                             or  event_code == FOCUS_OUT
+
     def consume_anc(self, anc_data):
         self.anc_data = anc_data
 
     def consume(self, data):
+        # print("Consume")
+        if self.bytes_to_discard > 0:
+            before = len(data)
+            data = data[self.bytes_to_discard:]
+            after =  len(data)
+            discarded = before - after
+            self.bytes_to_discard -= discarded
+
         self.byte_buffer += data
 
         l = len(self.byte_buffer)
-        print("Byte buffer len:", len(self.byte_buffer))
-
         if self.connecting:
             if l < 8:
                 return
@@ -74,21 +109,48 @@ class XByteStream():
                 self.connecting = False
             return
 
-        print("Buffer length:", l)
-        while l - self.message_end >= 32:
-            code, reply_length = struct.unpack('BxxxI', self.byte_buffer[self.message_end : self.message_end + 8])
+        while len(self.byte_buffer) - self.message_end >= 32:
+            # print("Buffer len: ", len(self.byte_buffer))
+            # print("Read offset: ", self.message_end)
+            code, sequence_num, reply_length = struct.unpack('BxHI', self.byte_buffer[self.message_end : self.message_end + 8])
             is_event = code > 1
             is_reply = code == 1
             is_error = code == 0
-            print("Code:", code, "reply_len:", reply_length)
-
+            if is_reply:
+                print("Reply. Sequence num:", sequence_num, "Additional length:", reply_length)
             if is_event:
-                code = struct.unpack('B', self.byte_buffer[self.message_end : self.message_end + 1])
-                print("Event:", code)
+                print("Event with code:", code)
+
+            # Standard events have code <= 34 and are all 32 bytes.
+            # Standard protocol events can sent however we like
+            # Extension replies and events are likely safer to send bytes as they arrive.
+            # Logic:
+            #   If event is filterable && standard:
+            #     Remove next 32 bytes
+            #   If event is filterable && non-standard:
+            #     Throw error, filtering extension events is not implemented
+            #   Otherwise continue.
+            #
+            if is_event:
                 additional_length = 0
+                # TODO: Should check if FocusIn was already called.
+                should_filter = self.should_filter_event(code)
+
+                if code <= LAST_STANDARD_EVENT and should_filter:
+                    print("Filtering an event. Code", code, flush = True)
+                    self.discard_bytes(32)
+                    continue
+                elif code > LAST_STANDARD_EVENT and should_filter:
+                    print("UnimplementedError", flush = True)
+                    raise NotImplementedError
+
+                if code == FOCUS_IN:
+                    self.focused = True
+                elif code == FOCUS_OUT:
+                    self.focused = False
+
                 if code == GENERIC_EVENT_CODE:
-                    print("Handling generic event")
-                    additional_length = struct.unpack('I', self.byte_buffer[self.message_end + 4 : self.message_end + 8])
+                    additional_length = struct.unpack('I', self.byte_buffer[self.message_end + 4 : self.message_end + 8])[0]
 
                 full_length = 32 + 4 * additional_length
                 if l - self.message_end >= full_length:
@@ -100,7 +162,6 @@ class XByteStream():
                 self.commit_message(32)
                 continue
             if is_reply:
-                print("Reply")
                 full_length = 32 + 4 * reply_length
                 if l - self.message_end >= full_length:
                     self.commit_message(full_length)
@@ -109,15 +170,16 @@ class XByteStream():
                     break
 
     def flush(self):
-        data = bytearray()
-        for m in self.messages:
-            data += m
-        data += self.byte_buffer[self.message_end:]
+        data = self.byte_buffer[self.sent_end : ]
+        if len(data) != 0:
+            sent = self.socket.sendmsg([data], self.anc_data)
+            self.sent_end += sent
+            assert sent == len(data)
+            print("Wrote: ", sent)
 
-        sent = self.socket.sendmsg([data], self.anc_data)
-        assert sent == len(data)
-
-        self.byte_buffer = bytearray()
+        # Remove all fully processed messages from the byte_buffer.
+        self.byte_buffer = self.byte_buffer[self.message_end:]
+        self.sent_end -= self.message_end
         self.message_end = 0
         self.messages = []
         self.anc_data = []
@@ -208,6 +270,7 @@ class Proxy():
         while True:
             # print("select")
             ### print("desc:", [s.fileno() for s in self.sockets])
+            # print("selecting")
             read, _, _ = select.select(self.sockets, [], [])
             # print("read:", [s.fileno() for s in read])
             for rs in read:
