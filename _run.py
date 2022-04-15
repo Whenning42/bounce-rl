@@ -1,5 +1,5 @@
 from harness import *
-import run_configs
+import app_configs
 import model
 import rewards.art_of_rally
 import callbacks.callbacks as callbacks
@@ -20,7 +20,7 @@ run_config = {
     "y_res": 1080,
     "scale": .5,
 }
-app_config = run_configs.LoadAppConfig(run_config["app"])
+app_config = app_configs.LoadAppConfig(run_config["app"])
 harness = Harness(app_config, run_config)
 art_of_rally_reward_callback.attach_to_harness(harness)
 screenshot_callback.attach_to_harness(harness)
