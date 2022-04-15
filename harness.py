@@ -10,6 +10,7 @@ import shlex
 import keyboard
 import util
 import string
+import psutil
 from model import *
 
 from Xlib import display, Xatom
@@ -103,12 +104,12 @@ class Harness(object):
     def is_owned(self, window, child_pids):
         # TODO: I could change the window connection algorithm to not
         # use _NET_WM_PID.
-        window_pid_result = query_property(self.display, window, '_NET_WM_PID', Xatom.CARDINAL)
+        window_pid_result = query_window_property(self.display, window, '_NET_WM_PID', Xatom.CARDINAL)
         assert window_pid_result is not None, "Harness requires the running window manager to implement _NET_WM_PID annotations."
-        window_pid = pid_result[0]
+        window_pid = window_pid_result[0]
         window_ps = psutil.Process(window_pid)
         while window_ps is not None:
-            if window_ps.pid() in child_pids:
+            if window_ps.pid in child_pids:
                 return True
             window_ps = window_ps.parent()
         return False
@@ -147,7 +148,7 @@ class Harness(object):
                 if self.instance is None:
                     pos = 1
                 else:
-                    pos = self.instace
+                    pos = self.instance
                 w.configure(x = int(self.run_config["scale"] * self.run_config["x_res"] * (pos % self.run_config["row_size"])), \
                             y = int(self.run_config["scale"] * self.run_config["y_res"] * (pos // self.run_config["row_size"])), \
                             width = int(self.run_config["scale"] * self.run_config["x_res"]), height = int(self.run_config["scale"] * self.run_config["y_res"]))
