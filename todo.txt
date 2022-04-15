@@ -1,31 +1,76 @@
 - Clean-up:
     - Document Cython setup
-    - Check if recognition model has an inference mode that uses less VRAM
     - Fix window open reparenting crash
 
-- Harness Features:
+✓ Harness Features:
     ✓ Extend image capture to support offset capture regions
     ✓ Move image capture into a harness library
     ✓ Migrate harness launcher from using app configs to run configs
 
-- Refactoring:
-    ✓ Add model_lib to project.
+✓ Reward:
+    ✓ Implement the reward agent config defined inapp_configs.py
+    ✓ Train a faster inferencing speed detection model
 
-- Reward:
-    ✓ Implement the reward agent config defined in run_configs.py
-    - Train a faster inferencing speed detection model
-    - Evaluate the various binary classifiers for expected performance (validation error and its variance with generalization in mind)
-        - Collect ~100 more positive is_reverse and is penalized samples and ~50 more negatives
-        - Extend eval script to support viewing sample accuracy distribution over time
-        - Extend eval script to support training with multiple seeds and offsets (We want to see mean validation error and 10th percentile validation error)
+- Performance:
+    ✓ Implement parallel envs
+    - Implement frame length tracking to understand and verify perf across machines
+        - See libframetime on github for an implementation/reference.
+
+- Experiment Setup:
+    - Enable running config sweeps w/ multiple trials
+    - Automated launch and gather across machines
 
 - Reinforcement learning:
     ✓ Implement the initial env
-    ✓ Find a solid blackbox RL algorithm
-        ✓ PPO seems to be working fine
-    - Implement env.reset()
+    ✓ Try out blackbox algorithm
+    ✓ Fix reward function reverse behavior
+    - Fix lagged penalty behavior
+      (Use average sampled pixel value as penalty predictor)
+    - Model based
+        - Try running DreamerV2
+    - Run a hyperparameter search
+        - Different rollout sizes, seeds, penalty values, lagged vs immediate penalties, PPO vs DreamerV2
 
-- Cool tangents:
-    - It'd be nice to have a tool that makes moving files safer and easier
-    - It'd be nice to have an interactive plot of sample errors so I could view the actual errors
+- Scaling (Work on as necessary when doing expirementation):
+    - Options
+        - AWS/GCP/Azure
+            - Valuable skills
+            - Getting quota has been hard so far
+        - Vast.ai
+            - Insecure
+            - Need to handle possible host unreliability
+            - Cheap
+        - Local
+            - Aim for high utilization of my machine i.e. queue multiple experiments (Listed under experiment setup section)
+            - How hard is it to test experiment setups while other experiments are in progress?
 
+- Give a write-up (Something relatively light)
+    - Documentation
+    - Short reflection (Below is probably too much)
+        - Motivation
+            - Wanted to re-create OpenAI Universe.
+            - Wanted to either succeed in training an AI to play a game,
+              or learn what the "blockers" were
+        - Game choice
+            - Wrote up a list
+            - Initially chose Skyrogue
+        - Harness
+        - Many side-tracks
+            - MC
+            - Compression
+            - ...
+        - Return to the project
+            - A better focus on engineering instead of research
+        - Reward Fns
+        - Time accel
+        - RL
+        - Future directions
+            - Solve AOR single track (assuming search doesn't)
+            - Solve other AOR tracks
+            - Solve other games
+
+        - Distill the story above into a clear narrative
+            - Why I built
+            - What I built
+            - How I grew
+            - What's the state of RL
