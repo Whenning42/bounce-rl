@@ -5,6 +5,8 @@ import Xlib.protocol
 import numpy as np
 import time
 
+from threading import Lock
+
 def keysym_for_key_name(key_name):
     keysym = Xlib.XK.string_to_keysym(key_name)
     assert(keysym is not None)
@@ -17,9 +19,12 @@ class Keyboard(object):
     CTRL_MOD = 4
     ALT_MOD = 8
 
+    global_mutex = Lock()
+
     def __init__(self, display, window):
         self.last_keymap = np.zeros(84)
         self.focused_window = window
+        print("Keyboard win:", window)
         self.display = display
 
         self.held_set = set()
@@ -56,6 +61,7 @@ class Keyboard(object):
     # any other method of this class and so calling this and other methods may be
     # error prone.
     def set_held_keys(self, key_set):
+        print(key_set)
         # Implements re-press key mode.
         for key in self.held_set:
             self.release_key(key)
@@ -92,18 +98,16 @@ class Keyboard(object):
                (keymap[64]) * Keyboard.ALT_MOD
 
     def press_key(self, key_name, modifier = 0):
-        keysym = keysym_for_key_name(key_name)
-        self._press_key(keysym, modifier)
+        self._press_key(key_name, modifier)
 
-    def _press_key(self, keysym, modifier = 0):
-        self._change_key(keysym, Keyboard.PRESS, modifier)
+    def _press_key(self, key_name, modifier = 0):
+        self._change_key(key_name, Keyboard.PRESS, modifier)
 
     def release_key(self, key_name, modifier = 0):
-        keysym = keysym_for_key_name(key_name)
-        self._release_key(keysym, modifier)
+        self._release_key(key_name, modifier)
 
-    def _release_key(self, keysym, modifier = 0):
-        self._change_key(keysym, Keyboard.RELEASE, modifier)
+    def _release_key(self, key_name, modifier = 0):
+        self._change_key(key_name, Keyboard.RELEASE, modifier)
 
     def key_sequence(self, keys):
         for key in keys:
@@ -113,13 +117,15 @@ class Keyboard(object):
             self.release_key(key)
             time.sleep(.25)
 
-    def _change_key(self, keysym, direction, modifier=0):
-        modifier = int(modifier)
+    def get_key_x_event(self, key_name, direction, modifier = 0):
+        keysym = keysym_for_key_name(key_name)
         keycode = self.display.keysym_to_keycode(keysym)
+
+        modifier = int(modifier)
         root = self.display.screen().root
 
         if direction == Keyboard.PRESS:
-            event = Xlib.protocol.event.KeyPress(
+            return Xlib.protocol.event.KeyPress(
                     detail = keycode,
                     time = 0,
                     root = root,
@@ -132,7 +138,7 @@ class Keyboard(object):
                     state = modifier,
                     same_screen = 0)
         elif direction == Keyboard.RELEASE:
-            event = Xlib.protocol.event.KeyRelease(
+            return Xlib.protocol.event.KeyRelease(
                     detail = keycode,
                     time = 0,
                     root = root,
@@ -148,6 +154,9 @@ class Keyboard(object):
             # Unsupported direction
             assert(False)
 
+    def _change_key(self, key_name, direction, modifier = 0):
+        self.global_mutex.acquire()
+
         # Focus the window we're sending the event to.
         for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]:
             w = self.focused_window
@@ -155,5 +164,21 @@ class Keyboard(object):
             self.display.send_event(w, e)
             self.display.flush()
 
-        self.display.send_event(self.focused_window, event, False, Xlib.X.KeyPress | Xlib.X.KeyRelease)
+
+        # Set the input focus to the window we want.
+        self.display.set_input_focus(self.focused_window, Xlib.X.RevertToNone, Xlib.X.CurrentTime)
+
+        event = self.get_key_x_event(key_name, direction, modifier)
+        self.display.send_event(self.focused_window, event, propagate = False, event_mask = Xlib.X.KeyPress | Xlib.X.KeyRelease)
+        # self.display.send_event(self.focused_window, event, propagate = False, event_mask = 0)
         self.display.flush()
+
+        # Un-focus the window we sent the event to.
+        # for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]:
+        #     w = self.focused_window
+        #     e = Xlib.protocol.event.FocusOut(display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal)
+        #     self.display.send_event(w, e)
+        #     self.display.flush()
+
+        # self.display.sync()
+        self.global_mutex.release()
