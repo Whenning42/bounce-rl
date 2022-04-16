@@ -72,9 +72,7 @@ def SteadyReward(speed, is_reverse, is_penalized, penalty_value = 1):
     if vel is None:
         return None
 
-    if vel < 0:
-        p = -1
-    elif vel < 5:
+    if vel < 5:
         p = -1 + 2 * vel / 5
     else:
         p = 1

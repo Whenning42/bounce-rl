@@ -1,5 +1,5 @@
 import rewards
-# import rewards.art_of_rally
+import rewards.art_of_rally
 import src.time_writer
 import time
 import app_configs
@@ -13,10 +13,12 @@ DOWNSAMPLE = 2
 
 class ArtOfRallyEnv(gym.core.Env):
     def __init__(self, out_dir = None, channel = 0):
+        self.channel = channel
+
         X_RES = 960
         Y_RES = 540
-        # art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False)
-        # screenshot_callback = callbacks.ScreenshotCallback(out_dir = out_dir)
+        art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False)
+        screenshot_callback = callbacks.ScreenshotCallback(out_dir = out_dir)
         run_config = {
             "title": "Art of Rally reward eval",
             "app": "Art of Rally (Multi)",
@@ -33,15 +35,13 @@ class ArtOfRallyEnv(gym.core.Env):
         app_config = app_configs.LoadAppConfig(run_config["app"])
 
         harness = Harness(app_config, run_config, instance = channel)
-        # art_of_rally_reward_callback.attach_to_harness(harness)
-        # screenshot_callback.attach_to_harness(harness)
+        art_of_rally_reward_callback.attach_to_harness(harness)
+        screenshot_callback.attach_to_harness(harness)
 
         self.harness = harness
         # Reward callback is called by env.
-        # self.reward_callback = art_of_rally_reward_callback
-        self.reward_callback = lambda: None
-        self.reward_callback.on_tick = lambda: (0, 0, 0)
-        # self.screenshot_callback = screenshot_callback
+        self.reward_callback = art_of_rally_reward_callback
+        self.screenshot_callback = screenshot_callback
 
         self.action_space = gym.spaces.MultiDiscrete([3, 3])
         # Input space is in xlib XK key strings with XK_ left off.
@@ -68,6 +68,8 @@ class ArtOfRallyEnv(gym.core.Env):
             print("Waiting for env setup")
 
     def _setup_env_async(self):
+        src.time_writer.SetSpeedup(self.run_config["run_rate"], channel = self.channel)
+
         # Wait for the harness to be initialized
         while self.harness.ready == False:
             self.harness.tick()
@@ -109,11 +111,12 @@ class ArtOfRallyEnv(gym.core.Env):
 
         pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE, 0:1]
         return pixels
+        # I'd like to return additional state, but doing so doesn't play well with StableBaselines. i.e. DictObservations are compatible with CNN Policies.
         # return {"pixels": pixels, "speed": np.array((0,))}
 
     def close(self):
-        print("ArtOfRallyEnv.close is unimplemented.")
-        # This environment can't close itself.
+        print("Closing ArtOfRallyEnv by killing all running instances.")
+        self.harness.kill_subprocesses()
         pass
 
     def step(self, action):
@@ -126,12 +129,12 @@ class ArtOfRallyEnv(gym.core.Env):
                 continue
             key_set.add(self.input_space[i][v - 1])
         self.harness.keyboards[0].set_held_keys(key_set)
-        # if self.total_steps % 100 == 0:
-        #     self.screenshot_callback.on_tick()
+        if self.total_steps % 100 == 0:
+            self.screenshot_callback.on_tick()
 
-        src.time_writer.SetSpeedup(self.run_config["run_rate"])
+        src.time_writer.SetSpeedup(self.run_config["run_rate"], channel = self.channel)
         time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
-        src.time_writer.SetSpeedup(self.run_config["pause_rate"])
+        src.time_writer.SetSpeedup(self.run_config["pause_rate"], channel = self.channel)
 
         self.episode_steps += 1
         self.total_steps += 1

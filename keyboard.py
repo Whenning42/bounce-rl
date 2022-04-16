@@ -61,7 +61,6 @@ class Keyboard(object):
     # any other method of this class and so calling this and other methods may be
     # error prone.
     def set_held_keys(self, key_set):
-        print(key_set)
         # Implements re-press key mode.
         for key in self.held_set:
             self.release_key(key)

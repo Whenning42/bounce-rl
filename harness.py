@@ -94,10 +94,17 @@ class Harness(object):
         assert(False)
 
     def open_new_window(self):
+        # TODO: Make this path portable.
+        env = os.environ.copy()
+        env["LD_PRELOAD"] = "/home/william/Workspaces/GameHarness/build/time_control.so"
+        if self.instance is not None:
+            env["TIME_CHANNEL"] = str(self.instance)
+
         split_command = shlex.split(self.app_config["command"])
         directory_template = string.Template(self.app_config["directory"])
         directory = directory_template.substitute(i = self.instance)
-        process = subprocess.Popen(split_command, cwd=directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        process = subprocess.Popen(split_command, cwd=directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+        # process = subprocess.Popen(split_command, cwd=directory, env=env)
         self.subprocess_pids.append(process.pid)
 
     # Return True if the window's process is a descendant any of the child_pids.

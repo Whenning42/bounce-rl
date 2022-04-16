@@ -6,6 +6,8 @@ from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage, Vec
 import os
 import gin
 import pathlib
+import itertools
+import time
 
 @gin.configurable
 def PPO(out_dir, env, seed = 0, n_steps = 2048, ent_coef = .01):
@@ -36,12 +38,21 @@ def run(out_dir = "out/run/", seed = 0, timesteps = 1e6, n_stack = 4):
     model = PPO(out_dir, env)
 
     print("Ready to train with operative config: ", gin.operative_config_str())
-    _ = input("Waiting for user confirmation of env setup.")
     # Frame stack breaks check_env?
     # stable_baselines3.common.env_checker.check_env(env)
     model.learn(total_timesteps = timesteps, callback = [eval_callback, checkpoint_callback])
 
+    # SB3 doesn't close the env after learn call?
+    orig_env.close()
+    time.sleep(1)
+
 gin.parse_config_file('config.gin')
 
 if __name__ == "__main__":
-    run()
+    for seed, n_steps in itertools.product((0, 1, 2), (4800, 9600)):
+        gin.bind_parameter("run.out_dir", f"out/run/n_steps_{n_steps}_seed_{seed}")
+        gin.bind_parameter("run.seed", seed)
+        gin.bind_parameter("PPO.seed", seed)
+        gin.bind_parameter("PPO.n_steps", n_steps)
+
+        run()
