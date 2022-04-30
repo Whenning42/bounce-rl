@@ -17,7 +17,6 @@ def PPO(out_dir, env, seed = 0, n_steps = 2048, ent_coef = .01):
 def run(out_dir = "out/run/", seed = 0, timesteps = 1e6, n_stack = 4):
     out_dir = os.path.join(out_dir, str(seed))
     pathlib.Path(out_dir).mkdir(parents= True, exist_ok = True)
-    image_dir = os.path.join(out_dir, "images")
 
     with open(os.path.join(out_dir, "config.gin"), "w") as f:
         print("Using config:")
@@ -25,7 +24,7 @@ def run(out_dir = "out/run/", seed = 0, timesteps = 1e6, n_stack = 4):
         f.write(gin.config_str())
 
     # Create environment
-    orig_env = rewards.env_rally.ArtOfRallyEnv(out_dir = image_dir)
+    orig_env = rewards.env_rally.ArtOfRallyEnv(out_dir = out_dir)
     env = VecFrameStack(DummyVecEnv([lambda: orig_env]), n_stack = n_stack)
 
     eval_env = env

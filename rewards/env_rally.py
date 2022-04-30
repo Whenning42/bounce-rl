@@ -8,12 +8,24 @@ import gym
 import numpy as np
 import callbacks.callbacks as callbacks
 import threading
+import csv_logger
 
 DOWNSAMPLE = 2
+STEP_FILE = "steps.csv"
+EPISODE_FILE = "episodes.csv"
 
+# Writes features
+#   images/*
+#   steps.csv
+#     - All environment features
+#     - Path to pixels
+#   episodes.csv
+#     - Which episodes have saved pixels
 class ArtOfRallyEnv(gym.core.Env):
     def __init__(self, out_dir = None, channel = 0):
         self.channel = channel
+        self.step_logger = csv_logger.CsvLogger(os.path.join(out_dir, STEP_FILE))
+        self.episode_logger = csv_logger.CsvLogger(os.path.join(out_dir, EPISODE_FILE))
 
         X_RES = 960
         Y_RES = 540
@@ -30,6 +42,7 @@ class ArtOfRallyEnv(gym.core.Env):
             "run_rate": 8,
             "pause_rate": .25,
             "step_duration": .250,
+            "pixels_every_n_episodes": 20
         }
         self.run_config = run_config
         app_config = app_configs.LoadAppConfig(run_config["app"])
@@ -43,6 +56,7 @@ class ArtOfRallyEnv(gym.core.Env):
         self.reward_callback = art_of_rally_reward_callback
         self.screenshot_callback = screenshot_callback
 
+        # Corrsponds to (None, Up, Down), (None, Left, Right)
         self.action_space = gym.spaces.MultiDiscrete([3, 3])
         # Input space is in xlib XK key strings with XK_ left off.
         self.input_space = (("Up", "Down"), ("Left", "Right"))
@@ -54,6 +68,7 @@ class ArtOfRallyEnv(gym.core.Env):
         # self.observation_space = gym.spaces.Dict({"pixels": self.pixel_space, "speed": self.speed_space})
         self.observation_space = self.pixel_space
 
+        self.episode = 0
         self.episode_steps = 0
         self.total_steps = 0
 
@@ -94,18 +109,33 @@ class ArtOfRallyEnv(gym.core.Env):
         print("Finished launching an episode")
         self.env_init = True
 
-
     def render(self):
         print("ArtOfRallyEnv.render is unimplemented.")
         # This environment is always rendered.
         pass
 
+    def episode_saves_pixels(self):
+        if self.run_config["pixels_every_n_episodes"] != 0 and
+           self.episode % self.run_config["pixels_every_n_episodes"] == 0:
+            return True
+        return False
+
+    # Do callers run .reset() before the first episode?
     def reset(self):
         self._wait_for_env_init()
         self.episode_steps = 0
+        self.episode += 1
 
+        # Log per episode info.
+        to_log = {"episode": self.episode,
+                  "first_step": self.total_steps,
+                  "episode_has_pixels": self.episode_saves_pixels()}
+        self.episode_logger.write_line(to_log)
+
+        # NOTE: This sequence won't reset the env if the game isn't in a race.
+        # We handle this by having short enough episodes that agents can't finish
+        # the race.
         self.harness.keyboards[0].set_held_keys(set())
-        # NOTE: This will likely fail if the enviroment isn't currently in a race.
         self.harness.keyboards[0].key_sequence(["Escape", "Down", "Return", "Return"])
         time.sleep(2)
 
@@ -145,14 +175,26 @@ class ArtOfRallyEnv(gym.core.Env):
             done = True
 
         pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE, 0:1]
-        reward, speed, true_reward = self.reward_callback.on_tick()
-        state = {"pixels": pixels, "speed": np.array((speed,))}
+        features = self.reward_callback.on_tick()
 
-        info = {}
-        info["true_reward"] = true_reward
+        # Log environment features and save pixels if requested.
+        to_log = features.copy()
+        if self.episode_saves_pixels():
+            filename = f"{self.total_steps:08d}.png"
+            im = Image.fromarray(pixels)
+            im.save(os.path.join(self.out_dir, "images", filename))
+            to_log["pixels_path"] = filename
+        self.step_logger.write_line(to_log)
+
+        # Copy eval reward into SB3/Tensorboard integrated reward feature.
+        info["true_reward"] = features['eval_reward']
+
         if reward is None:
             reward = -1
             info["reward_was_none"] = True
+        else:
+            info["reward_was_none"] = False
 
         # print(f"Returning reward {reward}", flush = True)
-        return pixels, reward, done, info
+        # Should features be returned in info? Probably?
+        return pixels, features['train_reward'], done, info

@@ -10,8 +10,11 @@ import torch
 import os
 import gin
 
+def _LogitsToBool(logits):
+    return logits[1] > logits[0]
+
 def _GetVel(speed, is_reverse):
-    is_reverse = is_reverse[1] > is_reverse[0]
+    is_reverse = _LogitsToBool(is_reverse)
     if not speed.isnumeric():
         return None
     vel = int(speed)
@@ -24,7 +27,7 @@ def LinearReward(speed, is_reverse, is_penalized, penalty_value = 25, baseline_v
     if None in (speed, is_reverse, is_penalized):
         return None
 
-    is_penalized = is_penalized[1] > is_penalized[0]
+    is_penalized = _LogitsToBool(is_penalized)
 
     vel = _GetVel(speed, is_reverse)
     if vel is None:
@@ -48,6 +51,7 @@ def TimeReward(speed, is_reverse, is_penalized, penalty_value = 1):
     if vel is None:
         return None
 
+    # Put a diagram here?
     if vel < 0:
         p = -1
     elif vel < 5:
@@ -150,6 +154,8 @@ class ArtOfRallyReward():
         is_penalized_x = is_penalized_x.to(self.device)
         return self.is_penalized_model(is_penalized_x)
 
+    # Returns a dict of
+    #   'train_reward', 'eval_reward', 'vel', 'is_penalized', 'is_reverse'
     def on_tick(self):
         detect_speed_roi = util.npBGRAtoRGB(self.capture_detect_speed())
         # Captured gives (w, h, c) w/ c == 4, BGRA
@@ -160,14 +166,16 @@ class ArtOfRallyReward():
         predicted_detect_speed = "".join(list(self.predict_detect_speed(detect_speed_roi)[0]))
         predicted_is_reverse = self.predict_is_reverse(is_reverse_roi)[0]
         predicted_is_penalized = self.predict_is_penalized(is_penalized_roi)[0]
+        is_reverse = _LogitsToBool(predicted_is_reverse)
+        is_penalized = _LogitsToBool(predicted_is_penalized)
 
-        speed = _GetVel(predicted_detect_speed, predicted_is_reverse)
-        if speed is None:
-            speed = 0
+        vel = _GetVel(predicted_detect_speed, predicted_is_reverse)
+        if vel is None:
+            vel = 0
 
-        true_reward = LinearReward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
-        if true_reward is None:
-            true_reward = -1
+        eval_reward = LinearReward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
+        if eval_reward is None:
+            eval_reward = -1
 
         shaped_reward = self.shaped_reward(predicted_detect_speed, predicted_is_reverse, predicted_is_penalized)
         if shaped_reward is None:
@@ -179,4 +187,10 @@ class ArtOfRallyReward():
                                            "is_penalized": [is_penalized_roi, predicted_is_penalized],
                                            "true_reward": [None, true_reward]})
         self.frame += 1
-        return shaped_reward, speed / 30 - .5, true_reward
+
+        out = {'train_reward': shaped_reward,
+                'eval_reward': eval_reward,
+                'vel': vel,
+                'is_penalized': is_penalized,
+                'is_reverse': is_reverse}
+        return out
