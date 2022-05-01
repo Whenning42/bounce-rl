@@ -166,8 +166,8 @@ class ArtOfRallyReward():
         predicted_detect_speed = "".join(list(self.predict_detect_speed(detect_speed_roi)[0]))
         predicted_is_reverse = self.predict_is_reverse(is_reverse_roi)[0]
         predicted_is_penalized = self.predict_is_penalized(is_penalized_roi)[0]
-        is_reverse = _LogitsToBool(predicted_is_reverse)
-        is_penalized = _LogitsToBool(predicted_is_penalized)
+        is_reverse = _LogitsToBool(predicted_is_reverse).item()
+        is_penalized = _LogitsToBool(predicted_is_penalized).item()
 
         vel = _GetVel(predicted_detect_speed, predicted_is_reverse)
         if vel is None:

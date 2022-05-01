@@ -9,6 +9,9 @@ import numpy as np
 import callbacks.callbacks as callbacks
 import threading
 import csv_logger
+import os
+import PIL.Image
+import pathlib
 
 DOWNSAMPLE = 2
 STEP_FILE = "steps.csv"
@@ -23,7 +26,11 @@ EPISODE_FILE = "episodes.csv"
 #     - Which episodes have saved pixels
 class ArtOfRallyEnv(gym.core.Env):
     def __init__(self, out_dir = None, channel = 0):
+        self.out_dir = out_dir
+        self.image_dir = os.path.join(self.out_dir, "images")
         self.channel = channel
+
+        pathlib.Path(self.image_dir).mkdir(parents = True, exist_ok = True)
         self.step_logger = csv_logger.CsvLogger(os.path.join(out_dir, STEP_FILE))
         self.episode_logger = csv_logger.CsvLogger(os.path.join(out_dir, EPISODE_FILE))
 
@@ -115,7 +122,7 @@ class ArtOfRallyEnv(gym.core.Env):
         pass
 
     def episode_saves_pixels(self):
-        if self.run_config["pixels_every_n_episodes"] != 0 and
+        if self.run_config["pixels_every_n_episodes"] != 0 and \
            self.episode % self.run_config["pixels_every_n_episodes"] == 0:
             return True
         return False
@@ -177,23 +184,24 @@ class ArtOfRallyEnv(gym.core.Env):
         pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE, 0:1]
         features = self.reward_callback.on_tick()
 
+        # Copy eval reward into SB3/Tensorboard integrated reward feature.
+        info = {}
+        info["true_reward"] = features['eval_reward']
+
+        if features['train_reward'] is None:
+            features['train_reward'] = -1
+            features["reward_was_none"] = True
+        else:
+            features["reward_was_none"] = False
+
         # Log environment features and save pixels if requested.
         to_log = features.copy()
         if self.episode_saves_pixels():
             filename = f"{self.total_steps:08d}.png"
-            im = Image.fromarray(pixels)
-            im.save(os.path.join(self.out_dir, "images", filename))
+            im = PIL.Image.fromarray(pixels[:, :, 0])
+            im.save(os.path.join(self.image_dir, filename))
             to_log["pixels_path"] = filename
         self.step_logger.write_line(to_log)
-
-        # Copy eval reward into SB3/Tensorboard integrated reward feature.
-        info["true_reward"] = features['eval_reward']
-
-        if reward is None:
-            reward = -1
-            info["reward_was_none"] = True
-        else:
-            info["reward_was_none"] = False
 
         # print(f"Returning reward {reward}", flush = True)
         # Should features be returned in info? Probably?

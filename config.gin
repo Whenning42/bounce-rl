@@ -2,7 +2,7 @@ import rewards.art_of_rally
 
 # run.out_dir = "out/aor_ppo_stacked/"
 run.seed = 0
-run.timesteps = 620000
+run.timesteps = 1000000
 run.n_stack = 4
 
 # sb3_aor.PPO is a wrapper of stable_baselines3.PPO to enable config injection.
