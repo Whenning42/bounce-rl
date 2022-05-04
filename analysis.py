@@ -106,6 +106,8 @@ cmap.set_bad(cmap(0))
 df = non_stopped
 df = df[df["vel"] < 80]
 df = df[df["vel"] > -60]
+plt.hist2d(df.index, df["vel"], bins = [200, 50], norm = matplotlib.colors.LogNorm(vmin=1), cmap = cmap)
+plt.title("Velocity distribution")
 # fig, ax = plt.subplots()
 # ax.plot(ep_stats.index, ep_stats["vel"])
 # t_ax = ax.twinx()
@@ -114,6 +116,7 @@ df = df[df["vel"] > -60]
 
 # Show reward-to-go distribution over time
 # PopulateTimeDiscountedRewards(steps)
+plt.figure()
 plt.hist2d(steps.index, steps["g"], bins = [200, 50], range=((0, 730000), (-130, -70)), norm = matplotlib.colors.LogNorm(vmin=1), cmap = cmap)
 plt.ylim(-130, -70)
 plt.title("Original reward-to-go distribution")
