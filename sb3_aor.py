@@ -2,7 +2,7 @@ import gym
 import rewards.env_rally
 import stable_baselines3.common.env_checker
 import stable_baselines3
-from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage, VecFrameStack
+from stable_baselines3.common.vec_env import DummyVecEnv, VecTransposeImage, VecFrameStack, VecMonitor
 import os
 import gin
 import pathlib
@@ -28,6 +28,8 @@ def run(out_dir = "out/run/", seed = 0, timesteps = 1e6, n_stack = 4):
     env = VecFrameStack(DummyVecEnv([lambda: orig_env]), n_stack = n_stack)
 
     eval_env = env
+    # Makes episode length and mean reward visible in tensorboard logging.
+    env = stable_baselines3.common.vec_env.VecMonitor(env)
 
     callback_nsteps = 20000
     eval_callback = stable_baselines3.common.callbacks.EvalCallback(eval_env, eval_freq = callback_nsteps, log_path = out_dir)
@@ -49,7 +51,7 @@ gin.parse_config_file('config.gin')
 
 if __name__ == "__main__":
     for seed, n_steps in itertools.product((0, 1, 2), (4800, 9600)):
-        gin.bind_parameter("run.out_dir", f"out/run/n_steps_{n_steps}_seed_{seed}")
+        gin.bind_parameter("run.out_dir", f"out/lock_out/n_steps_{n_steps}_seed_{seed}")
         gin.bind_parameter("run.seed", seed)
         gin.bind_parameter("PPO.seed", seed)
         gin.bind_parameter("PPO.n_steps", n_steps)

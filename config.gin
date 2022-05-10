@@ -1,15 +1,15 @@
 import rewards.art_of_rally
 
-# run.out_dir = "out/aor_ppo_stacked/"
+# run.out_dir is configured in the run script
 run.seed = 0
 run.timesteps = 1000000
 run.n_stack = 4
 
 # sb3_aor.PPO is a wrapper of stable_baselines3.PPO to enable config injection.
 PPO.seed = 0
-# Configured in the script's main
-# PPO.n_steps = 10240
+# PPO.n_steps is configured in the run script
 PPO.ent_coef = .01
 
+rewards.env_rally.ArtOfRallyEnv.penalty_mode = "lock_out" 
 rewards.art_of_rally.ArtOfRallyReward.reward_fn = @rewards.art_of_rally.TimeReward
-rewards.art_of_rally.TimeReward.penalty_value = 1
+rewards.art_of_rally.TimeReward.penalty_value = 0

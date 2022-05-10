@@ -12,7 +12,9 @@ import csv_logger
 import os
 import PIL.Image
 import pathlib
+import gin
 
+LOCK_OUT = "lock_out"
 DOWNSAMPLE = 2
 STEP_FILE = "steps.csv"
 EPISODE_FILE = "episodes.csv"
@@ -24,8 +26,9 @@ EPISODE_FILE = "episodes.csv"
 #     - Path to pixels
 #   episodes.csv
 #     - Which episodes have saved pixels
+@gin.configurable
 class ArtOfRallyEnv(gym.core.Env):
-    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .1):
+    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .1, penalty_mode = None):
         self.out_dir = out_dir
         self.image_dir = os.path.join(self.out_dir, "images")
         self.channel = channel
@@ -37,7 +40,9 @@ class ArtOfRallyEnv(gym.core.Env):
         X_RES = 960
         Y_RES = 540
         art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False)
-        screenshot_callback = callbacks.ScreenshotCallback(out_dir = out_dir)
+
+        screenshot_dir = os.path.join(self.out_dir, "screenshots")
+        screenshot_callback = callbacks.ScreenshotCallback(out_dir = screenshot_dir)
         run_config = {
             "title": "Art of Rally reward eval",
             "app": "Art of Rally (Multi)",
@@ -74,6 +79,11 @@ class ArtOfRallyEnv(gym.core.Env):
         self.speed_space = gym.spaces.Box(low = -float("inf"), high = float("inf"), shape = (1,))
         # self.observation_space = gym.spaces.Dict({"pixels": self.pixel_space, "speed": self.speed_space})
         self.observation_space = self.pixel_space
+
+        # Used when penalty_mode = "lock-out"
+        if penalty_mode is not None:
+            self.penalty_mode = penalty_mode
+        self.was_penalized = False
 
         self.episode = 0
         self.episode_steps = 0
@@ -115,6 +125,9 @@ class ArtOfRallyEnv(gym.core.Env):
 
         print("Finished launching an episode")
         self.env_init = True
+
+    def is_locked_out(self):
+        return self.penalty_mode == LOCK_OUT and self.was_penalized
 
     def render(self):
         print("ArtOfRallyEnv.render is unimplemented.")
@@ -169,7 +182,10 @@ class ArtOfRallyEnv(gym.core.Env):
                 if v == 0:
                     continue
                 key_set.add(self.input_space[i][v - 1])
+            if self.is_locked_out():
+                key_set = set()
             self.harness.keyboards[0].set_held_keys(key_set)
+
         if self.total_steps % 100 == 0:
             self.screenshot_callback.on_tick()
 
@@ -212,6 +228,11 @@ class ArtOfRallyEnv(gym.core.Env):
 
         self.step_logger.write_line(to_log)
 
-        # print(f"Returning reward {reward}", flush = True)
+        # Lock-out penalty mode application and state update
+        if self.is_locked_out():
+            print(f"Is locked out, step: {self.total_steps}, train_rew: {features['train_reward']}, vel: {features['vel']}")
+            pixels = np.zeros(self.pixel_shape)
+        self.was_penalized = features["is_penalized"]
+
         # Should features be returned in info? Probably?
         return pixels, features['train_reward'], done, info
