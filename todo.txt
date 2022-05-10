@@ -23,9 +23,13 @@
 - Reinforcement learning:
     ✓ Implement the initial env
     ✓ Try out blackbox algorithm
-    ✓ Fix reward function reverse behavior
-    - Fix lagged penalty behavior
-      (Use average sampled pixel value as penalty predictor)
+    - Fix reward function reverse behavior
+    - Fix penalty shape
+        - Implement new penalty form
+        - Verify new penalty form is WAI
+            - Reward is -1 during penalized
+            - Frame is blank during penalized
+            - Actions are masked during penalized
     - Model based
         - Try running DreamerV2
     - Run a hyperparameter search
