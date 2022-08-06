@@ -1,3 +1,6 @@
+// Note: XGrabKeyboard appears not to work for ourkeyboard forwarding needs.
+// The file virtual_keyboard2.cpp in the git repo history contains details.
+
 // Config trade-offs:
 // - Manual Config (Use for now)
 //     - User provides the keyboard device regex
@@ -38,9 +41,6 @@ std::string exec(const std::string& cmd) {
 //   $ MASTER_POINTER=$(xinput | grep "master pointer" | head -n1 | grep -oP "id=\K\d*")
 //   $ MASTER_KEYBOARD=$(xinput | grep "master keyboard" | head -n1 | grep -oP "id=\K\d*")
 //   $ DEVICE_KEYBOARD=$(xinput | grep "$KEYBOARD_REGEX" | grep -oP "id=\K\d*")
-//   $ xinput --reattach $DEVICE_KEYBOARD $MASTER_KEYBOARD
-// Cleanup:
-//   $ xinput --remove-master Bounce AttachToMaster $MASTER_POINTER $MASTER_KEYBOARD
 Devices SetUp() {
   std::string mp = exec(
       R"(xinput | grep "master pointer" | head -n1 | grep -oP "id=\K\d*")");
@@ -113,35 +113,30 @@ void UserKeyboard::StartLoop() {
     XNextEvent(display, (XEvent *)&ev);
 
     if (XGetEventData(display, cookie) && cookie->type == GenericEvent) {
-      // if (cookie->evtype == XI_Motion) {
-      //   XIDeviceEvent& dev = *(XIDeviceEvent*)cookie->data;
-      //   std::cout << "motion " << dev.root_x << ", " << dev.root_y << std::endl;
-      //   XIWarpPointer(display, master_pointer, None, None, 0, 0, 0, 0, dev.root_x, dev.root_y);
-      // }
       if (cookie->evtype == XI_KeyPress) {
         XIDeviceEvent& dev = *(XIDeviceEvent*)cookie->data;
         std::cout << "keypress:  " << dev.detail << std::endl;
-        if (dev.detail == 28) {
-          disabled_ = !disabled_;
-        }
         if (disabled_) {
           continue;
+        }
+        if (dev.detail < 256) { // Should always be true?
+          key_state_[dev.detail] = 1;
+        } else {
+          std::cout << "Unexpected keypress detail: " << dev.detail;
         }
         XTestFakeKeyEvent(display, dev.detail, true, CurrentTime);
       }
       if (cookie->evtype == XI_KeyRelease) {
         XIDeviceEvent& dev = *(XIDeviceEvent*)cookie->data;
         std::cout << "keyrelease:  " << dev.detail << std::endl;
+        if (dev.detail < 256) { // Should always be true?
+          key_state_[dev.detail] = 0;
+        } else {
+          std::cout << "Unexpected keyrelease detail: " << dev.detail;
+        }
         XTestFakeKeyEvent(display, dev.detail, false, CurrentTime);
       }
     }
     XFreeEventData(display, cookie);
   }
-  std::cout << "clean exit" << std::endl << std::flush;
-}
-
-#include <unistd.h>
-int main() {
-  UserKeyboard kb;
-  sleep(10);
 }
