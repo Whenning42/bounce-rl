@@ -69,17 +69,30 @@ Devices SetUp() {
       .device_keyboard = std::stoi(dk)};
 }
 
-UserKeyboard::~UserKeyboard() {
-  running_ = false;
-  loop_.join();
-  exec(R"(xinput --remove-master Bounce AttachToMaster ")" +
-       std::to_string(devices_.master_pointer) + " " +
-       std::to_string(devices_.master_keyboard) + R"(")");
-}
-
 UserKeyboard::UserKeyboard() {
   devices_ = SetUp();
+  disabled_.store(false);
+  running_.store(true);
+  is_halted_.store(false);
+  key_state_.fill(0);
   loop_ = std::thread(&UserKeyboard::StartLoop, this);
+}
+
+UserKeyboard::~UserKeyboard() {
+  running_.store(false);
+  loop_.join();
+}
+
+void UserKeyboard::Enable() {
+  disabled_.store(false);
+}
+
+void UserKeyboard::Disable() {
+  disabled_.store(true);
+}
+
+bool UserKeyboard::IsHalted() {
+  return is_halted_;
 }
 
 void UserKeyboard::StartLoop() {
@@ -115,8 +128,7 @@ void UserKeyboard::StartLoop() {
     if (XGetEventData(display, cookie) && cookie->type == GenericEvent) {
       if (cookie->evtype == XI_KeyPress) {
         XIDeviceEvent& dev = *(XIDeviceEvent*)cookie->data;
-        std::cout << "keypress:  " << dev.detail << std::endl;
-        if (disabled_) {
+        if (disabled_ && !is_halted_) {
           continue;
         }
         if (dev.detail < 256) { // Should always be true?
@@ -124,11 +136,14 @@ void UserKeyboard::StartLoop() {
         } else {
           std::cout << "Unexpected keypress detail: " << dev.detail;
         }
+        if (key_state_[24] && key_state_[64] && key_state_[133]) {
+          std::cout << "Halting UserKeyboard!" << std::endl;
+          is_halted_.store(true);
+        }
         XTestFakeKeyEvent(display, dev.detail, true, CurrentTime);
       }
       if (cookie->evtype == XI_KeyRelease) {
         XIDeviceEvent& dev = *(XIDeviceEvent*)cookie->data;
-        std::cout << "keyrelease:  " << dev.detail << std::endl;
         if (dev.detail < 256) { // Should always be true?
           key_state_[dev.detail] = 0;
         } else {

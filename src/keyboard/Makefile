@@ -1,6 +1,3 @@
 vd:
-	g++ virtual_device.cpp -lX11 -lXi -lXtst -o vd.out
-
-vd2:
-	g++ virtual_device2.cpp -lX11 -lXtst -o vd2.out
+	g++ -Wall -shared -std=c++11 -fPIC $$(python3 -m pybind11 --includes) bind_virtual_device.cpp virtual_device.cpp -lX11 -lXi -lXtst -o UserKeyboard$$(python3-config --extension-suffix)
 

@@ -1,5 +1,7 @@
 // The UserKeyboard class wraps a user's keyboard input exposing the user's
 // keyboard state and allows disabling the users keyboard.
+// Users can press Super + Alt + Q to disable the UserKeyboard class to regain
+// input control.
 
 #include <array>
 #include <atomic>
@@ -26,6 +28,10 @@ class UserKeyboard {
     void Disable();
     void Enable();
 
+    // Returns whether the user has disabled this UserKeyboard instance by pressing
+    // Super + Alt + Q.
+    bool IsHalted();
+
     std::array<uint8_t, 256> KeyState() { return key_state_; }
 
   private:
@@ -33,7 +39,8 @@ class UserKeyboard {
 
     std::thread loop_;
     Devices devices_;
-    bool disabled_ = false;
-    std::atomic<bool> running_ = true;
+    std::atomic<bool> disabled_;
+    std::atomic<bool> running_;
+    std::atomic<bool> is_halted_;
     std::array<uint8_t, 256> key_state_;
 };
