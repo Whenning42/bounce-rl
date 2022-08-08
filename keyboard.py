@@ -57,7 +57,8 @@ class Keyboard(object):
 
     # Takes a set of key names to be held down and performs the key presses and releases
     # that get the keyboard to that state.
-    # This function is oblivious to key presses and releases that occur from
+    # Key set is provdided in the form of a set of x key names with the XK_ prefix removed.
+    # Note: This function is oblivious to key presses and releases that occur from
     # any other method of this class and so calling this and other methods may be
     # error prone.
     def set_held_keys(self, key_set):
@@ -116,7 +117,7 @@ class Keyboard(object):
             self.release_key(key)
             time.sleep(.25)
 
-    def get_key_x_event(self, key_name, direction, modifier = 0):
+    def _get_key_x_event(self, key_name, direction, modifier = 0):
         keysym = keysym_for_key_name(key_name)
         keycode = self.display.keysym_to_keycode(keysym)
 
@@ -167,7 +168,7 @@ class Keyboard(object):
         # Set the input focus to the window we want.
         self.display.set_input_focus(self.focused_window, Xlib.X.RevertToNone, Xlib.X.CurrentTime)
 
-        event = self.get_key_x_event(key_name, direction, modifier)
+        event = self._get_key_x_event(key_name, direction, modifier)
         self.display.send_event(self.focused_window, event, propagate = False, event_mask = Xlib.X.KeyPress | Xlib.X.KeyRelease)
         # self.display.send_event(self.focused_window, event, propagate = False, event_mask = 0)
         self.display.flush()

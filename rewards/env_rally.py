@@ -25,7 +25,7 @@ EPISODE_FILE = "episodes.csv"
 #   episodes.csv
 #     - Which episodes have saved pixels
 class ArtOfRallyEnv(gym.core.Env):
-    def __init__(self, out_dir = None, channel = 0):
+    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .1):
         self.out_dir = out_dir
         self.image_dir = os.path.join(self.out_dir, "images")
         self.channel = channel
@@ -46,10 +46,10 @@ class ArtOfRallyEnv(gym.core.Env):
             "y_res": 1080,
             "scale": .5,
             "row_size": 2,
-            "run_rate": 8,
-            "pause_rate": .25,
+            "run_rate": run_rate,
+            "pause_rate": pause_rate,
             "step_duration": .250,
-            "pixels_every_n_episodes": 20
+            "pixels_every_n_episodes": 1
         }
         self.run_config = run_config
         app_config = app_configs.LoadAppConfig(run_config["app"])
@@ -148,7 +148,8 @@ class ArtOfRallyEnv(gym.core.Env):
 
         pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE, 0:1]
         return pixels
-        # I'd like to return additional state, but doing so doesn't play well with StableBaselines. i.e. DictObservations are compatible with CNN Policies.
+        # I'd like to return additional state, but doing so doesn't play well with StableBaselines.
+        # i.e. DictObservations are compatible with CNN Policies.
         # return {"pixels": pixels, "speed": np.array((0,))}
 
     def close(self):
@@ -156,16 +157,19 @@ class ArtOfRallyEnv(gym.core.Env):
         self.harness.kill_subprocesses()
         pass
 
+    # 'action' can be set to None to provide no action for this step. This is useful
+    # for when a user is controlling the env though a non-env owned keyboard.
     def step(self, action):
         self._wait_for_env_init()
 
         # Run keyboard presses for the given the gym action.
-        key_set = set()
-        for i, v in enumerate(action):
-            if v == 0:
-                continue
-            key_set.add(self.input_space[i][v - 1])
-        self.harness.keyboards[0].set_held_keys(key_set)
+        if action is not None:
+            key_set = set()
+            for i, v in enumerate(action):
+                if v == 0:
+                    continue
+                key_set.add(self.input_space[i][v - 1])
+            self.harness.keyboards[0].set_held_keys(key_set)
         if self.total_steps % 100 == 0:
             self.screenshot_callback.on_tick()
 
@@ -201,6 +205,11 @@ class ArtOfRallyEnv(gym.core.Env):
             im = PIL.Image.fromarray(pixels[:, :, 0])
             im.save(os.path.join(self.image_dir, filename))
             to_log["pixels_path"] = filename
+        if action is None:
+            to_log["perturbed"] = True
+        else:
+            to_log["perturbed"] = False
+
         self.step_logger.write_line(to_log)
 
         # print(f"Returning reward {reward}", flush = True)
