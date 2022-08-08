@@ -14,7 +14,7 @@ env = rewards.env_rally.ArtOfRallyEnv(out_dir = "user_demo_0", run_rate = 1, pau
 
 p_conf = {"steps_between": 8 * 4,
           "duration": 6,
-          "space": ((None, "Left", "Right"), (None, "Up", "Down"))}
+          "space": ((None, "Up", "Down"), (None, "Left", "Right"))}
 
 class Perturb:
     def __init__(self, conf):
@@ -36,12 +36,26 @@ class Perturb:
 
 import time
 p = Perturb(p_conf)
-kb = UserKeyboard()
+kb = UserKeyboard.UserKeyboard()
 env.reset()
 while True:
+    # U,   D,   L,   R
+    # 111, 116, 113, 114
     action = p.step()
     if action is not None:
         kb.disable()
+        to_log = None
     else:
         kb.enable()
+        to_log = set()
+        state = kb.key_state()
+        if state[111] and not state[116]:
+            to_log.add("Up")
+        elif state[116] and not state[111]:
+            to_log.add("Down")
+        if state[113] and not state[114]:
+            to_log.add("Left")
+        elif state[114] and not state[113]:
+            to_log.add("Right")
+
     env.step(action)

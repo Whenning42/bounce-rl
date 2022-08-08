@@ -172,7 +172,9 @@ class ArtOfRallyEnv(gym.core.Env):
 
     # 'action' can be set to None to provide no action for this step. This is useful
     # for when a user is controlling the env though a non-env owned keyboard.
-    def step(self, action):
+    # If 'action' is given as None, logged_action should be given as non-None so that
+    # the action taken at this timestep can be logged.
+    def step(self, action, logged_action = None):
         self._wait_for_env_init()
 
         # Run keyboard presses for the given the gym action.
@@ -225,6 +227,10 @@ class ArtOfRallyEnv(gym.core.Env):
             to_log["perturbed"] = True
         else:
             to_log["perturbed"] = False
+
+        if logged_action is None:
+            logged_action = action
+        to_log["action"] = logged_action
 
         self.step_logger.write_line(to_log)
 
