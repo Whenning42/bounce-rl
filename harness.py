@@ -22,6 +22,8 @@ REOPEN_CLOSED_WINDOWS = False
 
 window_owners = {}
 
+# Shoutout to Andy!
+
 def handle_error(*args):
     window_id = args[0].resource_id.id
     if window_id in window_owners:

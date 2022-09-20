@@ -40,7 +40,12 @@ def LinearReward(speed, is_reverse, is_penalized, penalty_value = 25, baseline_v
     return vel - penalty + baseline_value
 
 @gin.configurable
-# TODO: Make function more parameterizable
+# A shaped reward suitable for racing games. For v > k, this reward is proportional to -1/v
+# i.e. the negative time it'd take to travel a fixed length of track. For v near 0, the
+# function is instead proportional to v thus incentivizing an acceleration to a non-neglible
+# speed, while not blowing up due to the -1/v term.
+#
+# TODO: Make function more parameterizable?
 def TimeReward(speed, is_reverse, is_penalized, penalty_value = 1):
     if None in (speed, is_reverse, is_penalized):
         return None
