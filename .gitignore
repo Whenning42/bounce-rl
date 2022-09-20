@@ -21,3 +21,5 @@ rl-venv/
 # Minecraft files
 logs/*
 GPUCache/*
+user_demo*
+validation*
