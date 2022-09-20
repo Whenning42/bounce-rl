@@ -8,8 +8,10 @@
 #include <cstdint>
 #include <string>
 #include <thread>
+#include <X11/Xlib.h>
+#include <vector>
 
-const std::string kKeyboardRegex = "AT Translated";
+const std::string kKeyboardRegex = "USB Keyboard  ";
 
 // For internal use only.
 struct Devices {
@@ -37,10 +39,17 @@ class UserKeyboard {
   private:
     void StartLoop();
 
+    // Add to the list of keys to be pressed once enable is called. Should only be
+    // called when keyboard is disabled.
+    void EnqueuePress(int key);
+    void ClearPressFromQueue(int key);
+
+    Display* display_;
     std::thread loop_;
     Devices devices_;
     std::atomic<bool> disabled_;
     std::atomic<bool> running_;
     std::atomic<bool> is_halted_;
     std::array<uint8_t, 256> key_state_;
+    std::vector<int> queued_presses_;
 };

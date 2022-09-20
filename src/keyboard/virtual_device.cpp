@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <array>
+#include <algorithm>
 #include <cassert>
 #include <vector>
 
@@ -85,6 +86,14 @@ UserKeyboard::~UserKeyboard() {
 
 void UserKeyboard::Enable() {
   disabled_.store(false);
+  if (!display_) {
+    // Happens if enable is called before StartLoop().
+    return;
+  }
+  for (const int key : queued_presses_) {
+    XTestFakeKeyEvent(display_, key, true, CurrentTime);
+  }
+  queued_presses_.clear();
 }
 
 void UserKeyboard::Disable() {
@@ -97,8 +106,8 @@ bool UserKeyboard::IsHalted() {
 
 void UserKeyboard::StartLoop() {
   int device_keyboard = devices_.device_keyboard;
-  Display *display = XOpenDisplay(NULL);
-  Window win = DefaultRootWindow(display);
+  display_ = XOpenDisplay(NULL);
+  Window win = DefaultRootWindow(display_);
 
   std::vector<XIEventMask> masks;
   masks.resize(1);
@@ -111,26 +120,23 @@ void UserKeyboard::StartLoop() {
   XISetMask(m->mask, XI_KeyRelease);
   // XISetMask(m->mask, XI_Motion);
 
-  XISelectEvents(display, win, &masks[0], masks.size());
+  XISelectEvents(display_, win, &masks[0], masks.size());
 
-  XFlush(display);
-  XIGrabDevice(display, device_keyboard, win, CurrentTime, None, GrabModeAsync,
+  XFlush(display_);
+  XIGrabDevice(display_, device_keyboard, win, CurrentTime, None, GrabModeAsync,
                GrabModeAsync, False, m);
   // Warp the unused pointer offscreen.
-  XIWarpPointer(display, devices_.master_pointer, None, None, 0, 0, 0, 0, 1920, 1080);
-  XSync(display, False);
+  XIWarpPointer(display_, devices_.master_pointer, None, None, 0, 0, 0, 0, 1920, 1080);
+  XSync(display_, False);
 
   while (running_) {
     XEvent ev;
     XGenericEventCookie *cookie = (XGenericEventCookie *)&ev.xcookie;
-    XNextEvent(display, (XEvent *)&ev);
+    XNextEvent(display_, (XEvent *)&ev);
 
-    if (XGetEventData(display, cookie) && cookie->type == GenericEvent) {
+    if (XGetEventData(display_, cookie) && cookie->type == GenericEvent) {
       if (cookie->evtype == XI_KeyPress) {
         XIDeviceEvent& dev = *(XIDeviceEvent*)cookie->data;
-        if (disabled_ && !is_halted_) {
-          continue;
-        }
         if (dev.detail < 256) { // Should always be true?
           key_state_[dev.detail] = 1;
         } else {
@@ -140,7 +146,11 @@ void UserKeyboard::StartLoop() {
           std::cout << "Halting UserKeyboard!" << std::endl;
           is_halted_.store(true);
         }
-        XTestFakeKeyEvent(display, dev.detail, true, CurrentTime);
+        if (disabled_ && !is_halted_) {
+          EnqueuePress(dev.detail);
+          continue;
+        }
+        XTestFakeKeyEvent(display_, dev.detail, true, CurrentTime);
       }
       if (cookie->evtype == XI_KeyRelease) {
         XIDeviceEvent& dev = *(XIDeviceEvent*)cookie->data;
@@ -149,9 +159,18 @@ void UserKeyboard::StartLoop() {
         } else {
           std::cout << "Unexpected keyrelease detail: " << dev.detail;
         }
-        XTestFakeKeyEvent(display, dev.detail, false, CurrentTime);
+        ClearPressFromQueue(dev.detail);
+        XTestFakeKeyEvent(display_, dev.detail, false, CurrentTime);
       }
     }
-    XFreeEventData(display, cookie);
+    XFreeEventData(display_, cookie);
   }
 }
+
+void UserKeyboard::EnqueuePress(int key) {
+    queued_presses_.push_back(key);
+}
+
+void UserKeyboard::ClearPressFromQueue(int key) {
+    std::remove(queued_presses_.begin(), queued_presses_.end(), key);
+};
