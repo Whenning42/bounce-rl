@@ -14,11 +14,13 @@ import PIL.Image
 import pathlib
 import gin
 from multiprocessing import Process
+from src.keyboard import controller
 
 LOCK_OUT = "lock_out"
 DOWNSAMPLE = 2
 STEP_FILE = "steps.csv"
 EPISODE_FILE = "episodes.csv"
+INPUT_FILE = "input.csv"
 
 # Pixels should be an np array of size (H, W)
 def save_im(path, pixels):
@@ -63,6 +65,7 @@ class ArtOfRallyEnv(gym.core.Env):
         pathlib.Path(self.image_dir).mkdir(parents = True, exist_ok = True)
         self.step_logger = csv_logger.CsvLogger(os.path.join(out_dir, STEP_FILE))
         self.episode_logger = csv_logger.CsvLogger(os.path.join(out_dir, EPISODE_FILE))
+        self.input_logger = csv_logger.CsvLogger(os.path.join(out_dir, INPUT_FILE))
 
         X_RES = 960
         Y_RES = 540
@@ -79,7 +82,7 @@ class ArtOfRallyEnv(gym.core.Env):
             "run_rate": run_rate,
             "pause_rate": pause_rate,
             "step_duration": .25, # Record at .125, eval at .25
-            "pixels_every_n_episodes": 1
+            "pixels_every_n_episodes": 10
         }
         self.run_config = run_config
         app_config = app_configs.LoadAppConfig(run_config["app"])
@@ -93,13 +96,16 @@ class ArtOfRallyEnv(gym.core.Env):
         # Reward callback is called by env.
         self.reward_callback = art_of_rally_reward_callback
 
-        self.discrete = True
+        self.last_input_time = 0
+        self.controller = controller.Controller(callbacks=(self.on_input,))
+
+        self.discrete = False
         if self.discrete:
             # Corresponds to (None, Up, Down), (None, Left, Right)
             self.action_space = gym.spaces.MultiDiscrete([3, 3])
         else:
             # Corresponds to (Turn, Brake, Gas)
-            self.action_space = gym.spaces.Box(low = np.array((-1, 0, 0)), high = np.array(1, 1, 1))
+            self.action_space = gym.spaces.Box(low = np.array((-1, 0, 0)), high = np.array((1, 1, 1)))
 
         # Input space is in xlib XK key strings with XK_ left off.
         self.input_space = ((None, "Up", "Down"), (None, "Left", "Right"))
@@ -119,7 +125,6 @@ class ArtOfRallyEnv(gym.core.Env):
         self.episode_steps = 0
         self.total_steps = 0
         self.resetter = ResetDecision(self.steps_per_second)
-        self.last_input_time = 0
 
         if for_test == False:
             self.env_init = False
@@ -175,7 +180,6 @@ class ArtOfRallyEnv(gym.core.Env):
     def render(self):
         print("ArtOfRallyEnv.render is unimplemented.")
         # This environment is always rendered.
-        pass
 
     def episode_saves_pixels(self):
         if self.run_config["pixels_every_n_episodes"] != 0 and \
@@ -218,7 +222,7 @@ class ArtOfRallyEnv(gym.core.Env):
         print("Closing ArtOfRallyEnv by killing all running instances.")
         self.harness.kill_subprocesses()
 
-    def on_input(controller, event):
+    def on_input(self, controller, event):
         now = time.time_ns()
         if now - self.last_input_time < 1e7:
             return
@@ -239,8 +243,7 @@ class ArtOfRallyEnv(gym.core.Env):
                     key_set = set()
                 self.harness.keyboards[0].set_held_keys(key_set)
             else:
-                # TODO: Implement agent contorl of an analog input
-                assert(False)
+                self.cont.apply_action(action)
 
         src.time_writer.SetSpeedup(self.run_config["run_rate"], channel = self.channel)
         time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
@@ -286,6 +289,8 @@ class ArtOfRallyEnv(gym.core.Env):
         if logged_action is None:
             logged_action = action
         to_log["action"] = logged_action
+
+        to_log["time"] = time.time_ns()
 
         self.step_logger.write_line(to_log)
 
