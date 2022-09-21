@@ -2,6 +2,7 @@ import rewards.env_rally
 import random
 import evdev
 from src.keyboard.controller import Controller
+import time
 
 # Build with:
 # $ cd src/keyboard
@@ -11,10 +12,10 @@ from src.keyboard.controller import Controller
 # If so, this needs to be manually fixed.
 import UserKeyboard
 
-discrete = True
+discrete = False
 
 # Create environment
-env = rewards.env_rally.ArtOfRallyEnv(out_dir = "analog_demo_0", run_rate = 1.0, pause_rate = .1)
+env = rewards.env_rally.ArtOfRallyEnv(out_dir = "analog_demo_1", run_rate = 1.0, pause_rate = .1)
 
 p_conf = {"steps_between": int(2.5 * 8),
           "max_duration": 8,
@@ -32,7 +33,6 @@ class Perturb:
         self.t += 1
         cycle_t = self.t % self.cycle_len
         if cycle_t == 0:
-            random.seed(cycle_i)
             self.duration = random.randint(0, self.conf["max_duration"])
             self.action = env.action_space.sample()
             return self.action
@@ -41,53 +41,59 @@ class Perturb:
         else:
             return None
 
+def GetAction(controller):
+    s = controller.state()
+    return (s["ls_x"], s["lt"], s["rt"])
 
-def ApplyAction(controller, action): 
-    controller.inject(3, evdev.ecodes.ABS_X, action[0]) 
-    controller.inject(3, evdev.ecodes.ABS_RX action[1]) 
-    controller.inject(3, evdev.ecodes.ABS_RY, action[2]) 
+def main():
+    p = Perturb(p_conf)
+    cont = env.controller
+    kb = UserKeyboard.UserKeyboard()
+    env.reset()
 
-p = Perturb(p_conf)
-cont = Controller()
-cont.register_callback(env.on_input)
-kb = UserKeyboard.UserKeyboard()
-env.reset()
-took_action = False
-while True:
-    # U,   D,   L,   R
-    # 111, 116, 113, 114
-    action = p.step()
-    perturbed = action is not None
-    if discrete:
-        if perturbed:
+    was_perturbed = False
+    while True:
+        # U,   D,   L,   R
+        # 111, 116, 113, 114
+        action = p.step()
+        perturbed = action is not None
+        if discrete:
+            if perturbed:
+                kb.disable()
+                to_log = None
+            else:
+                if was_perturbed:
+                    env.harness.keyboards[0].set_held_keys(set())
+                kb.enable()
+                to_log = [0, 0]
+                state = kb.key_state()
+                if state[111] and not state[116]:
+                    to_log[0] = 1
+                elif state[116] and not state[111]:
+                    to_log[0] = 2
+                if state[113] and not state[114]:
+                    to_log[1] = 1
+                elif state[114] and not state[113]:
+                    to_log[1] = 2
+            _, _, done, _ = env.step(action, logged_action=to_log, perturbed=perturbed)
+        else:
+            if perturbed:
+                print("Perturbed ", time.time())
+                cont.apply_action(action)
+                cont.lock_user()
+            else:
+                # On first step after perturbation, apply controller state
+                print("Not perturbed ", time.time())
+                if was_perturbed == False:
+                    cont.apply_action(GetAction(cont))
+                cont.unlock_user()
+            _, _, done, _ = env.step(perturbed=perturbed)
+        was_perturbed = perturbed
+
+        if done:
             kb.disable()
-            to_log = None
-            took_action = True
-        else:
-            if took_action:
-                env.harness.keyboards[0].set_held_keys(set())
+            env.reset()
             kb.enable()
-            to_log = [0, 0]
-            state = kb.key_state()
-            if state[111] and not state[116]:
-                to_log[0] = 1
-            elif state[116] and not state[111]:
-                to_log[0] = 2
-            if state[113] and not state[114]:
-                to_log[1] = 1
-            elif state[114] and not state[113]:
-                to_log[1] = 2
-            took_action = False
-        _, _, done, _ = env.step(action, logged_action=to_log, perturbed=perturbed)
-    else:
-        if perturbed:
-            ApplyAction(cont, action)
-            controller.lock_user()
-        else:
-            controller.unlock_user()
-        _, _, done, _ = env.step(perturbed=pertubed)
 
-    if done:
-        kb.disable()
-        env.reset()
-        kb.enable()
+if __name__ == "__main__":
+    main()
