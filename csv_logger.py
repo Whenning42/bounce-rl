@@ -45,6 +45,11 @@ class CsvFile:
         self.data_file = file
 
         self.tmp_file = file + "_tmpcat"
+
+        requested_dir = os.path.dirname(self.tmp_file)
+        if not os.path.exists(requested_dir):
+            assert False, f'Tried to open csv file in directory "{requested_dir}" that does not exist'
+
         with open(self.tmp_file,'wb') as write_file:
             for f in [self.header_file, self.data_file]:
                 with open(f,'rb') as read_file:
