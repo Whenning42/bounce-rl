@@ -17,7 +17,7 @@ from multiprocessing import Process
 from src.keyboard import controller
 
 LOCK_OUT = "lock_out"
-DOWNSAMPLE = 2
+DOWNSAMPLE = 4
 STEP_FILE = "steps.csv"
 EPISODE_FILE = "episodes.csv"
 INPUT_FILE = "input.csv"
@@ -29,7 +29,7 @@ def save_im(path, pixels):
 
 class ResetDecision:
     def __init__(self, steps_per_second):
-        self.stuck_seconds = 10
+        self.stuck_seconds = 25
         self.min_average = 3
         self.buf_length = self.stuck_seconds * steps_per_second
         self.vel_buffer = [100] * int(self.buf_length)
@@ -40,7 +40,7 @@ class ResetDecision:
     def should_reset(self, vel):
         self.vel_buffer = self.vel_buffer[1:]
         self.vel_buffer.append(vel)
-        avr = sum(self.vel_buffer) / self.buf_length 
+        avr = sum(self.vel_buffer) / self.buf_length
         if avr < self.min_average:
             return True
         return False
@@ -55,7 +55,7 @@ class ResetDecision:
 @gin.configurable
 class ArtOfRallyEnv(gym.core.Env):
     # Note: We need gamma to calculate reset penalty.
-    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .1, penalty_mode = None, for_test = False, gamma=.99):
+    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .5, penalty_mode = None, for_test = False, gamma=.99):
         self.max_episode_seconds = 150
         self.out_dir = out_dir
         self.image_dir = os.path.join(self.out_dir, "images")
@@ -81,8 +81,8 @@ class ArtOfRallyEnv(gym.core.Env):
             "row_size": 2,
             "run_rate": run_rate,
             "pause_rate": pause_rate,
-            "step_duration": .25, # Record at .125, eval at .25
-            "pixels_every_n_episodes": 10
+            "step_duration": .125, # Record at .125, eval at .25
+            "pixels_every_n_episodes": 1
         }
         self.run_config = run_config
         app_config = app_configs.LoadAppConfig(run_config["app"])
@@ -96,7 +96,10 @@ class ArtOfRallyEnv(gym.core.Env):
         # Reward callback is called by env.
         self.reward_callback = art_of_rally_reward_callback
 
-        self.last_input_time = 0
+        # Throttled controller logging state
+        self.start_time = time.time_ns()
+        self.last_input_time = time.time_ns()
+        self.last_state = {}
         self.controller = controller.Controller(callbacks=(self.on_input,))
 
         self.discrete = False
@@ -224,9 +227,16 @@ class ArtOfRallyEnv(gym.core.Env):
 
     def on_input(self, controller, event):
         now = time.time_ns()
-        if now - self.last_input_time < 1e7:
+        s = controller.state()
+
+        # Record new state at no higher frequency than every 1ms
+        if s == self.last_state or now - self.last_input_time < 1e6:
             return
-        self.input_logger.write_line(controller.state())
+
+        self.last_state = s
+        s["time"] = (time.time_ns() - self.start_time) // int(1e6)
+        self.input_logger.write_line(s)
+        self.last_input_time = now
 
     # 'action' can be set to None to provide no action for this step. This is useful
     # for when a user is controlling the env though a non-env owned keyboard.
@@ -243,7 +253,9 @@ class ArtOfRallyEnv(gym.core.Env):
                     key_set = set()
                 self.harness.keyboards[0].set_held_keys(key_set)
             else:
-                self.cont.apply_action(action)
+                if self.is_locked_out():
+                    action = (0, 0, 0)
+                self.controller.apply_action(action)
 
         src.time_writer.SetSpeedup(self.run_config["run_rate"], channel = self.channel)
         time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
@@ -275,7 +287,7 @@ class ArtOfRallyEnv(gym.core.Env):
         to_log = features.copy()
         if self.episode_saves_pixels():
             filename = f"{self.total_steps:08d}.png"
-            path = os.path.join(self.image_dir, filename) 
+            path = os.path.join(self.image_dir, filename)
             save_pixels = pixels[:, :, 0]
             p = Process(target=save_im, args=(path, save_pixels))
             p.start()
@@ -290,16 +302,17 @@ class ArtOfRallyEnv(gym.core.Env):
             logged_action = action
         to_log["action"] = logged_action
 
-        to_log["time"] = time.time_ns()
+        to_log["time"] = (time.time_ns() - self.start_time) // int(1e6)
 
         self.step_logger.write_line(to_log)
 
         # Lock-out penalty mode application and state update
         if self.is_locked_out():
-            print(f"Is locked out, step: {self.total_steps}, train_rew: {features['train_reward']}, vel: {features['vel']}")
+            # print(f"Is locked out, step: {self.total_steps}, train_rew: {features['train_reward']}, vel: {features['vel']}")
             pixels = np.zeros(self.pixel_shape)
         self.was_penalized = features["is_penalized"]
 
+        reset = False
         if not self.is_locked_out():
             reset = self.resetter.should_reset(info["vel"])
 
