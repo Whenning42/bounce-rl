@@ -21,10 +21,11 @@ def SetSpeedup(speedup, channel = ""):
     posix.lseek(f, 0, SEEK_SET)
     posix.write(f, struct.pack("f", speedup))
 
+# Run a test if this file is directly invoked.
 if __name__ == "__main__":
     for speedup, channel in [(12, 0), (18, 1)]:
         SetSpeedup(speedup, channel)
-        environment = {"LD_PRELOAD": "/home/william/Workspaces/GameHarness/build/time_control.so",
+        environment = {"LD_PRELOAD": "../build/time_control.so",
                        "TIME_CHANNEL": str(channel)}
         proc = subprocess.Popen(["./a.out"], \
                                 env = environment,
