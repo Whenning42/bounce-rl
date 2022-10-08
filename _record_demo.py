@@ -15,10 +15,10 @@ import UserKeyboard
 discrete = False
 
 # Create environment
-env = rewards.env_rally.ArtOfRallyEnv(out_dir = "analog_demo_1", run_rate = 1.0, pause_rate = .1)
+env = rewards.env_rally.ArtOfRallyEnv(out_dir = "analog_full", run_rate = 1.0, pause_rate = .1, is_demo = True)
 
-p_conf = {"steps_between": int(2.5 * 8),
-          "max_duration": 8,
+p_conf = {"steps_between": int(3.5 * 8),
+          "max_duration": 6,
           "space": env.action_space}
 
 class Perturb:
@@ -77,7 +77,7 @@ def main():
                     to_log[1] = 2
             _, _, done, _ = env.step(action, logged_action=to_log, perturbed=perturbed)
         else:
-            if perturbed:
+            if perturbed and not cont.paused:
                 print("Perturbed ", time.time())
                 cont.apply_action(action)
                 cont.lock_user()
