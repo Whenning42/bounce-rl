@@ -36,5 +36,5 @@ if __name__ == "__main__":
         output = out.decode("UTF-8")
         print(output)
         ticks = output.count("tick")
-        assert speedup - 1 <= ticks <= speedup + 1, f"Set speed-up to {speedup} but only hit {ticks} ticks."
+        assert speedup - 1 <= ticks <= speedup + 1, f"WARNING: Time control sleep functions aren't implementd. Set speed-up to {speedup} but only hit {ticks} ticks."
     print("Time writer tests passed!")
