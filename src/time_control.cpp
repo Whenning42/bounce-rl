@@ -218,14 +218,15 @@ void update_speedup(float new_speed, const ClockState* read_clock, ClockState* w
 bool get_new_speed(float* new_speed) {
   bool changed_speed = false;
   if (!speed_file) {
-    // printf("Opening speed file.\n");
     std::string file_name = FIFO;
     if (std::getenv(CHANNEL_VAR_NAME)) {
       file_name += std::getenv(CHANNEL_VAR_NAME);
     }
+    // printf("Opening speed file: %s\n", file_name.c_str());
 
     speed_file = open(file_name.c_str(), O_RDONLY | O_NONBLOCK);
-    if (!speed_file) {
+    if (speed_file == -1) {
+      printf("Failed to open speed file with errno: %d\n", errno);
       return false;
     }
   } else {
@@ -236,9 +237,13 @@ bool get_new_speed(float* new_speed) {
   lseek(speed_file, 0, SEEK_SET);
   ssize_t read_num = read(speed_file, &buf, 64);
   // printf("Read %d bytes.\n", read_num);
+  if (read_num < 0) {
+    printf("Failed read with errno: %d\n", errno);
+  }
   if (read_num > 0) {
     // printf("Reading float at offset: %d\n", read_num - 4);
     *new_speed = *(float*)(buf + read_num - 4);
+    // printf("Found new speed: %f\n.", *new_speed);
     changed_speed = true;
   }
   return changed_speed;
