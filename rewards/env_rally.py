@@ -97,8 +97,8 @@ class ArtOfRallyEnv(gym.core.Env):
         self.reward_callback = art_of_rally_reward_callback
 
         # Throttled controller logging state
-        self.start_time = time.time_ns()
-        self.last_input_time = time.time_ns()
+        self.start_time = time.monotonic_ns()
+        self.last_input_time = time.monotonic_ns()
         self.last_state = {}
         self.controller = controller.Controller(callbacks=(self.on_input,), user=is_demo)
 
@@ -227,7 +227,7 @@ class ArtOfRallyEnv(gym.core.Env):
         self.harness.kill_subprocesses()
 
     def on_input(self, controller, event):
-        now = time.time_ns()
+        now = time.monotonic_ns()
         s = controller.state()
 
         # Record new state at no higher frequency than every 1ms
@@ -235,7 +235,7 @@ class ArtOfRallyEnv(gym.core.Env):
             return
 
         self.last_state = s
-        s["time"] = (time.time_ns() - self.start_time) // int(1e6)
+        s["time"] = (time.monotonic_ns() - self.start_time) // int(1e6)
         self.input_logger.write_line(s)
         self.last_input_time = now
 
@@ -304,7 +304,7 @@ class ArtOfRallyEnv(gym.core.Env):
         if logged_action is None:
             logged_action = action
         to_log["action"] = logged_action
-        to_log["time"] = (time.time_ns() - self.start_time) // int(1e6)
+        to_log["time"] = (time.monotonic_ns() - self.start_time) // int(1e6)
 
 
         # Lock-out penalty mode application and state update
