@@ -64,6 +64,10 @@ def TimeReward(speed, is_reverse, is_penalized, penalty_value = 1):
     else:
         p = -4.0 / (vel + 2)
 
+    # Transform the reward from [-1, 0] w/ mean of a weak policy at -.9 and a strong one
+    # at -.2 to [-1.8, 1.2] w/ mean of weak policy at -1.5 and a strong one at .6
+    p = 3*p + 1.2
+
     penalty = 0
     if is_penalized:
         penalty = penalty_value
@@ -94,12 +98,13 @@ def SteadyReward(speed, is_reverse, is_penalized, penalty_value = 1):
 
 @gin.configurable
 class ArtOfRallyReward():
-    def __init__(self, plot_output = False, out_dir = None, device = "cuda:1", start_frame = 0, disable_speed_detection = False, reward_fn = TimeReward):
+    def __init__(self, plot_output = False, out_dir = None, device = "cuda:0", start_frame = 0, disable_speed_detection = False, reward_fn = TimeReward, gamma = .99):
         self.plot_output = plot_output
         self.out_dir = out_dir
         self.device = device
         self.frame = start_frame
         self.shaped_reward = reward_fn
+        self.gamma = gamma
 
         if plot_output:
             pathlib.Path(self.out_dir).mkdir(parents = True, exist_ok = True)
@@ -193,7 +198,7 @@ class ArtOfRallyReward():
                                            "true_reward": [None, true_reward]})
         self.frame += 1
 
-        out = {'train_reward': shaped_reward,
+        out = {'train_reward': shaped_reward * (1-self.gamma),
                 'eval_reward': eval_reward,
                 'vel': vel,
                 'is_penalized': is_penalized,

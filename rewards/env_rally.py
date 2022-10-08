@@ -55,8 +55,8 @@ class ResetDecision:
 @gin.configurable
 class ArtOfRallyEnv(gym.core.Env):
     # Note: We need gamma to calculate reset penalty.
-    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .5, penalty_mode = None, for_test = False, gamma=.99):
-        self.max_episode_seconds = 150
+    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .05, penalty_mode = None, for_test = False, gamma=.99, is_demo=False, run_on_init=True):
+        self.max_episode_seconds = 240
         self.out_dir = out_dir
         self.image_dir = os.path.join(self.out_dir, "images")
         self.channel = channel
@@ -69,7 +69,7 @@ class ArtOfRallyEnv(gym.core.Env):
 
         X_RES = 960
         Y_RES = 540
-        art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False)
+        art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False, gamma = gamma)
 
         run_config = {
             "title": "Art of Rally reward eval",
@@ -91,8 +91,8 @@ class ArtOfRallyEnv(gym.core.Env):
 
         harness = Harness(app_config, run_config, instance = channel)
         art_of_rally_reward_callback.attach_to_harness(harness)
-
         self.harness = harness
+
         # Reward callback is called by env.
         self.reward_callback = art_of_rally_reward_callback
 
@@ -100,7 +100,7 @@ class ArtOfRallyEnv(gym.core.Env):
         self.start_time = time.time_ns()
         self.last_input_time = time.time_ns()
         self.last_state = {}
-        self.controller = controller.Controller(callbacks=(self.on_input,))
+        self.controller = controller.Controller(callbacks=(self.on_input,), user=is_demo)
 
         self.discrete = False
         if self.discrete:
@@ -108,7 +108,7 @@ class ArtOfRallyEnv(gym.core.Env):
             self.action_space = gym.spaces.MultiDiscrete([3, 3])
         else:
             # Corresponds to (Turn, Brake, Gas)
-            self.action_space = gym.spaces.Box(low = np.array((-1, 0, 0)), high = np.array((1, 1, 1)))
+            self.action_space = gym.spaces.Box(low = np.array((-1, -1, -1)), high = np.array((1, 1, 1)))
 
         # Input space is in xlib XK key strings with XK_ left off.
         self.input_space = ((None, "Up", "Down"), (None, "Left", "Right"))
@@ -129,7 +129,7 @@ class ArtOfRallyEnv(gym.core.Env):
         self.total_steps = 0
         self.resetter = ResetDecision(self.steps_per_second)
 
-        if for_test == False:
+        if for_test == False and not is_demo:
             self.env_init = False
             # The setup thread sets self.env_init to True once the setup is finished.
             setup_thread = threading.Thread(target = self._setup_env_async, args = (), kwargs = {})
@@ -137,7 +137,7 @@ class ArtOfRallyEnv(gym.core.Env):
         else:
             # This path skips navigating to a race screen. Useful for integration
             # testing.
-            time.sleep(10)
+            time.sleep(2)
             self._wait_for_harness_init()
             self.env_init = True
 
@@ -192,6 +192,7 @@ class ArtOfRallyEnv(gym.core.Env):
 
     def recover(self):
         self.resetter.reset()
+        self.controller.apply_action((0, 0, 0))
         self.harness.keyboards[0].set_held_keys(set())
         self.harness.keyboards[0].key_sequence(["Escape", "Down", "Down", "Return", "Return"])
         time.sleep(4)
@@ -254,8 +255,10 @@ class ArtOfRallyEnv(gym.core.Env):
                 self.harness.keyboards[0].set_held_keys(key_set)
             else:
                 if self.is_locked_out():
-                    action = (0, 0, 0)
-                self.controller.apply_action(action)
+                    action = np.array([0, -1, -1])
+                controller_action = action
+                controller_action[1:3] = .5 * (controller_action[1:3] + 1)
+                self.controller.apply_action(controller_action)
 
         src.time_writer.SetSpeedup(self.run_config["run_rate"], channel = self.channel)
         time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
@@ -301,10 +304,8 @@ class ArtOfRallyEnv(gym.core.Env):
         if logged_action is None:
             logged_action = action
         to_log["action"] = logged_action
-
         to_log["time"] = (time.time_ns() - self.start_time) // int(1e6)
 
-        self.step_logger.write_line(to_log)
 
         # Lock-out penalty mode application and state update
         if self.is_locked_out():
@@ -329,5 +330,23 @@ class ArtOfRallyEnv(gym.core.Env):
             # On stuck recover:
             self.recover()
 
+        # Handle controller flags
+        if self.controller.paused:
+            print("Paused")
+            src.time_writer.SetSpeedup(1, channel = self.channel)
+            while self.controller.paused:
+                time.sleep(.05)
+            src.time_writer.SetSpeedup(self.run_config["pause_rate"], channel = self.channel)
+            print("Resumed")
+
+        if self.controller.marked_done:
+            print("Marked done")
+            done = True
+            self.controller.marked_done = False
+        to_log["done"]= done
+
+        self.step_logger.write_line(to_log)
+
         # Should features be returned in info? Probably?
-        return pixels, features['train_reward'], done, info
+        # We return normalized pixels
+        return (pixels - 63) / 57, features['train_reward'], done, info

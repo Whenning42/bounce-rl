@@ -42,5 +42,8 @@ def LoadDemo(directory):
         actions[i] = action
 
     rewards = steps["train_reward"].to_numpy()
+    infos = []
+    for i in tqdm.tqdm(range(len(steps.index))):
+        infos.append({"perturbed": steps.iloc[i]["perturbed"]})
     dones = np.full((num_steps), False)
-    return actions, rewards, images, dones
+    return actions, rewards, images, dones, infos
