@@ -9,6 +9,7 @@ import pathlib
 import torch
 import os
 import gin
+from profiler import Profiler
 
 def _LogitsToBool(logits):
     return logits[1] > logits[0]
@@ -98,13 +99,14 @@ def SteadyReward(speed, is_reverse, is_penalized, penalty_value = 1):
 
 @gin.configurable
 class ArtOfRallyReward():
-    def __init__(self, plot_output = False, out_dir = None, device = "cuda:0", start_frame = 0, disable_speed_detection = False, reward_fn = TimeReward, gamma = .99):
+    def __init__(self, plot_output = False, out_dir = None, device = "cuda:0", start_frame = 0, disable_speed_detection = False, reward_fn = TimeReward, gamma = .99, profiler=Profiler(no_op=True)):
         self.plot_output = plot_output
         self.out_dir = out_dir
         self.device = device
         self.frame = start_frame
         self.shaped_reward = reward_fn
         self.gamma = gamma
+        self.profiler = profiler
 
         if plot_output:
             pathlib.Path(self.out_dir).mkdir(parents = True, exist_ok = True)
@@ -167,15 +169,21 @@ class ArtOfRallyReward():
     # Returns a dict of
     #   'train_reward', 'eval_reward', 'vel', 'is_penalized', 'is_reverse'
     def on_tick(self):
+        self.profiler.begin("Color space conversion")
         detect_speed_roi = util.npBGRAtoRGB(self.capture_detect_speed())
         # Captured gives (w, h, c) w/ c == 4, BGRA
         is_reverse_roi = util.npBGRAtoRGB(self.capture_is_reverse())
         is_penalized_roi = util.npBGRAtoRGB(self.capture_is_penalized())
+        self.profiler.end("Color space conversion")
 
         # Convert predicted list of single char strings into a string.
+        self.profiler.begin("speed_rec")
         predicted_detect_speed = "".join(list(self.predict_detect_speed(detect_speed_roi)[0]))
+        self.profiler.begin("is_reverse", end="speed_rec")
         predicted_is_reverse = self.predict_is_reverse(is_reverse_roi)[0]
+        self.profiler.begin("is_penalized", end="is_reverse")
         predicted_is_penalized = self.predict_is_penalized(is_penalized_roi)[0]
+        self.profiler.end("is_penalized")
         is_reverse = _LogitsToBool(predicted_is_reverse).item()
         is_penalized = _LogitsToBool(predicted_is_penalized).item()
 

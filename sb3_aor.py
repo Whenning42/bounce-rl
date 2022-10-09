@@ -10,6 +10,7 @@ import itertools
 import time
 import torch
 from torch.profiler import profile, record_function, ProfilerActivity
+from profiler import Profiler
 
 discrete = False
 
@@ -18,8 +19,8 @@ def PPO(out_dir, env, seed = 0, n_steps = 2048, ent_coef = .01):
     return stable_baselines3.PPO('CnnPolicy', env, verbose = 1, device = "cuda:0", tensorboard_log = os.path.join(out_dir, "tensorboard_out"), seed = seed, n_steps = n_steps, ent_coef = ent_coef)
 
 @gin.configurable
-def SAC(out_dir, env, seed = 0, ent_coef = .1):
-    return stable_baselines3.SAC('CnnPolicy', env, verbose = 1, device = "cuda:0", tensorboard_log = os.path.join(out_dir, "tensorboard_out"), seed = seed, optimize_memory_usage = True, buffer_size = 200000, learning_starts=5000, ent_coef = ent_coef, train_freq=50, gradient_steps=50)
+def SAC(out_dir, env, seed = 0, ent_coef = .1, profiler = None):
+    return stable_baselines3.SAC('CnnPolicy', env, verbose = 1, device = "cuda:0", tensorboard_log = os.path.join(out_dir, "tensorboard_out"), seed = seed, optimize_memory_usage = True, buffer_size = 400000, learning_starts=10000, ent_coef = ent_coef, train_freq=50, gradient_steps=50, profiler=profiler)
     # return stable_baselines3.SAC('CnnPolicy', env, verbose = 1, device = "cuda:0", tensorboard_log = os.path.join(out_dir, "tensorboard_out"), seed = seed, optimize_memory_usage = True, buffer_size = 50000, optimizer_class = torch.optim.SGD, optimizer_kwargs={"lr": 1e-4, "momentum": .9})
 
 @gin.configurable
@@ -32,9 +33,10 @@ def run(out_dir = "out/run/", seed = 0, timesteps = 2e6, n_stack = 4):
         print(gin.config_str())
         f.write(gin.config_str())
 
+    p = Profiler("./run_profile2.csv")
     # Create environment
     gamma = .985
-    orig_env = rewards.env_rally.ArtOfRallyEnv(out_dir = out_dir, gamma=gamma)
+    orig_env = rewards.env_rally.ArtOfRallyEnv(out_dir = out_dir, gamma=gamma, run_rate=12, profiler=p)
     env = VecFrameStack(DummyVecEnv([lambda: orig_env]), n_stack = n_stack)
 
     eval_env = env
@@ -49,7 +51,7 @@ def run(out_dir = "out/run/", seed = 0, timesteps = 2e6, n_stack = 4):
     if discrete:
         model = PPO(out_dir, env)
     else:
-        model = SAC(out_dir, env, ent_coef = .1 * (1-gamma))
+        model = SAC(out_dir, env, ent_coef = .1 * (1-gamma), profiler=p)
 
     print("Ready to train with operative config: ", gin.operative_config_str())
     # Frame stack breaks check_env?
@@ -65,7 +67,7 @@ gin.parse_config_file('config.gin')
 
 if __name__ == "__main__":
     for seed, n_steps in itertools.product((0,), (4800,)):
-        gin.bind_parameter("run.out_dir", f"out/w_ent_coef2/n_steps_{n_steps}_seed_{seed}")
+        gin.bind_parameter("run.out_dir", f"out/take_three/n_steps_{n_steps}_seed_{seed}")
         gin.bind_parameter("run.seed", seed)
         gin.bind_parameter("PPO.seed", seed)
         gin.bind_parameter("SAC.seed", seed)
