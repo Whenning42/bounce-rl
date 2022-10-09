@@ -57,7 +57,13 @@ class CsvFile:
                     write_file.write(b"\n")
 
         self.file = open(self.tmp_file, 'r')
-        self._finalizer = weakref.finalize(self, os.remove, self.tmp_file)
+        self._finalizer = weakref.finalize(self, self.finalize, self.tmp_file)
+
+    def finalize(self, file):
+        try:
+            os.remove(file)
+        except FileNotFoundError:
+            pass
 
     def filename(self):
         return self.tmp_file
