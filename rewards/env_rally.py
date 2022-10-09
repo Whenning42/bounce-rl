@@ -13,7 +13,8 @@ import os
 import PIL.Image
 import pathlib
 import gin
-from multiprocessing import Process
+from profiler import Profiler
+import multiprocessing
 from src.keyboard import controller
 
 LOCK_OUT = "lock_out"
@@ -55,12 +56,14 @@ class ResetDecision:
 @gin.configurable
 class ArtOfRallyEnv(gym.core.Env):
     # Note: We need gamma to calculate reset penalty.
-    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .05, penalty_mode = None, for_test = False, gamma=.99, is_demo=False, run_on_init=True):
+    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .05, penalty_mode = None, for_test = False, gamma=.99, is_demo=False, run_on_init=True, profiler=Profiler(no_op=True)):
         self.max_episode_seconds = 240
         self.out_dir = out_dir
         self.image_dir = os.path.join(self.out_dir, "images")
         self.channel = channel
         self.g = gamma
+        self.profiler=profiler
+        self.mp = multiprocessing.pool.Pool(2)
 
         pathlib.Path(self.image_dir).mkdir(parents = True, exist_ok = True)
         self.step_logger = csv_logger.CsvLogger(os.path.join(out_dir, STEP_FILE))
@@ -69,7 +72,7 @@ class ArtOfRallyEnv(gym.core.Env):
 
         X_RES = 960
         Y_RES = 540
-        art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False, gamma = gamma)
+        art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False, gamma = gamma, profiler = profiler)
 
         run_config = {
             "title": "Art of Rally reward eval",
@@ -227,6 +230,7 @@ class ArtOfRallyEnv(gym.core.Env):
         self.harness.kill_subprocesses()
 
     def on_input(self, controller, event):
+        print("Write analog")
         now = time.monotonic_ns()
         s = controller.state()
 
@@ -244,6 +248,7 @@ class ArtOfRallyEnv(gym.core.Env):
     # If 'action' is given as None, logged_action should be given as non-None so that
     # the action taken at this timestep can be logged.
     def step(self, action = None, logged_action = None, perturbed = None):
+        self.profiler.begin("Env Step", end="Framework")
         self._wait_for_env_init()
 
         # Run keyboard presses for the given the gym action.
@@ -261,7 +266,9 @@ class ArtOfRallyEnv(gym.core.Env):
                 self.controller.apply_action(controller_action)
 
         src.time_writer.SetSpeedup(self.run_config["run_rate"], channel = self.channel)
+        self.profiler.begin("Wait for game")
         time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
+        self.profiler.end("Wait for game")
         src.time_writer.SetSpeedup(self.run_config["pause_rate"], channel = self.channel)
 
         self.episode_steps += 1
@@ -272,8 +279,12 @@ class ArtOfRallyEnv(gym.core.Env):
             print("Reached desired number of steps, ending episode. Total steps", self.total_steps, flush = True)
             done = True
 
+        self.profiler.begin("Step Screenshot")
         pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE, 0:1]
+        self.profiler.end("Step Screenshot")
+        self.profiler.begin("Reward eval")
         features = self.reward_callback.on_tick()
+        self.profiler.end("Reward eval")
 
         # Copy eval reward into SB3/Tensorboard integrated reward feature.
         info = {}
@@ -289,12 +300,13 @@ class ArtOfRallyEnv(gym.core.Env):
         # Log environment features and save pixels if requested.
         to_log = features.copy()
         if self.episode_saves_pixels():
+            self.profiler.begin("Save pixels")
             filename = f"{self.total_steps:08d}.png"
             path = os.path.join(self.image_dir, filename)
             save_pixels = pixels[:, :, 0]
-            p = Process(target=save_im, args=(path, save_pixels))
-            p.start()
+            self.mp.apply_async(save_im, (path, save_pixels))
             to_log["pixels_path"] = filename
+            self.profiler.end("Save pixels")
 
         if perturbed:
             to_log["perturbed"] = True
@@ -345,8 +357,11 @@ class ArtOfRallyEnv(gym.core.Env):
             self.controller.marked_done = False
         to_log["done"]= done
 
+        self.profiler.begin("Write step")
         self.step_logger.write_line(to_log)
+        self.profiler.end("Write step")
 
         # Should features be returned in info? Probably?
         # We return normalized pixels
+        self.profiler.begin("Framework", end="Env Step")
         return (pixels - 63) / 57, features['train_reward'], done, info
