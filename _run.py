@@ -1,3 +1,7 @@
+# Runs the Art of Rally, recording the reward callbacks debug output and
+# taking a screenshot each harness tick. This serves as an integration
+# test and an aid for debugging reward function issues.
+
 from harness import *
 import app_configs
 import model
