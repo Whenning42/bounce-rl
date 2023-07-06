@@ -3,7 +3,7 @@
 # test and an aid for debugging reward function issues.
 
 from harness import *
-import app_configs
+import configs.app_configs as app_configs
 import model
 import rewards.art_of_rally
 import callbacks.callbacks as callbacks
