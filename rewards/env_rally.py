@@ -2,7 +2,7 @@ import rewards
 import rewards.art_of_rally
 import src.time_writer
 import time
-import app_configs
+import configs.app_configs as app_configs
 from harness import Harness
 import gym
 import numpy as np

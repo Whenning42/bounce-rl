@@ -1,10 +1,15 @@
 # These are program configs and are independent of which agent we wish to run.
 # NOTE: We probably don't want fps in these app configs.
+
+# TODO: Improve generalization of these configs for downstream users.
+# Steam games likely can have hard-coded paths, manually installed games
+# however, will likely need user configuration.
+
 app_configs = \
     [{
         "conf_title": "Skyrogue",
         #Skyrogue tries launches steam if the working directory isn't the game's directory.,
-        "directory": "/home/william/.local/share/Steam/steamapps/common/Sky Rogue",
+        "directory": "~/.local/share/Steam/steamapps/common/Sky Rogue",
         "command": "./skyrogue.x86",
         "window_title": "Sky Rogue",
         "x_res": 640,
@@ -30,28 +35,28 @@ app_configs = \
         "y_res": 540,
     }, {
         "conf_title": "Art of Rally",
-        "directory": "/home/william/.local/share/Steam/steamapps/common/artofrally",
+        "directory": "~/.local/share/Steam/steamapps/common/artofrally",
         "command": "steam steam://rungameid/550320",
         "window_title": "art of rally",
         "x_res": 1920,
         "y_res": 1080,
     }, {
         "conf_title": "Art of Rally Demo",
-        "directory": "/home/william",
-        "command": "/home/william/Downloads/Linux/artofrally_demo.x64",
+        "directory": "~/",
+        "command": "~/Downloads/Linux/artofrally_demo.x64",
         "window_title": "art of rally",
         "x_res": 1920,
         "y_res": 1080,
     }, {
         "conf_title": "Art of Rally (Multi)",
-        "directory": "/home/william/Games/art_of_rally$i/game",
+        "directory": "~/Games/art_of_rally$i/game",
         "command": "./artofrally.x64",
         "window_title": "art of rally",
         "x_res": 1920,
         "y_res": 1080,
     }, {
         "conf_title": "Factorio",
-        "directory": "/home/william/Downloads/factorio/bin/x64",
+        "directory": "~/Downloads/factorio/bin/x64",
         "command": "./factorio",
         "window_title": "Factorio 1.1.53",
         "x_res": 960,
