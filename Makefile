@@ -2,6 +2,7 @@
 
 all:
 	mkdir -p build
+	mkdir -p build/lib
 	gcc -fPIC -shared -o libimage_capture.so src/image_capture.c -lXext -lX11
 	CFLAGS="-I./src" LDFLAGS="-L./" python setup.py build_ext -i
 
