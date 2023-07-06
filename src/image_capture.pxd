@@ -1,4 +1,4 @@
-cdef extern from "src/image_capture.h":
+cdef extern from "image_capture.h":
     ctypedef void* capture_t
     ctypedef struct XErrorEvent:
         int type;
