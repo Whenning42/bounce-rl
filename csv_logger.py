@@ -1,3 +1,7 @@
+# Read and write classes for a csv file with its header and rows split into
+# two parallel files. This file structure allows extending the csv header
+# quickly even after having written many rows to the csv.
+
 import os
 import csv
 import shutil
