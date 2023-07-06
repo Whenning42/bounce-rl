@@ -36,7 +36,7 @@ def run(out_dir = "out/run/", seed = 0, timesteps = 2e6, n_stack = 4):
     out_dir = os.path.join(out_dir, str(seed))
     pathlib.Path(out_dir).mkdir(parents= True, exist_ok = True)
 
-    with open(os.path.join(out_dir, "config.gin"), "w") as f:
+    with open(os.path.join(out_dir, "configs/config.gin"), "w") as f:
         print("Using config:")
         print(gin.config_str())
         f.write(gin.config_str())

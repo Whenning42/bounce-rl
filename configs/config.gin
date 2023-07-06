@@ -10,6 +10,6 @@ PPO.seed = 0
 # PPO.n_steps is configured in the run script
 PPO.ent_coef = .01
 
-rewards.env_rally.ArtOfRallyEnv.penalty_mode = "lock_out" 
+rewards.env_rally.ArtOfRallyEnv.penalty_mode = "lock_out"
 rewards.art_of_rally.ArtOfRallyReward.reward_fn = @rewards.art_of_rally.TimeReward
 rewards.art_of_rally.TimeReward.penalty_value = 0
