@@ -1,7 +1,7 @@
 import evdev
 import threading
 import time
-from src.keyboard import ds4drv_input
+from third_party import ds4drv_input
 
 class Controller():
     def __init__(self, callbacks=[], user = True):
