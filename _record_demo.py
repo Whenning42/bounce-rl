@@ -1,3 +1,9 @@
+# Records a human demo of Art of Rally gameplay.
+#
+# The hard-coded `DISCRETE` constant controls whether
+# the demo is in keyboard or controller mode (True and
+# False respectively).
+
 import rewards.env_rally
 import random
 import evdev
@@ -12,7 +18,7 @@ import time
 # If so, this needs to be manually fixed.
 import UserKeyboard
 
-discrete = False
+DISCRETE = False
 
 # Create environment
 env = rewards.env_rally.ArtOfRallyEnv(out_dir = "analog_full", run_rate = 1.0, pause_rate = .1, is_demo = True)
@@ -57,7 +63,7 @@ def main():
         # 111, 116, 113, 114
         action = p.step()
         perturbed = action is not None
-        if discrete:
+        if DISCRETE:
             if perturbed:
                 kb.disable()
                 to_log = None
