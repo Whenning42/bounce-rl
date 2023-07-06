@@ -1,3 +1,5 @@
+# Implements a virtual X11 keyboard.
+
 from Xlib import display
 import Xlib.X
 import Xlib.XK
