@@ -1,5 +1,5 @@
 # These are program configs and are independent of which agent we wish to run.
-# NOTE: We probably don't want fps in these run configs.
+# NOTE: We probably don't want fps in these app configs.
 app_configs = \
     [{
         "conf_title": "Skyrogue",
@@ -49,6 +49,14 @@ app_configs = \
         "window_title": "art of rally",
         "x_res": 1920,
         "y_res": 1080,
+    }, {
+        "conf_title": "Factorio",
+        "directory": "/home/william/Downloads/factorio/bin/x64",
+        "command": "./factorio",
+        "window_title": "Factorio 1.1.53",
+        "x_res": 960,
+        "y_res": 540,
+        "keys": ["W", "A", "S", "D", "E", "R", "T", "Shift", "Tab", "Ctrl", "LMB", "RMB"],
     }]
 
 def LoadAppConfig(config_title):
