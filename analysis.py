@@ -1,3 +1,5 @@
+# An example script for offline analysis of Art of Rally feature data.
+
 from copy import copy
 from scipy import stats
 import csv_logger
@@ -29,7 +31,7 @@ def PopulateTimeDiscountedRewards(df, gamma = .99, expected_reward = -1, rew_col
         rows[i, 1] = g
     df["g"] = rows[:, 1]
 
-# For each set of consecutive penalized steps, remove the penalty value from 
+# For each set of consecutive penalized steps, remove the penalty value from
 # train reward and insert an equal number of new -1 penalty frames at the start
 # of the set.
 # May be incorrect if df index is not a dense range.
