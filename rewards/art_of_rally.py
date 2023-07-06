@@ -145,9 +145,9 @@ class ArtOfRallyReward():
     def attach_to_harness(self, harness):
         self.harness = harness
 
-        self.capture_detect_speed = harness.add_capture(util.LoadJSON("annotations.json")["detect_speed"]["roi"]["region"])
-        self.capture_is_reverse = harness.add_capture(util.LoadJSON("annotations.json")["is_reverse"]["roi"]["region"])
-        self.capture_is_penalized = harness.add_capture(util.LoadJSON("annotations.json")["is_penalized"]["roi"]["region"])
+        self.capture_detect_speed = harness.add_capture(util.LoadJSON("configs/aor_rois.json")["detect_speed"]["roi"]["region"])
+        self.capture_is_reverse = harness.add_capture(util.LoadJSON("configs/aor_rois.json")["is_reverse"]["roi"]["region"])
+        self.capture_is_penalized = harness.add_capture(util.LoadJSON("configs/aor_rois.json")["is_penalized"]["roi"]["region"])
 
     def predict_detect_speed(self, detect_speed_roi):
         return self.detect_speed_model([detect_speed_roi])

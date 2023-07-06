@@ -1,0 +1,46 @@
+{
+    "scale": {
+        "x": 1920,
+        "y": 1080
+    },
+
+    "is_race_mode": {
+        "name": "is_race_mode",
+
+        "roi": {
+            "name": "is_race_mode_roi",
+            "region": [645, 996, 224, 84],
+            "region_format": "x, y, w, h"
+        }
+    },
+
+    "is_reverse": {
+        "name": "is_reverse",
+
+        "roi": {
+            "name": "is_reverse_roi",
+            "region": [1180, 1007, 64, 64],
+            "region_format": "x, y, w, h"
+        }
+    },
+
+    "is_penalized": {
+        "name": "is_penalized",
+
+        "roi": {
+            "name": "is_penalized_roi",
+            "region": [1627, 44, 64, 64],
+            "region_format": "x, y, w, h"
+        }
+    },
+
+    "detect_speed": {
+        "name": "detect_speed",
+
+        "roi": {
+            "name": "detect_speed_roi",
+            "region": [688, 1023, 96, 32],
+            "region_format": "x, y, w ,h"
+        }
+    }
+}
