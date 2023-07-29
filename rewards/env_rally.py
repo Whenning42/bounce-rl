@@ -16,6 +16,7 @@ import gin
 from profiler import Profiler
 import multiprocessing
 from src.keyboard import controller
+from functools import partial
 
 LOCK_OUT = "lock_out"
 DOWNSAMPLE = 4
@@ -57,7 +58,6 @@ class ResetDecision:
 class ArtOfRallyEnv(gym.core.Env):
     # Note: We need gamma to calculate reset penalty.
     def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .05, penalty_mode = None, for_test = False, gamma=.99, is_demo=False, profiler=Profiler(no_op=True)):
-        self.max_episode_seconds = 240
         self.out_dir = out_dir
         self.image_dir = os.path.join(self.out_dir, "images")
         self.channel = channel
@@ -72,7 +72,7 @@ class ArtOfRallyEnv(gym.core.Env):
 
         X_RES = 960
         Y_RES = 540
-        art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False, gamma = gamma, profiler = profiler)
+        art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False, gamma = gamma, profiler = profiler, out_dir = out_dir)
 
         # Since AoR use's pretrained screen scraping models, evaluated
         # only at 1920x1080, we're locked into running the game at that
@@ -87,12 +87,11 @@ class ArtOfRallyEnv(gym.core.Env):
             "row_size": 2,
             "run_rate": run_rate,
             "pause_rate": pause_rate,
-            "step_duration": .125, # Record at .125, eval at .25
+            "step_duration": .17, # Record at .125, eval at .25
             "pixels_every_n_episodes": 1
         }
         self.run_config = run_config
         app_config = app_configs.LoadAppConfig(run_config["app"])
-        self.max_episode_steps = self.max_episode_seconds // run_config["step_duration"]
         self.steps_per_second = 1 / run_config["step_duration"]
 
         harness = Harness(app_config, run_config, instance = channel)
@@ -112,12 +111,12 @@ class ArtOfRallyEnv(gym.core.Env):
         if self.discrete:
             # Corresponds to (None, Up, Down), (None, Left, Right)
             self.action_space = gym.spaces.MultiDiscrete([3, 3])
+            # Input space is in xlib XK key strings with XK_ left off.
+            self.input_space = ((None, "Up", "Down"), (None, "Left", "Right"))
         else:
             # Corresponds to (Turn, Brake, Gas)
-            self.action_space = gym.spaces.Box(low = np.array((-1, -1, -1)), high = np.array((1, 1, 1)))
+            self.action_space = gym.spaces.Box(low = np.array((-1, -1)), high = np.array((1, 1)))
 
-        # Input space is in xlib XK key strings with XK_ left off.
-        self.input_space = ((None, "Up", "Down"), (None, "Left", "Right"))
         self.pixel_shape = (Y_RES // DOWNSAMPLE, X_RES // DOWNSAMPLE, 1)
         self.pixel_space = gym.spaces.Box(low = np.zeros(self.pixel_shape),
                                           high = np.ones(self.pixel_shape) * 255,
@@ -201,7 +200,7 @@ class ArtOfRallyEnv(gym.core.Env):
         self.controller.apply_action((0, 0, 0))
         self.harness.keyboards[0].set_held_keys(set())
         self.harness.keyboards[0].key_sequence(["Escape", "Down", "Down", "Return", "Return"])
-        time.sleep(4)
+        time.sleep(min(4, 4 / self.run_config["pause_rate"]))
 
     def reset(self):
         self._wait_for_env_init()
@@ -246,6 +245,34 @@ class ArtOfRallyEnv(gym.core.Env):
         self.input_logger.write_line(s)
         self.last_input_time = now
 
+    # Callbacks to be used by the training framework. These should be static so that
+    # the trainer class can be picklable even when this env isn't.
+    @staticmethod
+    def on_train_start(channel):
+        src.time_writer.SetSpeedup(.1, channel = channel)
+
+    @staticmethod
+    def on_train_end(channel):
+        src.time_writer.SetSpeedup(1, channel = channel)
+        time.sleep(.02 / .1) # runs for .2s
+
+    def get_train_start(self):
+        return partial(self.on_train_start, self.channel)
+
+    def get_train_end(self):
+        return partial(self.on_train_end, self.channel)
+
+    def MaxEpisodeSeconds(self):
+        start = 100
+        end = 100
+        steps_end = 800000
+
+        delta = end - start
+        return max(start + delta*(self.total_steps/steps_end), end)
+
+    def MaxEpisodeSteps(self):
+        return self.MaxEpisodeSeconds() // self.run_config["step_duration"]
+
     # 'action' can be set to None to provide no action for this step. This is useful
     # for when a user is controlling the env though a non-env owned keyboard.
     # If 'action' is given as None, logged_action should be given as non-None so that
@@ -263,9 +290,11 @@ class ArtOfRallyEnv(gym.core.Env):
                 self.harness.keyboards[0].set_held_keys(key_set)
             else:
                 if self.is_locked_out():
-                    action = np.array([0, -1, -1])
-                controller_action = action
-                controller_action[1:3] = .5 * (controller_action[1:3] + 1)
+                    action = np.array([0, 0])
+                controller_action = np.zeros((3,))
+                controller_action[0] = action[0]
+                controller_action[1] = max(0, -action[1])
+                controller_action[2] = max(0, action[1])
                 self.controller.apply_action(controller_action)
 
         src.time_writer.SetSpeedup(self.run_config["run_rate"], channel = self.channel)
@@ -278,13 +307,12 @@ class ArtOfRallyEnv(gym.core.Env):
         self.total_steps += 1
 
         done = False
-        if self.episode_steps % self.max_episode_steps  == 0:
+        print(self.episode_steps)
+        print(self.MaxEpisodeSteps())
+        if self.episode_steps > self.MaxEpisodeSteps():
             print("Reached desired number of steps, ending episode. Total steps", self.total_steps, flush = True)
             done = True
 
-        self.profiler.begin("Step Screenshot")
-        pixels = self.harness.get_screen()[::DOWNSAMPLE, ::DOWNSAMPLE, 0:1]
-        self.profiler.end("Step Screenshot")
         self.profiler.begin("Reward eval")
         features = self.reward_callback.on_tick()
         self.profiler.end("Reward eval")
@@ -303,6 +331,14 @@ class ArtOfRallyEnv(gym.core.Env):
         # Log environment features and save pixels if requested.
         to_log = features.copy()
         if self.episode_saves_pixels():
+            self.profiler.begin("Get pixels")
+            pixels = self.harness.get_screen(profiler=self.profiler, bgra_conv=False, make_cont=False)
+            self.profiler.begin("Crop", end="Get pixels")
+            pixels = pixels[::DOWNSAMPLE, ::DOWNSAMPLE, 0:1]
+            self.profiler.begin("Make contiguous", end="Crop")
+            pixels = np.ascontiguousarray(pixels)
+            self.profiler.end("Make contiguous")
+
             self.profiler.begin("Save pixels")
             filename = f"{self.total_steps:08d}.png"
             path = os.path.join(self.image_dir, filename)
@@ -367,4 +403,5 @@ class ArtOfRallyEnv(gym.core.Env):
         # Should features be returned in info? Probably?
         # We return normalized pixels
         self.profiler.begin("Framework", end="Env Step")
-        return (pixels - 63) / 57, features['train_reward'], done, info
+        # return (pixels - 63) / 57, features['train_reward'], done, info
+        return pixels, features['train_reward'], done, info
