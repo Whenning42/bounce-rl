@@ -1,9 +1,13 @@
 # These are program configs and are independent of which agent we wish to run.
-# NOTE: We probably don't want fps in these app configs.
 
 # TODO: Improve generalization of these configs for downstream users.
 # Steam games likely can have hard-coded paths, manually installed games
 # however, will likely need user configuration.
+
+try:
+    mc_command = open("minecraft_command.txt").read()
+except FileNotFoundError:
+    mc_command = ""
 
 app_configs = \
     [{
@@ -19,7 +23,7 @@ app_configs = \
         "directory": "./",
         # minecraft_command.txt comes from
         # $ ps -eo args | grep inecraft; killall minecraft-launcher
-        "command": open("minecraft_command.txt").read(),
+        "command": mc_command,
         # One's version may differ here.
         "window_title": "Minecraft 1.16.5",
         # Pass in bmp to disable compression
