@@ -97,11 +97,15 @@ def SteadyReward(speed, is_reverse, is_penalized, penalty_value = 1):
 
     return p - penalty
 
+# 'plot_output'==True saves images showing the classification results of the model as well
+# as the pixels the classifiers ran over for use in training/validation flows.
 @gin.configurable
 class ArtOfRallyReward():
     def __init__(self, plot_output = False, out_dir = None, device = "cuda:0", start_frame = 0, disable_speed_detection = False, reward_fn = TimeReward, gamma = .99, profiler=Profiler(no_op=True)):
         self.plot_output = plot_output
-        self.out_dir = out_dir
+        self.out_dir = None
+        if out_dir is not None:
+            self.out_dir = os.path.join(out_dir, "aor_features_dbg")
         self.device = device
         self.frame = start_frame
         self.shaped_reward = reward_fn
@@ -135,6 +139,12 @@ class ArtOfRallyReward():
                 plt.subplot(2, 2, plot_i)
                 plt.imshow(image)
                 plot_i += 1
+                np.save(os.path.join(self.out_dir, f"{feature}_in_{frame:05d}.npy"), \
+                        image)
+                with open(os.path.join(self.out_dir, f"{feature}_pred_{frame:05d}.txt"), 'a') \
+                        as f:
+                    pred_item = prediction
+                    f.write(f"{pred_item}\n")
 
         plt.figure(1)
         plt.suptitle(label)
@@ -203,7 +213,7 @@ class ArtOfRallyReward():
             self._plot_reward(self.frame, {"detect_speed": [detect_speed_roi, predicted_detect_speed],
                                            "is_reverse": [is_reverse_roi, predicted_is_reverse],
                                            "is_penalized": [is_penalized_roi, predicted_is_penalized],
-                                           "true_reward": [None, true_reward]})
+                                           "eval_reward": [None, eval_reward]})
         self.frame += 1
 
         out = {'train_reward': shaped_reward * (1-self.gamma),
