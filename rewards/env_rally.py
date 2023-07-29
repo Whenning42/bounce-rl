@@ -74,6 +74,9 @@ class ArtOfRallyEnv(gym.core.Env):
         Y_RES = 540
         art_of_rally_reward_callback = rewards.art_of_rally.ArtOfRallyReward(plot_output = False, gamma = gamma, profiler = profiler)
 
+        # Since AoR use's pretrained screen scraping models, evaluated
+        # only at 1920x1080, we're locked into running the game at that
+        # resolution, and then downsampling to our desired model resolution.
         run_config = {
             "title": "Art of Rally reward eval",
             "app": "Art of Rally (Multi)",
