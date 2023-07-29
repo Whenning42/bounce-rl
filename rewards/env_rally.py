@@ -56,7 +56,7 @@ class ResetDecision:
 @gin.configurable
 class ArtOfRallyEnv(gym.core.Env):
     # Note: We need gamma to calculate reset penalty.
-    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .05, penalty_mode = None, for_test = False, gamma=.99, is_demo=False, run_on_init=True, profiler=Profiler(no_op=True)):
+    def __init__(self, out_dir = None, channel = 0, run_rate = 8, pause_rate = .05, penalty_mode = None, for_test = False, gamma=.99, is_demo=False, profiler=Profiler(no_op=True)):
         self.max_episode_seconds = 240
         self.out_dir = out_dir
         self.image_dir = os.path.join(self.out_dir, "images")
