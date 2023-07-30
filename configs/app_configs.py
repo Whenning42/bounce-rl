@@ -4,6 +4,8 @@
 # Steam games likely can have hard-coded paths, manually installed games
 # however, will likely need user configuration.
 
+import os
+
 try:
     mc_command = open("minecraft_command.txt").read()
 except FileNotFoundError:
@@ -66,10 +68,18 @@ app_configs = \
         "x_res": 960,
         "y_res": 540,
         "keys": ["W", "A", "S", "D", "E", "R", "T", "Shift", "Tab", "Ctrl", "LMB", "RMB"],
+    }, {
+        "conf_title": "Noita",
+        "directory": "~/",
+        "command": "steam steam://rungameid/881100",
+        "window_title": "^Noita.*",
     }]
 
 def LoadAppConfig(config_title):
-    for app_conf in app_configs:
-        if app_conf["conf_title"] == config_title:
-            return app_conf
-    return None
+    app_conf = None
+    for c in app_configs:
+        if c["conf_title"] == config_title:
+            app_conf = c
+    if c is not None and 'directory' in c:
+        c['directory'] = os.path.expanduser(c['directory'])
+    return app_conf
