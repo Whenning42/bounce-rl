@@ -11,7 +11,6 @@ import keyboard
 import util
 import string
 import psutil
-from model import *
 
 from Xlib import display, Xatom
 import Xlib.X
@@ -49,6 +48,9 @@ class Harness(object):
         self.app_config = app_config
         self.run_config = run_config
         self.instance = instance
+
+        if 'init_cmd' in self.app_config:
+            os.system(self.app_config['init_cmd'])
 
         self.fps_helper = fps_helper.Helper(throttle_fps \
                                         = self.run_config.get("max_tick_rate"))
