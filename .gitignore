@@ -16,7 +16,9 @@ memories/*
 .*
 tmp
 out/*
-rl-venv/
+rl-env/*
+rl-venv/*
+models/*
 
 # Minecraft files
 logs/*
