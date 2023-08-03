@@ -72,7 +72,7 @@ app_configs = \
         "conf_title": "Noita",
         "directory": "~/",
         "command": "steam steam://rungameid/881100",
-        "window_title": "^Noita.*",
+        "process_mode": "separate",
     }]
 
 def LoadAppConfig(config_title):
