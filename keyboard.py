@@ -16,7 +16,7 @@ def keysym_for_key_name(key_name):
     assert(keysym is not None)
     return keysym
 
-class KeyboardEventModes(Enum):
+class KeyboardEventMode(Enum):
     SEND_EVENT = 1
     FAKE_INPUT = 2
 
@@ -35,7 +35,8 @@ class Keyboard(object):
         print("Keyboard win:", window)
         self.display = display
         self.sequence_keydown_time = keyboard_config.get("sequence_keydown_time", .25)
-        self.event_mode = keyboard_config.get("mode", KeyboardEventModes.SEND_EVENT)
+        event_mode_req: str = keyboard_config.get("mode", "SEND_EVENT")
+        self.event_mode: KeyboardEventMode = KeyboardEventMode[event_mode_req]
 
         self.held_set = set()
 
@@ -111,6 +112,7 @@ class Keyboard(object):
         self._press_key(key_name, modifier)
 
     def _press_key(self, key_name, modifier = 0):
+        print("Press:", key_name)
         self._change_key(key_name, Keyboard.PRESS, modifier)
 
     def release_key(self, key_name, modifier = 0):
@@ -166,7 +168,7 @@ class Keyboard(object):
 
     def _change_key(self, key_name, direction, modifier = 0):
         self.global_mutex.acquire()
-        if self.event_mode == KeyboardEventModes.SEND_EVENT:
+        if self.event_mode == KeyboardEventMode.SEND_EVENT:
             # Focus the window we're sending the event to.
             for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]:
                 w = self.focused_window
@@ -184,7 +186,7 @@ class Keyboard(object):
             self.display.flush()
 
             # self.display.sync()
-        elif self.event_mode == KeyboardEventModes.FAKE_INPUT:
+        elif self.event_mode == KeyboardEventMode.FAKE_INPUT:
             keysym = keysym_for_key_name(key_name)
             keycode = self.display.keysym_to_keycode(keysym)
 
