@@ -1,11 +1,13 @@
 # Implements a virtual X11 keyboard.
 
 from Xlib import display
+from Xlib.ext import xtest
 import Xlib.X
 import Xlib.XK
 import Xlib.protocol
 import numpy as np
 import time
+from enum import Enum
 
 from threading import Lock
 
@@ -13,6 +15,10 @@ def keysym_for_key_name(key_name):
     keysym = Xlib.XK.string_to_keysym(key_name)
     assert(keysym is not None)
     return keysym
+
+class KeyboardEventModes(Enum):
+    SEND_EVENT = 1
+    FAKE_INPUT = 2
 
 class Keyboard(object):
     PRESS = 1
@@ -23,11 +29,13 @@ class Keyboard(object):
 
     global_mutex = Lock()
 
-    def __init__(self, display, window):
+    def __init__(self, display, window, keyboard_config):
         self.last_keymap = np.zeros(84)
         self.focused_window = window
         print("Keyboard win:", window)
         self.display = display
+        self.sequence_keydown_time = keyboard_config.get("sequence_keydown_time", .25)
+        self.event_mode = keyboard_config.get("mode", KeyboardEventModes.SEND_EVENT)
 
         self.held_set = set()
 
@@ -115,7 +123,7 @@ class Keyboard(object):
         for key in keys:
             time.sleep(.1)
             self.press_key(key)
-            time.sleep(.25)
+            time.sleep(self.sequence_keydown_time)
             self.release_key(key)
             time.sleep(.25)
 
@@ -158,29 +166,35 @@ class Keyboard(object):
 
     def _change_key(self, key_name, direction, modifier = 0):
         self.global_mutex.acquire()
+        if self.event_mode == KeyboardEventModes.SEND_EVENT:
+            # Focus the window we're sending the event to.
+            for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]:
+                w = self.focused_window
+                e = Xlib.protocol.event.FocusIn(display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal)
+                self.display.send_event(w, e)
+                self.display.flush()
 
-        # Focus the window we're sending the event to.
-        for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]:
-            w = self.focused_window
-            e = Xlib.protocol.event.FocusIn(display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal)
-            self.display.send_event(w, e)
+
+            # Set the input focus to the window we want.
+            self.display.set_input_focus(self.focused_window, Xlib.X.RevertToNone, Xlib.X.CurrentTime)
+
+            event = self._get_key_x_event(key_name, direction, modifier)
+            self.display.send_event(self.focused_window, event, propagate = False, event_mask = Xlib.X.KeyPress | Xlib.X.KeyRelease)
+            # self.display.send_event(self.focused_window, event, propagate = False, event_mask = 0)
             self.display.flush()
 
+            # self.display.sync()
+        elif self.event_mode == KeyboardEventModes.FAKE_INPUT:
+            keysym = keysym_for_key_name(key_name)
+            keycode = self.display.keysym_to_keycode(keysym)
 
-        # Set the input focus to the window we want.
-        self.display.set_input_focus(self.focused_window, Xlib.X.RevertToNone, Xlib.X.CurrentTime)
+            if direction == Keyboard.PRESS:
+                event_type = Xlib.X.KeyPress
+            else:
+                event_type = Xlib.X.KeyRelease
 
-        event = self._get_key_x_event(key_name, direction, modifier)
-        self.display.send_event(self.focused_window, event, propagate = False, event_mask = Xlib.X.KeyPress | Xlib.X.KeyRelease)
-        # self.display.send_event(self.focused_window, event, propagate = False, event_mask = 0)
-        self.display.flush()
-
-        # Un-focus the window we sent the event to.
-        # for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]:
-        #     w = self.focused_window
-        #     e = Xlib.protocol.event.FocusOut(display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal)
-        #     self.display.send_event(w, e)
-        #     self.display.flush()
-
-        # self.display.sync()
+            # TODO: Make compatible with mouse controller.
+            xtest.fake_input(self.display, Xlib.X.MotionNotify, x=500, y=500)
+            xtest.fake_input(self.display, event_type, keycode)
+            self.display.flush()
         self.global_mutex.release()
