@@ -141,7 +141,7 @@ class Harness(object):
         time.sleep(1)
         global window_owners
         open_windows = Harness.get_all_windows_with_name(self.app_config["window_title"], self.root_window, [])
-        if self.run_config.get("process_mode", "") == "separate":
+        if self.app_config.get("process_mode", "") == "separate":
             owned_windows = open_windows
         else:
             owned_windows = [w for w in open_windows if self.is_owned(w, self.subprocess_pids)] 
@@ -154,7 +154,7 @@ class Harness(object):
                 assert(None in self.windows)
                 loc = self.windows.index(None)
                 self.windows[loc] = w
-                self.keyboards[loc] = keyboard.Keyboard(self.display, w)
+                self.keyboards[loc] = keyboard.Keyboard(self.display, w, self.app_config.get("keyboard_config", {}))
                 print(w)
                 print(hex(w.id))
                 # Make the window floating and borderless.
