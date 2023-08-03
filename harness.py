@@ -3,6 +3,7 @@ import image_capture
 import fps_helper
 import numpy as np
 import os
+import re
 import subprocess
 import signal
 import time
@@ -125,18 +126,21 @@ class Harness(object):
             window_ps = window_ps.parent()
         return False
 
-    def GetAllWindowsWithName(name, parent, matches):
+    def get_all_windows_with_name(name, parent, matches):
         for child in parent.query_tree().children:
-            if child.get_wm_name() == name:
+            wm_name = child.get_wm_name()
+            if wm_name is not None:
+                if isinstance(wm_name, bytes):
+                    wm_name = wm_name.decode('utf-8')
+            if wm_name is not None and re.match(name, wm_name):
                 matches.append(child)
-            matches = Harness.GetAllWindowsWithName(name, child, matches)
+            matches = Harness.get_all_windows_with_name(name, child, matches)
         return matches
 
     def connect_to_windows(self):
         time.sleep(1)
         global window_owners
-        open_windows = Harness.GetAllWindowsWithName(self.app_config["window_title"], self.root_window, [])
-        owned_windows = [w for w in open_windows if self.is_owned(w, self.subprocess_pids)]
+        open_windows = Harness.get_all_windows_with_name(self.app_config["window_title"], self.root_window, [])
         if len(owned_windows) == 0:
             print("Still looking for window with title: ", self.app_config["window_title"])
 
