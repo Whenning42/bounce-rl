@@ -164,8 +164,12 @@ class Harness(object):
                     pos = 1
                 else:
                     pos = self.instance
-                w.configure(x = int(self.run_config["scale"] * self.run_config["x_res"] * (pos % self.run_config["row_size"])), \
-                            y = int(self.run_config["scale"] * self.run_config["y_res"] * (pos // self.run_config["row_size"])), \
+
+                # The harness used support tiling windows across the screen.
+                # This behavior should probably be deprecated.
+                row_size = self.run_config.get("row_size", 1)
+                w.configure(x = int(self.run_config["scale"] * self.run_config["x_res"] * (pos % row_size)), \
+                            y = int(self.run_config["scale"] * self.run_config["y_res"] * (pos // row_size)), \
                             width = int(self.run_config["scale"] * self.run_config["x_res"]), height = int(self.run_config["scale"] * self.run_config["y_res"]))
                 self.display.flush()
                 self.full_screen_capture = self.add_capture((0, 0, self.run_config["x_res"], self.run_config["y_res"]))
