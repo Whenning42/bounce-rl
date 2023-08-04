@@ -1,3 +1,4 @@
+from typoing import Optional
 import time
 import gin
 import gym
@@ -18,22 +19,28 @@ import keyboard
 #   env specific params:
 #    - gamma, reward model, ...
 
+
 @gin.configurable
 class NoitaEnv(gym.core.Env):
-    def __init__(self, out_dir: str = None, run_rate: float = 4, pause_rate: float = .25):
+    def __init__(
+        self,
+        out_dir: Optional[str] = None,
+        run_rate: float = 4,
+        pause_rate: float = 0.25,
+    ):
         self.out_dir = out_dir
         self.run_rate = run_rate
         self.pause_rate = pause_rate
 
         run_config = {
-          "app": "Noita",
-          "x_res": 640,
-          "y_res": 360,
-          "scale": 1,
-          "run_rate": run_rate,
-          "pause_rate": pause_rate,
-          "step_duration": .25,
-          "pixels_every_n_episodes": 1,
+            "app": "Noita",
+            "x_res": 640,
+            "y_res": 360,
+            "scale": 1,
+            "run_rate": run_rate,
+            "pause_rate": pause_rate,
+            "step_duration": 0.25,
+            "pixels_every_n_episodes": 1,
         }
         self.run_config = run_config
         app_config = app_configs.LoadAppConfig(run_config["app"])
@@ -44,21 +51,35 @@ class NoitaEnv(gym.core.Env):
 
         # TODO: Add mouse velocity as a feature.
         # TODO: Add inventory (I) and wand switching (2, 3, 4) as features.
-        self.input_space = (("W", "S"), ("A", "D"), ("F",), ("E",), ("1",), ("5",), (keyboard.MouseButton.LEFT, keyboard.MouseButton.RIGHT))
+        self.input_space = [
+            ("W", "S"),
+            ("A", "D"),
+            ("F",),
+            ("E",),
+            ("1",),
+            ("5",),
+            (keyboard.MouseButton.LEFT, keyboard.MouseButton.RIGHT),
+        ]
         self.input_space = [x + (None,) for x in self.input_space]
         discrete_lens = [len(x) for x in self.input_space]
         print(discrete_lens)
-        self.action_space = gym.spaces.Tuple((
-            gym.spaces.MultiDiscrete(discrete_lens), gym.spaces.Box(low=-1, high=1, shape=(2,))))
-        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(480, 640, 3), dtype=np.uint8)
+        self.action_space = gym.spaces.Tuple(
+            (
+                gym.spaces.MultiDiscrete(discrete_lens),
+                gym.spaces.Box(low=-1, high=1, shape=(2,)),
+            )
+        )
+        self.observation_space = gym.spaces.Box(
+            low=0, high=255, shape=(480, 640, 3), dtype=np.uint8
+        )
 
         self._wait_for_harness_init()
         self._env_init()
 
     def _wait_for_harness_init(self):
-        while self.harness.ready == False:
+        while not self.harness.ready:
             self.harness.tick()
-            time.sleep(.5)
+            time.sleep(0.5)
             print("Waiting for harness")
         print("Finished harness init!")
 
@@ -89,15 +110,14 @@ class NoitaEnv(gym.core.Env):
             "Down",
             "Down",
             "Down",
-            "Return")
+            "Return",
+        )
         self.harness.keyboards[0].move_mouse(10, 10)
         self.harness.keyboards[0].key_sequence(menu_keys)
 
         # Fly into the mines
         time.sleep(10)
-        run_sequence = ((7, ("D",)),
-                        (.8, ("W", "D")),
-                        (7, ("D",)))
+        run_sequence = ((7, ("D",)), (0.8, ("W", "D")), (7, ("D",)))
         for t, keys in run_sequence + ((0, ()),):
             self.harness.keyboards[0].set_held_keys(keys)
             time.sleep(t)
@@ -115,6 +135,9 @@ class NoitaEnv(gym.core.Env):
         self.harness.keyboards[0].set_held_keys(held_keys)
         self.harness.keyboards[0].set_held_mouse_buttons(held_mouse_buttons)
         # Remap continuous action from [-1, 1] to [0, 1], then to window coordinates.
-        continuous_action = [(c+1)/2 for c in continuous_action]
-        mouse_pos = (continuous_action[0] * self.run_config['x_res'], continuous_action[1] * self.run_config['y_res'])
+        continuous_action = [(c + 1) / 2 for c in continuous_action]
+        mouse_pos = (
+            continuous_action[0] * self.run_config["x_res"],
+            continuous_action[1] * self.run_config["y_res"],
+        )
         self.harness.keyboards[0].move_mouse(*mouse_pos)
