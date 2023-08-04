@@ -1,25 +1,25 @@
 # Implements a virtual X11 mouse and keyboard
 # TODO: Rename to reflect added mouse capabilities.
 
+import _thread
+import re
+import subprocess
+import threading
+import time
+from enum import Enum
 from typing import Union
+
+import numpy as np
 import Xlib.display
-from Xlib.ext import xtest
-from Xlib.ext import xinput
+import Xlib.protocol
 import Xlib.X
 import Xlib.XK
-import Xlib.protocol
-import numpy as np
-import time
-import re
-from enum import Enum
-import threading
-import _thread
-import subprocess
+from Xlib.ext import xinput, xtest
 
 
 def keysym_for_key_name(key_name):
     keysym = Xlib.XK.string_to_keysym(key_name)
-    assert(keysym is not None)
+    assert keysym is not None
     return keysym
 
 
@@ -52,7 +52,7 @@ class Keyboard(object):
         self.window_x = 0
         self.window_y = 360
         self.display = display
-        self.sequence_keydown_time = keyboard_config.get("sequence_keydown_time", .25)
+        self.sequence_keydown_time = keyboard_config.get("sequence_keydown_time", 0.25)
         event_mode_req: str = keyboard_config.get("mode", "SEND_EVENT")
         self.event_mode: KeyboardEventMode = KeyboardEventMode[event_mode_req]
 
@@ -64,7 +64,8 @@ class Keyboard(object):
 
     # Allows the user to press ctrl-shift-9 to kill the program.
     def _run_failsafe(self) -> None:
-        # Get all non-xtest keyboard device ids from the CLI, since python-xlib doesn't yet implement list devices.
+        # Get all non-xtest keyboard device ids from the CLI, since python-xlib doesn't yet
+        # implement list devices.
         list_result = subprocess.run(
             "xinput list | awk '/keyboard/ && /slave/ && !/XTEST/'",
             shell=True,
@@ -79,7 +80,8 @@ class Keyboard(object):
         print(keyboard_ids)
 
         event_masks = [
-            (keyboard_id, xinput.KeyPressMask | xinput.KeyReleaseMask) for keyboard_id in keyboard_ids
+            (keyboard_id, xinput.KeyPressMask | xinput.KeyReleaseMask)
+            for keyboard_id in keyboard_ids
         ]
         root = self.display.screen().root
         root.xinput_select_events(event_masks)
@@ -88,26 +90,26 @@ class Keyboard(object):
             event = self.display.next_event()
             if event.type == self.display.extension_event.GenericEvent:
                 if (
-                    event.data['detail'] == self.display.keysym_to_keycode(keysym_for_key_name("9"))
-                    and event.data['mods']['effective_mods'] & Xlib.X.ShiftMask
-                    and event.data['mods']['effective_mods'] & Xlib.X.ControlMask
+                    event.data["detail"] == self.display.keysym_to_keycode(keysym_for_key_name("9"))
+                    and event.data["mods"]["effective_mods"] & Xlib.X.ShiftMask
+                    and event.data["mods"]["effective_mods"] & Xlib.X.ControlMask
                 ):
                     print("Exiting due to failsafe keypress")
                     _thread.interrupt_main()
                     return
 
     def _mask_keymap(keymap):
-        keymap[0] = 0 # reserved
-        keymap[58] = 0 # caps lock
-        keymap[69] = 0 # num lock
-        keymap[70] = 0 # scroll lock
+        keymap[0] = 0  # reserved
+        keymap[58] = 0  # caps lock
+        keymap[69] = 0  # num lock
+        keymap[70] = 0  # scroll lock
         return keymap
 
     def _assert_keymap_is_masked(keymap):
-        assert(keymap[0] == 0)
-        assert(keymap[58] == 0)
-        assert(keymap[69] == 0)
-        assert(keymap[70] == 0)
+        assert keymap[0] == 0
+        assert keymap[58] == 0
+        assert keymap[69] == 0
+        assert keymap[70] == 0
 
     def set_keymap(self, keymap):
         keymap = Keyboard._mask_keymap(keymap)
@@ -132,7 +134,7 @@ class Keyboard(object):
         # Implements re-press key mode.
         for key in self.held_keys:
             self.release_key(key)
-        time.sleep(.01)
+        time.sleep(0.01)
         for key in key_set:
             self.press_key(key)
         self.held_keys = key_set
@@ -160,30 +162,32 @@ class Keyboard(object):
         # RCtrl  keycode:105 state: 4 # Not in our keymap
         # LAlt   keycode: 64 state: 8
         # RAlt   keycode:108 state: 8 # Not in our keymap
-        return (keymap[50] or keymap[62]) * Keyboard.SHIFT_MOD + \
-               (keymap[37]) * Keyboard.CTRL_MOD + \
-               (keymap[64]) * Keyboard.ALT_MOD
+        return (
+            (keymap[50] or keymap[62]) * Keyboard.SHIFT_MOD
+            + (keymap[37]) * Keyboard.CTRL_MOD
+            + (keymap[64]) * Keyboard.ALT_MOD
+        )
 
-    def press_key(self, key_name, modifier = 0):
+    def press_key(self, key_name, modifier=0):
         self._press_key(key_name, modifier)
 
-    def _press_key(self, key_name, modifier = 0):
+    def _press_key(self, key_name, modifier=0):
         print("Press:", key_name)
         self._change_key(key_name, Keyboard.PRESS, modifier)
 
-    def release_key(self, key_name, modifier = 0):
+    def release_key(self, key_name, modifier=0):
         self._release_key(key_name, modifier)
 
-    def _release_key(self, key_name, modifier = 0):
+    def _release_key(self, key_name, modifier=0):
         self._change_key(key_name, Keyboard.RELEASE, modifier)
 
     def key_sequence(self, keys: set[str]):
         for key in keys:
-            time.sleep(.1)
+            time.sleep(0.1)
             self.press_key(key)
             time.sleep(self.sequence_keydown_time)
             self.release_key(key)
-            time.sleep(.25)
+            time.sleep(0.25)
 
     def _get_key_x_event(self, key_name: str, direction: int, modifier: int = 0):
         keysym = keysym_for_key_name(key_name)
@@ -194,50 +198,69 @@ class Keyboard(object):
 
         if direction == Keyboard.PRESS:
             return Xlib.protocol.event.KeyPress(
-                    detail = keycode,
-                    time = 0,
-                    root = root,
-                    window = self.focused_window,
-                    child = Xlib.X.NONE,
-                    root_x = 0,
-                    root_y = 0,
-                    event_x = 1,
-                    event_y = 1,
-                    state = modifier,
-                    same_screen = 0)
+                detail=keycode,
+                time=0,
+                root=root,
+                window=self.focused_window,
+                child=Xlib.X.NONE,
+                root_x=0,
+                root_y=0,
+                event_x=1,
+                event_y=1,
+                state=modifier,
+                same_screen=0,
+            )
         elif direction == Keyboard.RELEASE:
             return Xlib.protocol.event.KeyRelease(
-                    detail = keycode,
-                    time = 0,
-                    root = root,
-                    window = self.focused_window,
-                    child = Xlib.X.NONE,
-                    root_x = 0,
-                    root_y = 0,
-                    event_x = 1,
-                    event_y = 1,
-                    state = modifier,
-                    same_screen = 0)
+                detail=keycode,
+                time=0,
+                root=root,
+                window=self.focused_window,
+                child=Xlib.X.NONE,
+                root_x=0,
+                root_y=0,
+                event_x=1,
+                event_y=1,
+                state=modifier,
+                same_screen=0,
+            )
         else:
             # Unsupported direction
-            assert(False)
+            assert False
 
     def _change_key(self, key_name: str, direction, modifier=0):
         self.global_mutex.acquire()
         if self.event_mode == KeyboardEventMode.SEND_EVENT:
             # Focus the window we're sending the event to.
-            for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual, Xlib.X.NotifyInferior, Xlib.X.NotifyNonlinear, Xlib.X.NotifyNonlinearVirtual, Xlib.X.NotifyPointer, Xlib.X.NotifyPointerRoot, Xlib.X.NotifyDetailNone]:
+            for detail in [
+                Xlib.X.NotifyAncestor,
+                Xlib.X.NotifyVirtual,
+                Xlib.X.NotifyInferior,
+                Xlib.X.NotifyNonlinear,
+                Xlib.X.NotifyNonlinearVirtual,
+                Xlib.X.NotifyPointer,
+                Xlib.X.NotifyPointerRoot,
+                Xlib.X.NotifyDetailNone,
+            ]:
                 w = self.focused_window
-                e = Xlib.protocol.event.FocusIn(display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal)
+                e = Xlib.protocol.event.FocusIn(
+                    display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal
+                )
                 self.display.send_event(w, e)
                 self.display.flush()
 
-
             # Set the input focus to the window we want.
-            self.display.set_input_focus(self.focused_window, Xlib.X.RevertToNone, Xlib.X.CurrentTime)
+            self.display.set_input_focus(
+                self.focused_window, Xlib.X.RevertToNone, Xlib.X.CurrentTime
+            )
 
             event = self._get_key_x_event(key_name, direction, modifier)
-            self.display.send_event(self.focused_window, event, propagate = False, event_mask = Xlib.X.KeyPress | Xlib.X.KeyRelease)
+            self.display.send_event(
+                self.focused_window,
+                event,
+                propagate=False,
+                event_mask=Xlib.X.KeyPress | Xlib.X.KeyRelease,
+            )
             # self.display.send_event(self.focused_window, event, propagate = False, event_mask = 0)
             self.display.flush()
 
