@@ -10,8 +10,11 @@ import Xlib.XK
 import Xlib.protocol
 import numpy as np
 import time
+import re
 from enum import Enum
 import threading
+import _thread
+import subprocess
 
 
 def keysym_for_key_name(key_name):
@@ -55,6 +58,43 @@ class Keyboard(object):
 
         self.held_keys: set[str] = set()
         self.held_mouse_buttons: set[MouseButton] = set()
+
+        run_failsafe = threading.Thread(target=self._run_failsafe, args=(), kwargs={})
+        run_failsafe.start()
+
+    # Allows the user to press ctrl-shift-9 to kill the program.
+    def _run_failsafe(self) -> None:
+        # Get all non-xtest keyboard device ids from the CLI, since python-xlib doesn't yet implement list devices.
+        list_result = subprocess.run(
+            "xinput list | awk '/keyboard/ && /slave/ && !/XTEST/'",
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
+        keyboard_ids = []
+        for line in list_result.stdout.split("\n"):
+            match = re.match(r".*id=(\d*).*", line)
+            if match:
+                keyboard_ids.append(int(match.group(1)))
+        print(keyboard_ids)
+
+        event_masks = [
+            (keyboard_id, xinput.KeyPressMask | xinput.KeyReleaseMask) for keyboard_id in keyboard_ids
+        ]
+        root = self.display.screen().root
+        root.xinput_select_events(event_masks)
+
+        while True:
+            event = self.display.next_event()
+            if event.type == self.display.extension_event.GenericEvent:
+                if (
+                    event.data['detail'] == self.display.keysym_to_keycode(keysym_for_key_name("9"))
+                    and event.data['mods']['effective_mods'] & Xlib.X.ShiftMask
+                    and event.data['mods']['effective_mods'] & Xlib.X.ControlMask
+                ):
+                    print("Exiting due to failsafe keypress")
+                    _thread.interrupt_main()
+                    return
 
     def _mask_keymap(keymap):
         keymap[0] = 0 # reserved
