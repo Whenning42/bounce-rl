@@ -24,12 +24,14 @@ window_owners = {}
 
 # Shoutout to Andy!
 
+
 def handle_error(*args):
     window_id = args[0].resource_id.id
     if window_id in window_owners:
-        window_owners[window_id].window_closed(window_id);
+        window_owners[window_id].window_closed(window_id)
     else:
         print("Orphan window closed:", window_id)
+
 
 # Caller has to unpack the property return value.
 # For "_NET_WM_PID" property, it's an array of ints. For other types I'm not sure.
@@ -40,32 +42,35 @@ def query_window_property(display, window, property_name, property_type):
         return result.value
     return None
 
+
 # A no-op error handler.
 def suppress_error(*args):
     pass
 
+
 class Harness(object):
-    def __init__(self, app_config, run_config, instance = None):
+    def __init__(self, app_config, run_config, instance=None):
         self.app_config = app_config
         self.run_config = run_config
         self.instance = instance
 
-        if 'init_cmd' in self.app_config:
-            os.system(self.app_config['init_cmd'])
+        if "init_cmd" in self.app_config:
+            os.system(self.app_config["init_cmd"])
 
-        self.fps_helper = fps_helper.Helper(throttle_fps \
-                                        = self.run_config.get("max_tick_rate"))
+        self.fps_helper = fps_helper.Helper(throttle_fps=self.run_config.get("max_tick_rate"))
 
         window_count = 1
         self.window_title = self.app_config["window_title"]
         self.tick_start = time.time()
         # Pass in the display here
         self.display = display.Display()
-        self.display.set_error_handler(handle_error) # Python XLib handler
-        image_capture.ImageCapture.set_error_handler(suppress_error) # Screen capture library has no need to throw errors
+        self.display.set_error_handler(handle_error)  # Python XLib handler
+        image_capture.ImageCapture.set_error_handler(
+            suppress_error
+        )  # Screen capture library has no need to throw errors
 
         self.root_window = self.display.screen().root
-        self.root_window.change_attributes(event_mask = Xlib.X.SubstructureNotifyMask)
+        self.root_window.change_attributes(event_mask=Xlib.X.SubstructureNotifyMask)
         self.display.flush()
 
         self.subprocess_pids = []
@@ -96,7 +101,7 @@ class Harness(object):
                     self.open_new_window()
                 return
         # Make sure that window_closed is called on a window with a connection
-        assert(False)
+        assert False
 
     def open_new_window(self):
         # TODO: Make this path portable.
@@ -107,8 +112,14 @@ class Harness(object):
 
         split_command = shlex.split(self.app_config["command"])
         directory_template = string.Template(self.app_config["directory"])
-        directory = directory_template.substitute(i = self.instance)
-        process = subprocess.Popen(split_command, cwd=directory, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+        directory = directory_template.substitute(i=self.instance)
+        process = subprocess.Popen(
+            split_command,
+            cwd=directory,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+        )
         # process = subprocess.Popen(split_command, cwd=directory, env=env)
         self.subprocess_pids.append(process.pid)
 
@@ -116,8 +127,12 @@ class Harness(object):
     def is_owned(self, window, child_pids):
         # TODO: I could change the window connection algorithm to not
         # use _NET_WM_PID.
-        window_pid_result = query_window_property(self.display, window, '_NET_WM_PID', Xatom.CARDINAL)
-        assert window_pid_result is not None, "Harness requires the running window manager to implement _NET_WM_PID annotations."
+        window_pid_result = query_window_property(
+            self.display, window, "_NET_WM_PID", Xatom.CARDINAL
+        )
+        assert (
+            window_pid_result is not None
+        ), "Harness requires the running window manager to implement _NET_WM_PID annotations."
         window_pid = window_pid_result[0]
         window_ps = psutil.Process(window_pid)
         while window_ps is not None:
@@ -131,7 +146,7 @@ class Harness(object):
             wm_name = child.get_wm_name()
             if wm_name is not None:
                 if isinstance(wm_name, bytes):
-                    wm_name = wm_name.decode('utf-8')
+                    wm_name = wm_name.decode("utf-8")
             if wm_name is not None and re.match(name, wm_name):
                 matches.append(child)
             matches = Harness.get_all_windows_with_name(name, child, matches)
@@ -140,28 +155,41 @@ class Harness(object):
     def connect_to_windows(self):
         time.sleep(1)
         global window_owners
-        open_windows = Harness.get_all_windows_with_name(self.app_config["window_title"], self.root_window, [])
+        open_windows = Harness.get_all_windows_with_name(
+            self.app_config["window_title"], self.root_window, []
+        )
         if self.app_config.get("process_mode", "") == "separate":
             owned_windows = open_windows
         else:
-            owned_windows = [w for w in open_windows if self.is_owned(w, self.subprocess_pids)] 
+            owned_windows = [w for w in open_windows if self.is_owned(w, self.subprocess_pids)]
         if len(owned_windows) == 0:
             print("Still looking for window with title: ", self.app_config["window_title"])
 
         for w in owned_windows:
             if w not in self.windows:
                 # Make sure we haven't opened too many instances
-                assert(None in self.windows)
+                assert None in self.windows
                 loc = self.windows.index(None)
                 self.windows[loc] = w
-                self.keyboards[loc] = keyboard.Keyboard(self.display, w, self.app_config.get("keyboard_config", {}))
+                self.keyboards[loc] = keyboard.Keyboard(
+                    self.display, w, self.app_config.get("keyboard_config", {})
+                )
                 print(w)
                 print(hex(w.id))
                 # Make the window floating and borderless.
-                subprocess.Popen(["i3-msg", "[id=" + hex(w.id) + "]", "floating", "enable;", \
-                                                                      "border", "pixel", "0"])
+                subprocess.Popen(
+                    [
+                        "i3-msg",
+                        "[id=" + hex(w.id) + "]",
+                        "floating",
+                        "enable;",
+                        "border",
+                        "pixel",
+                        "0",
+                    ]
+                )
                 self.display.flush()
-                time.sleep(.5)
+                time.sleep(0.5)
                 self.display.flush()
 
                 if self.instance is None:
@@ -172,11 +200,16 @@ class Harness(object):
                 # The harness used support tiling windows across the screen.
                 # This behavior should probably be deprecated.
                 row_size = self.run_config.get("row_size", 1)
-                w.configure(x = int(self.run_config["scale"] * self.run_config["x_res"] * (pos % row_size)), \
-                            y = int(self.run_config["scale"] * self.run_config["y_res"] * (pos // row_size)), \
-                            width = int(self.run_config["scale"] * self.run_config["x_res"]), height = int(self.run_config["scale"] * self.run_config["y_res"]))
+                w.configure(
+                    x=int(self.run_config["scale"] * self.run_config["x_res"] * (pos % row_size)),
+                    y=int(self.run_config["scale"] * self.run_config["y_res"] * (pos // row_size)),
+                    width=int(self.run_config["scale"] * self.run_config["x_res"]),
+                    height=int(self.run_config["scale"] * self.run_config["y_res"]),
+                )
                 self.display.flush()
-                self.full_screen_capture = self.add_capture((0, 0, self.run_config["x_res"], self.run_config["y_res"]))
+                self.full_screen_capture = self.add_capture(
+                    (0, 0, self.run_config["x_res"], self.run_config["y_res"])
+                )
                 window_owners[w.id] = self
 
         if not None in self.windows:
@@ -203,7 +236,7 @@ class Harness(object):
 
         return True
 
-    def get_screen(self, instance = 0):
+    def get_screen(self, instance=0) -> np.array:
         return util.npBGRAtoRGB(self.full_screen_capture())
 
     def _focus_windows(self):
@@ -211,7 +244,9 @@ class Harness(object):
             if w is None:
                 continue
             for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual]:
-                e = Xlib.protocol.event.FocusIn(display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal)
+                e = Xlib.protocol.event.FocusIn(
+                    display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal
+                )
                 self.display.send_event(w, e)
                 w.change_attributes(event_mask=Xlib.X.FocusChangeMask)
         self.display.flush()
@@ -223,8 +258,8 @@ class Harness(object):
 
     def perform_actions(self, keymap):
         self._focus_windows()
-        #self._disable_user_input()
-        #for w in self.windows:
+        # self._disable_user_input()
+        # for w in self.windows:
         #    self.capture.FocusAndIgnoreAllEvents(w.id)
         for keyboard in self.keyboards:
             if keyboard is None:
@@ -241,4 +276,3 @@ class Harness(object):
         capture = image_capture.ImageCapture(x, y, w, h)
         self.captures.append(capture)
         return lambda: capture.get_image(self.windows[INSTANCE].id)
-
