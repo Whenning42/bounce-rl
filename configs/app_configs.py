@@ -73,7 +73,7 @@ app_configs = \
         "directory": "~/",
         "command": "steam steam://rungameid/881100",
         "window_title": "Noita.*",
-        "init_cmd": "rm -r ~/.steam/steam/steamapps/compatdata/881100/pfx/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save0*",
+        "init_cmd": "rm -rf ~/.steam/steam/steamapps/compatdata/881100/pfx/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save0*",
         "process_mode": "separate",
         "keyboard_config": {
             "sequence_keydown_time": .08,
