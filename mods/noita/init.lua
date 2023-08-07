@@ -55,7 +55,7 @@ function LogStats()
     local gold = ComponentGetValue(wallet, "money") + ComponentGetValue(wallet, "money_spent")
 
     -- Write to file
-    local file = io.open(PIPE_DIR .. "/noita_stats.txt", "a")
+    local file = io.open(PIPE_DIR .. "/noita_stats.csv", "a")
     file:write(string.format("%s\t%d\t%d\t%d\t%d\t%d\n", biome, hp, max_hp, gold, x, y))
     file:close()
 end
@@ -75,6 +75,6 @@ function OnPlayerDied(player)
     file:close()
 end
 
-local file = io.open(PIPE_DIR .. "/noita_stats.txt", "a")
+local file = io.open(PIPE_DIR .. "/noita_stats.csv", "a")
 file:write("biome, hp, max_hp, gold, x, y\n")
 file:close()
