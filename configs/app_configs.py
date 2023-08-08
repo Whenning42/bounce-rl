@@ -70,6 +70,7 @@ app_configs = \
         "keys": ["W", "A", "S", "D", "E", "R", "T", "Shift", "Tab", "Ctrl", "LMB", "RMB"],
     }, {
         "conf_title": "Noita",
+        # Steam + Proton version, that runs under the launcher.
         "directory": "~/",
         "command": "steam steam://rungameid/881100",
         "window_title": "Noita.*",
