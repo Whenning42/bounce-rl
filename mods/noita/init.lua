@@ -76,5 +76,6 @@ function OnPlayerDied(player)
 end
 
 local file = io.open(PIPE_DIR .. "/noita_stats.csv", "a")
-file:write("biome, hp, max_hp, gold, x, y\n")
+-- The noita mod assumes every line is a values line.
+-- file:write("biome, hp, max_hp, gold, x, y\n")
 file:close()
