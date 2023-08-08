@@ -62,7 +62,6 @@ class Harness(object):
         window_count = 1
         self.window_title = self.app_config["window_title"]
         self.tick_start = time.time()
-        # Pass in the display here
         self.display = display.Display()
         self.display.set_error_handler(handle_error)  # Python XLib handler
         image_capture.ImageCapture.set_error_handler(
@@ -143,7 +142,10 @@ class Harness(object):
 
     def get_all_windows_with_name(name, parent, matches):
         for child in parent.query_tree().children:
-            wm_name = child.get_wm_name()
+            try:
+                wm_name = child.get_wm_name()
+            except Xlib.error.BadWindow:
+                wm_name = None
             if wm_name is not None:
                 if isinstance(wm_name, bytes):
                     wm_name = wm_name.decode("utf-8")
