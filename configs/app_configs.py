@@ -70,17 +70,23 @@ app_configs = \
         "keys": ["W", "A", "S", "D", "E", "R", "T", "Shift", "Tab", "Ctrl", "LMB", "RMB"],
     }, {
         "conf_title": "Noita",
-        # Steam + Proton version, that runs under the launcher.
-        "directory": "~/",
-        "command": "steam steam://rungameid/881100",
+        # We use the wine version of Noita instead of steam because:
+        # - Steam sometimes failed to relaunch noita
+        # - Steam launcher process indirection complicates the harness's grabbing of the process's
+        #   PID
+        # This has the downside of:
+        # - Wine Noita is only performant enough to run at 1x speed
+        # - Wine Noita isn't accelerated by LD_PRELOAD time_control (haven't verified with steam version)
+        "directory": "~/.steam/steam/steamapps/common/Noita",
+        "command": "./noita.exe 2> /dev/null",
         "window_title": "Noita.*",
-        "init_cmd": "rm -rf ~/.steam/steam/steamapps/compatdata/881100/pfx/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save0*",
-        "process_mode": "separate",
+        "init_cmd": "rm -rf ~/.wine/drive_c/users/$USER/AppData/LocalLow/Nolla_Games_Noita/save0*",
         "keyboard_config": {
             "sequence_keydown_time": .08,
             "mode": "FAKE_INPUT",
         }
     }]
+
 
 def LoadAppConfig(config_title):
     app_conf = None

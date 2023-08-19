@@ -1,7 +1,6 @@
 # TODO: Add tests once we've got containerization set up. Use fixed seed + golden image and
 # L1 distance to set up a pass / fail threshold.
 
-import logging
 import time
 from enum import Enum
 from typing import Any, Iterable, Optional
@@ -14,17 +13,6 @@ import keyboard
 import rewards.noita_info
 import src.time_writer
 from harness import Harness
-
-# Env design:
-#   required harness env params:
-#    - run rate
-#    - pause rate
-#
-#   optional env params:
-#    - logging directory
-#
-#   env specific params:
-#    - gamma, reward model, ...
 
 
 class NoitaState(Enum):
@@ -81,11 +69,10 @@ class NoitaEnv(gym.core.Env):
         self.observation_space = gym.spaces.Box(
             low=0, high=255, shape=(480, 640, 3), dtype=np.uint8
         )
-        self.harness = None
         self._reset_env()
 
     def _reset_env(self):
-        if self.harness is not None:
+        if hasattr(self, "harness"):
             self.harness.kill_subprocesses()
         self.harness = Harness(self.app_config, self.run_config)
         self.state = NoitaState.UNKNOWN
@@ -109,7 +96,7 @@ class NoitaEnv(gym.core.Env):
         ]
 
     def _run_init_sequence(self):
-        time.sleep(5)
+        time.sleep(.5)
         # Start the game
         menu_keys = (
             # Enter mod settings
@@ -186,31 +173,7 @@ class NoitaEnv(gym.core.Env):
     def reset(self, *, seed: Any = None, options: Any = None) -> tuple[gym.core.ObsType, dict]:
         """Seed isn't yet implemented. Options are ignored."""
         print("Called reset")
-        if self.state == NoitaState.GAME_OVER:
-            seq = [
-                "Escape",
-                "Down",
-                "Return",
-                *self._select_mode_macro(),
-            ]
-            self.harness.keyboards[0].key_sequence(seq)
-        elif self.state == NoitaState.RUNNING:
-            seq = [
-                "Escape",
-                "Down",
-                "Down",
-                "Return",
-                *self._select_mode_macro(),
-                "Left",
-                "Return",
-            ]
-            self.harness.keyboards[0].key_sequence(seq)
-        else:
-            logging.warning("Called reset prior to game start. Blocking until env init.")
-            while self.state not in (NoitaState.RUNNING, NoitaState.GAME_OVER):
-                time.sleep(5)
-                logging.warning("NoitaEnv reset blocking...")
-
+        self._reset_env()
         pixels = self.harness.get_screen()
         info = self.info_callback.on_tick()
         return pixels, info
