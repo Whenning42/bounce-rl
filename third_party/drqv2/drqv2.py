@@ -17,6 +17,7 @@ class RandomShiftsAug(nn.Module):
         self.pad = pad
 
     def forward(self, x):
+        x = x[:, :, :, 52:187]
         n, c, h, w = x.size()
         assert h == w
         padding = tuple([self.pad] * 4)
@@ -50,11 +51,12 @@ class Encoder(nn.Module):
         super().__init__()
 
         assert len(obs_shape) == 3
-        self.repr_dim = 32 * 35 * 35
+        self.repr_dim = 32 * 29 * 29
 
         self.convnet = nn.Sequential(nn.Conv2d(obs_shape[0], 32, 3, stride=2),
                                      nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
                                      nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
+                                     nn.ReLU(), nn.Conv2d(32, 32, 3, stride=2),
                                      nn.ReLU(), nn.Conv2d(32, 32, 3, stride=1),
                                      nn.ReLU())
 
@@ -62,6 +64,8 @@ class Encoder(nn.Module):
 
     def forward(self, obs):
         obs = obs / 255.0 - 0.5
+        if obs.shape[-1] != 135:
+            obs = obs[:, :, :, 52:187]
         h = self.convnet(obs)
         h = h.view(h.shape[0], -1)
         return h

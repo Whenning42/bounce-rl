@@ -64,7 +64,10 @@ class MetersGroup(object):
         with self._csv_file_name.open('r') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                if float(row['episode']) >= data['episode']:
+                # Why are these fields missing?
+                row_ep = row.get('episode', 1e6)
+                data_ep = data.get('episode', 0)
+                if float(row_ep) >= data_ep:
                     break
                 rows.append(row)
         with self._csv_file_name.open('w') as f:

@@ -1,6 +1,5 @@
 defaults:
   - _self_
-  - task@_global_: quadruped_walk
   - override hydra/launcher: submitit_local
 
 # task settings
@@ -10,8 +9,8 @@ discount: 0.99
 # train settings
 num_seed_frames: 4000
 # eval
-eval_every_frames: 10000
-num_eval_episodes: 10
+eval_every_frames: 20000
+num_eval_episodes: 1
 # snapshot
 save_snapshot: false
 # replay buffer
@@ -31,6 +30,8 @@ experiment: exp
 lr: 1e-4
 feature_dim: 50
 
+num_train_frames: 3000000
+
 agent:
   _target_: drqv2.DrQV2Agent
   obs_shape: ??? # to be specified later
@@ -43,7 +44,7 @@ agent:
   num_expl_steps: 2000
   hidden_dim: 1024
   feature_dim: ${feature_dim}
-  stddev_schedule: ${stddev_schedule}
+  stddev_schedule: 'linear(1.0,0.1,500000)'
   stddev_clip: 0.3
 
 hydra:

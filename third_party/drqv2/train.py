@@ -22,6 +22,17 @@ from logger import Logger
 from replay_buffer import ReplayBufferStorage, make_replay_loader
 from video import TrainVideoRecorder, VideoRecorder
 
+import os
+import sys
+import inspect
+
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir)
+
+import rewards.env_rally
+from src.wrappers.gym_to_dmc
+
 torch.backends.cudnn.benchmark = True
 
 
@@ -52,10 +63,15 @@ class Workspace:
         # create logger
         self.logger = Logger(self.work_dir, use_tb=self.cfg.use_tb)
         # create envs
-        self.train_env = dmc.make(self.cfg.task_name, self.cfg.frame_stack,
-                                  self.cfg.action_repeat, self.cfg.seed)
-        self.eval_env = dmc.make(self.cfg.task_name, self.cfg.frame_stack,
-                                 self.cfg.action_repeat, self.cfg.seed)
+        self.train_env = src.wrappers.gym_to_dmc.GymToDmc(\
+                rewards.env_rally.ArtOfRallyEnv("val_data", gamma=.98, run_rate=4, pause_rate=.2))
+        self.eval_env = self.train_env
+        # add default env wrappers
+        self.train_env = dmc.wrap(self.train_env, self.cfg.frame_stack,
+                                  self.cfg.action_repeat)
+        self.eval_env = dmc.wrap(self.eval_env, self.cfg.frame_stack,
+                                 self.cfg.action_repeat)
+
         # create replay buffer
         data_specs = (self.train_env.observation_spec(),
                       self.train_env.action_spec(),

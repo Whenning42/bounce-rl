@@ -46,7 +46,7 @@ class ActionRepeatWrapper(dm_env.Environment):
         for i in range(self._num_repeats):
             time_step = self._env.step(action)
             reward += (time_step.reward or 0.0) * discount
-            discount *= time_step.discount
+            discount *= (time_step.discount or 0.0)
             if time_step.last():
                 break
 
@@ -179,6 +179,15 @@ class ExtendedTimeStepWrapper(dm_env.Environment):
     def __getattr__(self, name):
         return getattr(self._env, name)
 
+def wrap(env, frame_stack, action_repeat):
+    # add wrappers
+    env = ActionDTypeWrapper(env, np.float32)
+    env = ActionRepeatWrapper(env, action_repeat)
+    env = action_scale.Wrapper(env, minimum=-1.0, maximum=+1.0)
+    # stack several frames
+    env = FrameStackWrapper(env, frame_stack)
+    env = ExtendedTimeStepWrapper(env)
+    return env
 
 def make(name, frame_stack, action_repeat, seed):
     domain, task = name.split('_', 1)
