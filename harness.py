@@ -141,18 +141,18 @@ class Harness(object):
         return False
 
     def get_all_windows_with_name(name, parent, matches):
-        for child in parent.query_tree().children:
-            try:
+        try:
+            for child in parent.query_tree().children:
                 wm_name = child.get_wm_name()
-            except Xlib.error.BadWindow:
-                wm_name = None
-            if wm_name is not None:
-                if isinstance(wm_name, bytes):
-                    wm_name = wm_name.decode("utf-8")
-            if wm_name is not None and re.match(name, wm_name):
-                matches.append(child)
-            matches = Harness.get_all_windows_with_name(name, child, matches)
-        return matches
+                if wm_name is not None:
+                    if isinstance(wm_name, bytes):
+                        wm_name = wm_name.decode("utf-8")
+                if wm_name is not None and re.match(name, wm_name):
+                    matches.append(child)
+                matches = Harness.get_all_windows_with_name(name, child, matches)
+            return matches
+        except:
+            return matches
 
     def connect_to_windows(self):
         time.sleep(1)
@@ -235,7 +235,6 @@ class Harness(object):
         if self.windows.count(-1) == len(self.windows):
             print("All windows closed. Exiting.")
             return False
-
         return True
 
     def get_screen(self, instance=0) -> np.array:
