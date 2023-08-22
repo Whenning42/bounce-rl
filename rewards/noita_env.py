@@ -73,7 +73,15 @@ class NoitaEnv(gym.core.Env):
 
     def _reset_env(self):
         if hasattr(self, "harness"):
+            # Release keys before we delete the old harness instance.
+            # Important because the new harness won't know which keys
+            # were held.
+            self.harness.keyboards[0].set_held_keys(set())
+            time.sleep(.1)
             self.harness.kill_subprocesses()
+            time.sleep(1)
+            os.system('killall noita.exe')
+            time.sleep(1)
         self.harness = Harness(self.app_config, self.run_config)
         self.state = NoitaState.UNKNOWN
         self._wait_for_harness_init()
@@ -123,7 +131,7 @@ class NoitaEnv(gym.core.Env):
 
         # Fly into the mines
         time.sleep(10)
-        run_sequence = ((7, ("D",)), (0.8, ("W", "D")), (7, ("D",)))
+        run_sequence = ((7.2, ("D",)), (1.0, ("W", "D")), (7, ("D",)))
         for t, keys in run_sequence + ((0, ()),):
             self.harness.keyboards[0].set_held_keys(keys)
             time.sleep(t)
