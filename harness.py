@@ -176,6 +176,10 @@ class Harness(object):
                 self.keyboards[loc] = keyboard.Keyboard(
                     self.display, w, self.app_config.get("keyboard_config", {})
                 )
+                # Noita environment can't have mouse over a menu item at launch.
+                # The enviroment would like to configure this mouse move at launch,
+                # but isn't given a callback that runs at the right time.
+                self.keyboards[loc].move_mouse(5, 5)
                 print(w)
                 print(hex(w.id))
                 # Make the window floating and borderless.
