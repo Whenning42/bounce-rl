@@ -1,5 +1,7 @@
 # Implements a virtual X11 mouse and keyboard
 # TODO: Rename to reflect added mouse capabilities.
+# FIXME: Window position and dimensions need to actually
+# come from the window.
 
 import _thread
 import re
@@ -50,7 +52,9 @@ class Keyboard(object):
         print("Keyboard win:", window)
         # TODO: Get these values from Xlib window properties.
         self.window_x = 0
+        self.window_w = 640
         self.window_y = 360
+        self.window_h = 360
         self.display = display
         self.sequence_keydown_time = keyboard_config.get("sequence_keydown_time", 0.25)
         event_mode_req: str = keyboard_config.get("mode", "SEND_EVENT")
@@ -172,7 +176,6 @@ class Keyboard(object):
         self._press_key(key_name, modifier)
 
     def _press_key(self, key_name, modifier=0):
-        print("Press:", key_name)
         self._change_key(key_name, Keyboard.PRESS, modifier)
 
     def release_key(self, key_name, modifier=0):
@@ -282,8 +285,10 @@ class Keyboard(object):
 
     def move_mouse(self, x: Union[int, float], y: Union[int, float]) -> None:
         self.assert_fake_input_mode()
-        x = int(x + self.window_x)
-        y = int(y + self.window_y)
+        x = min(max(int(x), 1), self.window_w - 1)
+        y = min(max(int(y), 1), self.window_h - 1)
+        x = x + self.window_x
+        y = y + self.window_y
         xtest.fake_input(self.display, Xlib.X.MotionNotify, x=x, y=y)
         self.display.flush()
 
