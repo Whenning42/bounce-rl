@@ -17,6 +17,7 @@ import numpy as np
 import configs.app_configs as app_configs
 import keyboard
 import rewards.noita_info
+import rewards.noita_reward
 import src.time_writer
 from harness import Harness
 
@@ -58,6 +59,7 @@ class NoitaEnv(gym.core.Env):
         self.run_config: dict[str, Any] = run_config
         self.app_config = app_configs.LoadAppConfig(run_config["app"])
         self.info_callback = rewards.noita_info.NoitaInfo()
+        self.reward_callback = rewards.noita_reward.NoitaReward()
 
         # TODO: Add mouse velocity as a feature.
         # TODO: Add inventory (I) and wand switching (2, 3, 4) as features.
@@ -184,7 +186,7 @@ class NoitaEnv(gym.core.Env):
 
         # Return env outputs
         info = self.info_callback.on_tick()
-        reward = 0  # TODO: Design reward functions.
+        reward = self.reward_callback.update(info)
         terminated = not info["is_alive"]
         truncated = False
 

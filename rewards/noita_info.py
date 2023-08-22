@@ -58,6 +58,8 @@ class NoitaInfo:
         self.is_alive = new_data or self.is_alive
         new_vals = new_vals_line.split('\t')
         for k, v in zip(self.info.keys(), new_vals):
+            if k != 'biome':
+                v = int(v)
             self.info[k] = v
 
         # Update is_alive
@@ -67,4 +69,4 @@ class NoitaInfo:
             self.is_alive = False
 
         self.info["is_alive"] = self.is_alive
-        return self.info
+        return self.info.copy()
