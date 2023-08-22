@@ -17,6 +17,7 @@ from Xlib import display, Xatom
 import Xlib.X
 import Xlib.XK
 import Xlib.protocol
+import sys
 
 REOPEN_CLOSED_WINDOWS = False
 
@@ -106,6 +107,11 @@ class Harness(object):
         env = os.environ.copy()
         if not self.app_config.get("disable_time_control", False):
             env["LD_PRELOAD"] = "build/time_control.so"
+        if sys.prefix != sys.base_prefix:
+            # Drop the virtualenv path for child process
+            env["PATH"] = ':'.join(env["PATH"].split(':')[1:])
+        # Only necessary for lutris envs, but is harmless in other envs
+        env["LUTRIS_SKIP_INIT"] = "1"
         if self.instance is not None:
             env["TIME_CHANNEL"] = str(self.instance)
 
