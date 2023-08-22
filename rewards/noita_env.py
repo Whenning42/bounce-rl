@@ -42,10 +42,14 @@ class NoitaEnv(gym.core.Env):
         # we can set run_rate and pause_rate to 4 and 0.25 respectively.
         run_rate: float = 1,
         pause_rate: float = 1,
+        env_conf: Optional[dict] = None
     ):
         self.out_dir = out_dir
         self.run_rate = run_rate
         self.pause_rate = pause_rate
+        if env_conf is None:
+            env_conf = {}
+        self.env_conf = env_conf
         run_config = {
             "app": "Noita",
             "x_res": 640,
@@ -83,9 +87,14 @@ class NoitaEnv(gym.core.Env):
         self.observation_space = gym.spaces.Box(
             low=0, high=255, shape=(480, 640, 3), dtype=np.uint8
         )
+
+        self.ep_step = 0
+        self.env_step = 0
+
         self._reset_env()
 
     def _reset_env(self):
+        self.ep_step = 0
         if hasattr(self, "harness"):
             # Release keys before we delete the old harness instance.
             # Important because the new harness won't know which keys
@@ -156,6 +165,9 @@ class NoitaEnv(gym.core.Env):
         self.state = NoitaState.RUNNING
 
     def step(self, action: tuple[Iterable, Iterable]) -> tuple[np.ndarray, float, bool, bool, dict]:
+        self.ep_step += 1
+        self.env_step += 1
+
         # Convert actions to device inputs
         discrete_action, continuous_action = action
         held_mouse_buttons = set()
@@ -203,3 +215,7 @@ class NoitaEnv(gym.core.Env):
         pixels = self.harness.get_screen()
         info = self.info_callback.on_tick()
         return pixels, info
+
+    def run_info(self):
+        return {'episode_step': self.ep_step,
+                'environment_step': self.env_step}
