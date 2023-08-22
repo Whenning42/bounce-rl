@@ -103,9 +103,9 @@ class Harness(object):
         assert False
 
     def open_new_window(self):
-        # TODO: Make this path portable.
         env = os.environ.copy()
-        env["LD_PRELOAD"] = "/home/william/Workspaces/GameHarness/build/time_control.so"
+        if not self.app_config.get("disable_time_control", False):
+            env["LD_PRELOAD"] = "build/time_control.so"
         if self.instance is not None:
             env["TIME_CHANNEL"] = str(self.instance)
 

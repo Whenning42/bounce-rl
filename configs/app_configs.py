@@ -74,9 +74,7 @@ app_configs = \
         # - Steam sometimes failed to relaunch noita
         # - Steam launcher process indirection complicates the harness's grabbing of the process's
         #   PID
-        # This has the downside of:
-        # - Wine Noita is only performant enough to run at 1x speed
-        # - Wine Noita isn't accelerated by LD_PRELOAD time_control (haven't verified with steam version)
+        "disable_time_control": True,
         "directory": "~/.steam/steam/steamapps/common/Noita",
         "command": "./noita.exe 2> /dev/null",
         "window_title": "Noita.*",
