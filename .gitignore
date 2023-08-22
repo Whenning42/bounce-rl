@@ -3,6 +3,7 @@
 *.txt
 *.o
 *.out
+data/*
 image_capture.c
 camera_node.c
 build/*
