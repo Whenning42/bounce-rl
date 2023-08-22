@@ -1,5 +1,9 @@
 # TODO: Add tests once we've got containerization set up. Use fixed seed + golden image and
 # L1 distance to set up a pass / fail threshold.
+#
+# FIXME: Noita's window doesn't always recieve focus, even when moving the
+# mouse over if with fake input. Maybe is related to killing the old noita
+# window. An x11 session per episdode would solve the issue.
 
 import time
 from enum import Enum
