@@ -27,6 +27,12 @@ class NoitaState(Enum):
     GAME_OVER = 2
 
 
+def is_overworld(info: dict) -> bool:
+    if int(info['y']) < -80:
+        return True
+    return False
+
+
 class NoitaEnv(gym.core.Env):
     def __init__(
         self,
@@ -181,6 +187,10 @@ class NoitaEnv(gym.core.Env):
         reward = 0  # TODO: Design reward functions.
         terminated = not info["is_alive"]
         truncated = False
+
+        if is_overworld(info):
+            terminated = True
+
         return pixels, reward, terminated, truncated, info
 
     # Optionally, could restart harness on reset.
