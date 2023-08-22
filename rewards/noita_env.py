@@ -5,6 +5,8 @@
 # mouse over if with fake input. Maybe is related to killing the old noita
 # window. An x11 session per episdode would solve the issue.
 
+
+import os
 import time
 from enum import Enum
 from typing import Any, Iterable, Optional
