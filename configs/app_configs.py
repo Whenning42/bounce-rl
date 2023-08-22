@@ -70,15 +70,21 @@ app_configs = \
         "keys": ["W", "A", "S", "D", "E", "R", "T", "Shift", "Tab", "Ctrl", "LMB", "RMB"],
     }, {
         "conf_title": "Noita",
-        # We use the wine version of Noita instead of steam because:
+        # We use the lutris version of Noita instead of steam because:
         # - Steam sometimes failed to relaunch noita
         # - Steam launcher process indirection complicates the harness's grabbing of the process's
         #   PID
+        #
+        # This has the tradeoff of being more work to install on end user machines. I hope
+        # to switch back to steam once we've got a good sandbox setup.
+        # Note: Using wine w/o the lutris proton build is slow (maybe ~80% realtime)
+        #       The performance variability breaks the "enter mine" macro.
         "disable_time_control": True,
         "directory": "~/.steam/steam/steamapps/common/Noita",
-        "command": "./noita.exe 2> /dev/null",
+        "command": "lutris lutris:rungameid/11",
         "window_title": "Noita.*",
-        "init_cmd": "rm -rf ~/.wine/drive_c/users/$USER/AppData/LocalLow/Nolla_Games_Noita/save0*",
+        "init_cmd": "rm -rf ~/.wine/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save0*; \
+                     cp mods/noita/golden_config.xml ~/.wine/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save_shared/config.xml",
         "keyboard_config": {
             "sequence_keydown_time": .08,
             "mode": "FAKE_INPUT",
