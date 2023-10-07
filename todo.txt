@@ -1,52 +1,25 @@
-- Clean-up:
-    - Document Cython setup
-    - Fix window open reparenting crash
+Project:
+- AoR
+  - GameHarness + Pixels + Easy Env
+    - DrQv2
+    - TODO: Document results
+- Noita
+  - GameHarness + Pixels + Harder Env
+    - SB3 + tuple env + image regularization
+        ✓ Update SB3 to support tuple action space
+          - Add unit test
+        - Write SB3 Noita train script
+        - Run unregularized train experiment
+          - Default LR, 1e6 steps, PPO (lower sample efficiency than SAC, but more robust)
+        - Update SB3 w/ image regularization
+- Factorio
 
-✓ Harness Features:
-    ✓ Extend image capture to support offset capture regions
-    ✓ Move image capture into a harness library
-    ✓ Migrate harness launcher from using app configs to run configs
+Experiment Log:
 
-✓ Reward:
-    ✓ Implement the reward agent config defined inapp_configs.py
-    ✓ Train a faster inferencing speed detection model
+Noita SB3 PPO Exp 1 (no image regularization)
+Path: out/noita_sb3_ppo_no_reg/
 
-- Performance:
-    ✓ Implement parallel envs
-    - Implement frame length tracking to understand and verify perf across machines
-        - See libframetime on github for an implementation/reference.
-
-- Experiment Setup:
-    - Enable running config sweeps w/ multiple trials
-    - Automated launch and gather across machines
-
-- Reinforcement learning:
-    ✓ Implement the initial env
-    ✓ Try out blackbox algorithm
-    - Fix reward function reverse behavior
-    - Fix penalty shape
-        - Implement new penalty form
-        - Verify new penalty form is WAI
-            - Reward is -1 during penalized
-            - Frame is blank during penalized
-            - Actions are masked during penalized
-    - Model based
-        - Try running DreamerV2
-    - Run a hyperparameter search
-        - Different rollout sizes, seeds, penalty values, lagged vs immediate penalties, PPO vs DreamerV2
-
-- Scaling (Work on as necessary when doing expirementation):
-    - Options
-        - AWS/GCP/Azure
-            - Valuable skills
-            - Getting quota has been hard so far
-        - Vast.ai
-            - Insecure
-            - Need to handle possible host unreliability
-            - Cheap
-        - Local
-            - Aim for high utilization of my machine i.e. queue multiple experiments (Listed under experiment setup section)
-            - How hard is it to test experiment setups while other experiments are in progress?
+Unprioritized:
 
 - Give a write-up (Something relatively light)
     - Documentation
@@ -78,3 +51,9 @@
             - What I built
             - How I grew
             - What's the state of RL
+- Noita
+    - DrQv2 + thresholding?
+        - I don't this this would work, but would be interesting to try
+        - Map (0, 1) via sigmoid of 4*tanh(2x-1) to get a smoothed (0, 1) prob
+          - With this prob, sample the action space and use this action
+          - There's not really a gradient here.
