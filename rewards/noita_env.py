@@ -85,15 +85,15 @@ class NoitaEnv(gym.core.Env):
             )
         )
         self.observation_space = gym.spaces.Box(
-            low=0, high=255, shape=(480, 640, 3), dtype=np.uint8
+            low=0, high=255, shape=(self.run_config["y_res"], self.run_config["x_res"], 3), dtype=np.uint8
         )
 
         self.ep_step = 0
         self.env_step = 0
 
-        self._reset_env()
+        self._reset_env(skip_startup=True)
 
-    def _reset_env(self):
+    def _reset_env(self, skip_startup: bool=False):
         self.ep_step = 0
         if hasattr(self, "harness"):
             # Release keys before we delete the old harness instance.
@@ -108,7 +108,7 @@ class NoitaEnv(gym.core.Env):
         self.harness = Harness(self.app_config, self.run_config)
         self.state = NoitaState.UNKNOWN
         self._wait_for_harness_init()
-        self._env_init()
+        self._env_init(skip_startup=skip_startup)
 
     def _wait_for_harness_init(self):
         while not self.harness.ready:
@@ -159,17 +159,29 @@ class NoitaEnv(gym.core.Env):
             self.harness.keyboards[0].set_held_keys(keys)
             time.sleep(t)
 
-    def _env_init(self):
+    def _env_init(self, skip_startup: bool):
         print("Running NoitaEnv init!")
-        self._run_init_sequence()
+        if not skip_startup:
+            self._run_init_sequence()
         self.state = NoitaState.RUNNING
 
-    def step(self, action: tuple[Iterable, Iterable]) -> tuple[np.ndarray, float, bool, bool, dict]:
+    # Stable baselines3 requires a seed method.
+    def seed(self, seed):
+        pass
+
+    # SB3 expects `done` instead of `terminated` and `truncated`.
+    # def step(self, action: tuple[Iterable, Iterable]) -> tuple[np.ndarray, float, bool, bool, dict]:
+    def step(self, action: tuple[Iterable, Iterable]) -> tuple[np.ndarray, float, bool, dict]:
         self.ep_step += 1
         self.env_step += 1
 
         # Convert actions to device inputs
+        # My SB3 implementation flattens the space, here we split it back out again.
+        if len(action) == 9:
+            action = action[0:7], action[7:9]
         discrete_action, continuous_action = action
+        discrete_action = [int(x) for x in discrete_action]
+        
         held_mouse_buttons = set()
         held_keys = set()
         for i, s in zip(discrete_action, self.input_space):
@@ -205,16 +217,19 @@ class NoitaEnv(gym.core.Env):
         if is_overworld(info):
             terminated = True
 
-        return pixels, reward, terminated, truncated, info
+        # return pixels, reward, terminated, truncated, info
+        return pixels, reward, terminated or truncated, info
 
-    # Optionally, could restart harness on reset.
-    def reset(self, *, seed: Any = None, options: Any = None) -> tuple[gym.core.ObsType, dict]:
+    # SB3 doesn't handle info returned in reset method.
+    # def reset(self, *, seed: Any = None, options: Any = None) -> tuple[gym.core.ObsType, dict]:
+    def reset(self, *, seed: Any = None, options: Any = None) -> gym.core.ObsType:
         """Seed isn't yet implemented. Options are ignored."""
         print("Called reset")
         self._reset_env()
         pixels = self.harness.get_screen()
         info = self.info_callback.on_tick()
-        return pixels, info
+        # return pixels, info
+        return pixels
 
     def run_info(self):
         return {'episode_step': self.ep_step,
