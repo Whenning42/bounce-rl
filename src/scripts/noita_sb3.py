@@ -1,3 +1,8 @@
+# Train a PPO agent on Noita using stable-baselines3.
+# Note: Requires changes in our forked SB3 repo.
+# The repo's at: https://github.com/Whenning42/stable-baselines3
+# and tuple action space support is added as of commit 4fedd69.
+
 import gym
 import stable_baselines3.common.env_checker
 import stable_baselines3
