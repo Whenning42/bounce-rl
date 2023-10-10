@@ -9,7 +9,8 @@
 import os
 import time
 from enum import Enum
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable, Optional, Callable
+from dataclasses import dataclass
 
 import gym
 import numpy as np
@@ -19,19 +20,58 @@ import keyboard
 import rewards.noita_info
 import rewards.noita_reward
 import src.time_writer
+from src.util import GrowingCircularFIFOArray, LinearInterpolator
 from harness import Harness
 
+@dataclass
+class StepVal:
+    pixels: np.ndarray
+    reward: float
+    terminated: bool
+    truncated: bool
+    info: dict
+    ep_step: int
+    env_step: int
 
 class NoitaState(Enum):
     UNKNOWN = 0
     RUNNING = 1
     GAME_OVER = 2
 
-
 def is_overworld(info: dict) -> bool:
     if int(info['y']) < -80:
         return True
     return False
+
+class TerminateOnOverworld:
+    """Terminate the episode if the player is in the overworld."""
+    def __call__(self, step: StepVal) -> StepVal:
+        if is_overworld(step.info):
+            step.terminated = True
+        return step
+
+class TerminateOnSparseReward:
+    """Terminate the episode if the reward is zero for too many steps."""
+    def __init__(self, history_len: Optional[LinearInterpolator] = None, max_size: Optional[int] = None):
+        self.termination_penalty = 10
+        if max_size is None:
+            max_size = 5*60*4
+        self.reward_history = GrowingCircularFIFOArray(max_size=max_size)
+        if history_len is None:
+            history_len = LinearInterpolator(x_0=0, x_1=1000000, y_0=1.5*60*4, y_1=5*60*4, extrapolate=False)
+        self.history_len = history_len
+
+        # Push a non-zero reward to prevent early termination.
+        self.reward_history.push(1, 1)
+
+    def __call__(self, step: StepVal) -> StepVal:
+        self.reward_history.push(step.reward, int(self.history_len.get_value(step.ep_step)))
+        reward_history = self.reward_history.get_array()
+        if np.sum(reward_history != 0) == 0:
+            step.reward -= self.termination_penalty
+            step.terminated = True
+            print(f"Terminated an episode due to sparse reward at step {step.ep_step}.")
+        return step
 
 
 class NoitaEnv(gym.core.Env):
@@ -42,7 +82,9 @@ class NoitaEnv(gym.core.Env):
         # we can set run_rate and pause_rate to 4 and 0.25 respectively.
         run_rate: float = 1,
         pause_rate: float = 1,
-        env_conf: Optional[dict] = None
+        env_conf: Optional[dict] = None,
+        # Defaults to TerminateOnOverworld and TerminateOnSparseReward
+        step_wrappers: list[Optional[Callable[StepVal, StepVal]]] = None,
     ):
         self.out_dir = out_dir
         self.run_rate = run_rate
@@ -65,15 +107,19 @@ class NoitaEnv(gym.core.Env):
         self.info_callback = rewards.noita_info.NoitaInfo()
         self.reward_callback = rewards.noita_reward.NoitaReward()
 
+        if step_wrappers is None:
+            step_wrappers = [TerminateOnOverworld(), TerminateOnSparseReward()]
+        self.step_wrappers = step_wrappers
+
         # TODO: Add mouse velocity as a feature.
-        # TODO: Add inventory (I) and wand switching (2, 3, 4) as features.
+        # TODO: Add inventory (I) as an input.
         self.input_space = [
             ("W", "S"),
             ("A", "D"),
             ("F",),
             ("E",),
-            ("1",),
-            ("5",),
+            ("1", "2", "3", "4"),
+            ("5", "6", "7", "8"),
             (keyboard.MouseButton.LEFT, keyboard.MouseButton.RIGHT),
         ]
         self.input_space = [x + (None,) for x in self.input_space]
@@ -208,17 +254,19 @@ class NoitaEnv(gym.core.Env):
         src.time_writer.SetSpeedup(self.run_config["pause_rate"])
         pixels = self.harness.get_screen()
 
-        # Return env outputs
+        # Compute step values
         info = self.info_callback.on_tick()
         reward = self.reward_callback.update(info)
         terminated = not info["is_alive"]
         truncated = False
+        step_val = StepVal(pixels, reward, terminated, truncated, info, self.ep_step, self.env_step)
 
-        if is_overworld(info):
-            terminated = True
+        # Apply any step wrappers
+        for wrapper in self.step_wrappers:
+            step_val = wrapper(step_val)
 
         # return pixels, reward, terminated, truncated, info
-        return pixels, reward, terminated or truncated, info
+        return step_val.pixels, step_val.reward, step_val.terminated or step_val.truncated, step_val.info
 
     # SB3 doesn't handle info returned in reset method.
     # def reset(self, *, seed: Any = None, options: Any = None) -> tuple[gym.core.ObsType, dict]:
