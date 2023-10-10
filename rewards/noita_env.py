@@ -146,7 +146,9 @@ class NoitaEnv(gym.core.Env):
         self.ep_step = 0
         self.ep_num += 1
         self.image_dir = f"{self.out_dir}/screenshots/ep_{self.ep_num}"
+        self.step_dir = f"{self.out_dir}/steps/ep_{self.ep_num}"
         pathlib.Path(self.image_dir).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(self.step_dir).mkdir(parents=True, exist_ok=True)
 
         if hasattr(self, "harness"):
             # Release keys before we delete the old harness instance.
@@ -272,10 +274,14 @@ class NoitaEnv(gym.core.Env):
         for wrapper in self.step_wrappers:
             step_val = wrapper(step_val)
 
-        # Save screenshots
-        if self.env_step % 4 == 0:
-            im = PIL.Image.fromarray(step_val.pixels)
-            im.save(f"{self.image_dir}/step_{self.ep_step}.png")
+        # Save screenshots (400kBps)
+        im = PIL.Image.fromarray(step_val.pixels)
+        im.save(f"{self.image_dir}/step_{self.ep_step}.png")
+
+        # Save step values minus pixels
+        save_val = step_val
+        save_val.pixels = None
+        np.save(f"{self.step_dir}/step_{self.ep_step}.npy", save_val)
 
         # return pixels, reward, terminated, truncated, info
         return step_val.pixels, step_val.reward, step_val.terminated or step_val.truncated, step_val.info
