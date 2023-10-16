@@ -31,7 +31,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 import rewards.env_rally
-from src.wrappers.gym_to_dmc
+import src.wrappers.gym_to_dmc
 
 torch.backends.cudnn.benchmark = True
 
