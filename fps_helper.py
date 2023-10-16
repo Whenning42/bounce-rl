@@ -13,7 +13,7 @@ class Helper():
 
     def _CheckNewInterval(self, cur):
         if cur % self.interval <= self.tick_start % self.interval:
-            print("FPS:", self.ticks_in_interval)
+            # print("FPS:", self.ticks_in_interval)
             self.ticks_in_interval = 0
 
     def __call__(self):
