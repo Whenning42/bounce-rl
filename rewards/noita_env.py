@@ -240,6 +240,7 @@ class NoitaEnv(gym.core.Env):
 
         # Convert actions to device inputs
         # My SB3 implementation flattens the space, here we split it back out again.
+        orig_action = action
         if len(action) == 9:
             action = action[0:7], action[7:9]
         discrete_action, continuous_action = action
@@ -289,6 +290,9 @@ class NoitaEnv(gym.core.Env):
         # Save step values minus pixels
         save_val = StepVal(None, step_val.reward, step_val.terminated, step_val.truncated, step_val.info, step_val.ep_step, step_val.env_step)
         np.save(f"{self.step_dir}/step_{self.ep_step}.npy", save_val)
+
+        # Save actions
+        np.save(f"{self.step_dir}/action_{self.ep_step}.npy", orig_action)
 
         # return pixels, reward, terminated, truncated, info
         return step_val.pixels, step_val.reward, step_val.terminated or step_val.truncated, step_val.info
