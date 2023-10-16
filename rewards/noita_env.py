@@ -217,7 +217,7 @@ class NoitaEnv(gym.core.Env):
 
         # Fly into the mines
         time.sleep(10)
-        run_sequence = ((7.2, ("D",)), (1.0, ("W", "D")), (5, ("D",)))
+        run_sequence = ((7.2, ("D",)), (1.0, ("W", "D")), (5.5, ("D",)))
         for t, keys in run_sequence + ((0, ()),):
             self.harness.keyboards[0].set_held_keys(keys)
             time.sleep(t)
