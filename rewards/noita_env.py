@@ -52,19 +52,19 @@ class TerminateOnOverworld:
             step.terminated = True
         return step
 
+    def reset(self):
+        pass
+
 class TerminateOnSparseReward:
     """Terminate the episode if the reward is zero for too many steps."""
     def __init__(self, history_len: Optional[LinearInterpolator] = None, max_size: Optional[int] = None):
         self.termination_penalty = 10
         if max_size is None:
             max_size = 5*60*4
-        self.reward_history = GrowingCircularFIFOArray(max_size=max_size)
+        self.max_size = max_size
         if history_len is None:
             history_len = LinearInterpolator(x_0=0, x_1=1000000, y_0=1.5*60*4, y_1=5*60*4, extrapolate=False)
         self.history_len = history_len
-
-        # Push a non-zero reward to prevent early termination.
-        self.reward_history.push(1, 1)
 
     def __call__(self, step: StepVal) -> StepVal:
         self.reward_history.push(step.reward, int(self.history_len.get_value(step.ep_step)))
@@ -74,6 +74,11 @@ class TerminateOnSparseReward:
             step.terminated = True
             print(f"Terminated an episode due to sparse reward at step {step.ep_step}.")
         return step
+
+    def reset(self):
+        self.reward_history = GrowingCircularFIFOArray(max_size=self.max_size)
+        # Push a non-zero reward to prevent early termination.
+        self.reward_history.push(1, 1)
 
 
 class NoitaEnv(gym.core.Env):
@@ -149,6 +154,9 @@ class NoitaEnv(gym.core.Env):
         self.step_dir = f"{self.out_dir}/steps/ep_{self.ep_num}"
         pathlib.Path(self.image_dir).mkdir(parents=True, exist_ok=True)
         pathlib.Path(self.step_dir).mkdir(parents=True, exist_ok=True)
+
+        for wrapper in self.step_wrappers:
+            wrapper.reset()
 
         if hasattr(self, "harness"):
             # Release keys before we delete the old harness instance.
