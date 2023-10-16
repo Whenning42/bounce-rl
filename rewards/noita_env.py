@@ -279,8 +279,7 @@ class NoitaEnv(gym.core.Env):
         im.save(f"{self.image_dir}/step_{self.ep_step}.png")
 
         # Save step values minus pixels
-        save_val = step_val
-        save_val.pixels = None
+        save_val = StepVal(None, step_val.reward, step_val.terminated, step_val.truncated, step_val.info, step_val.ep_step, step_val.env_step)
         np.save(f"{self.step_dir}/step_{self.ep_step}.npy", save_val)
 
         # return pixels, reward, terminated, truncated, info
