@@ -82,7 +82,7 @@ class Harness(object):
         self.windows = [None for _ in range(window_count)]
         self.keyboards = [None for _ in range(window_count)]
         self.captures = []
-        self.full_screen_capture = None
+        self.full_window_capture = None
         self.ready = False
 
     def kill_subprocesses(self):
@@ -219,7 +219,7 @@ class Harness(object):
                     height=int(self.run_config["scale"] * self.run_config["y_res"]),
                 )
                 self.display.flush()
-                self.full_screen_capture = self.add_capture(
+                self.full_window_capture = self.add_capture(
                     (0, 0, self.run_config["x_res"], self.run_config["y_res"])
                 )
                 window_owners[w.id] = self
@@ -248,7 +248,7 @@ class Harness(object):
         return True
 
     def get_screen(self, instance=0) -> np.array:
-        return util.npBGRAtoRGB(self.full_screen_capture())
+        return util.npBGRAtoRGB(self.full_window_capture())
 
     def _focus_windows(self):
         for w in self.windows:
