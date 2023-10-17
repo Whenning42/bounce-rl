@@ -42,6 +42,61 @@ const int BILLION = 1000000000;
 // x pthread_cond_timedwait
 // x sem_timedwait
 
+typedef void* (*dlsym_type)(void*, const char*);
+#ifdef DLSYM_OVERRIDE
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+static dlsym_type next_dlsym = nullptr;
+static dlsym_type libc_dlsym = nullptr;
+
+void load_dlsyms() {
+  void* libc = dlopen("libc.so.6", RTLD_NOW);
+  assert(libc);
+  libc_dlsym = (dlsym_type)dlvsym(libc, "dlsym", "GLIBC_2.34");
+  assert(libc_dlsym);
+  next_dlsym = (dlsym_type)libc_dlsym(RTLD_NEXT, "dlsym");
+  assert(next_dlsym);
+}
+
+void* dlsym(void* handle, const char* name) {
+  // Intercepts
+  if (strcmp(name, "time") == 0) {
+    return (void*)time;
+  }
+  if (strcmp(name, "gettimeofday") == 0) {
+    return (void*)gettimeofday;
+  }
+  if (strcmp(name, "clock_gettime") == 0) {
+    return (void*)clock_gettime;
+  }
+  if (strcmp(name, "clock") == 0) {
+    return (void*)clock;
+  }
+  if (strcmp(name, "nanosleep") == 0) {
+    return (void*)nanosleep;
+  }
+  if (strcmp(name, "usleep") == 0) {
+    return (void*)usleep;
+  }
+  if (strcmp(name, "sleep") == 0) {
+    return (void*)sleep;
+  }
+  if (strcmp(name, "clock_nanosleep") == 0) {
+    return (void*)clock_nanosleep;
+  }
+
+  // Dispatch to next dlsym
+  if (!next_dlsym) {
+    load_dlsyms();
+  }
+  return next_dlsym(handle, name);
+}
+#else // DLSYM_OVERRIDE
+static dlsym_type libc_dlsym = dlsym;
+void load_dlsyms() {}
+#endif // DLSYM_OVERRIDE
+
 // A helper macro that takes in a function name "func" and declares a
 // pointer type "PFN_func" of that function;s type.
 #define PFN_TYPEDEF(func) typedef decltype(&func) PFN_##func
@@ -50,7 +105,7 @@ const int BILLION = 1000000000;
 // function if it's global value is nullptr. This requires real_func to be
 // declared globally.
 #define LAZY_LOAD_REAL(func) if(!real_##func) { \
-    real_##func = (PFN_##func)dlsym(RTLD_NEXT, #func); \
+    real_##func = (PFN_##func)libc_dlsym(RTLD_NEXT, #func); \
 }
 
 PFN_TYPEDEF(time);
@@ -78,6 +133,9 @@ std::atomic<PFN_clock_nanosleep> real_clock_nanosleep = nullptr;
 class InitPFNs {
  public:
   InitPFNs() {
+    if (!libc_dlsym) {
+      load_dlsyms();
+    }
     LAZY_LOAD_REAL(time);
     LAZY_LOAD_REAL(gettimeofday);
     LAZY_LOAD_REAL(clock_gettime);
@@ -241,10 +299,10 @@ bool get_new_speed(float* new_speed) {
     printf("Failed read with errno: %d\n", errno);
   }
   if (read_num > 0) {
+    changed_speed = true;
     // printf("Reading float at offset: %d\n", read_num - 4);
     *new_speed = *(float*)(buf + read_num - 4);
     // printf("Found new speed: %f\n.", *new_speed);
-    changed_speed = true;
   }
   return changed_speed;
 }
@@ -255,25 +313,29 @@ ClockState init_clock() {
   return clock;
 }
 
-timespec fake_time(int clk_id) {
+template<typename T, T(*f)(int, const ClockState*)>
+T do_fake_time_fn(int clk_id) {
   static InitPFNs init_static_pfns;
   int orig_errno = errno;
 
   static ClockState clocks[2] = {init_clock(), init_clock()};
-  static std::atomic<uint64_t> read_clock = 0;
+  static std::atomic<uint64_t> read_clock_id = 0;
   static std::atomic<int> clock_tag;
 
-  // Try updating fake time.
-  {
-    static std::atomic<bool> write_lock = false;
-    static std::atomic<uint64_t> write_clock = 1;
+  // Non-blocking thread safe clock updates:
+  //   Each thread tries to update the clock on entry, then reads the current time
+  //   for the current stored read clock. Finally, if the read clock hasn't changed
+  //   since the read clock baseline, we return the read time. Otherwise, we re-read
+  //   the time from the newly set read clock.
+  //
+  //   This algorithm never blocks the write section and only blocks the read section
+  //   while another thread's updating the time settings, which is rare.
 
-    // If we can't get write lock, break.
-    bool was_locked = write_lock.exchange(true);
-    if (was_locked) {
-      goto cont;
-    }
-
+  // Critical write section.
+  static std::atomic<bool> write_lock = false;
+  static std::atomic<uint64_t> write_clock_id = 1;
+  bool was_locked = write_lock.exchange(true);
+  if (!was_locked) {
     float new_speed;
     bool change_speed = get_new_speed(&new_speed);
     if (test_update) {
@@ -283,31 +345,39 @@ timespec fake_time(int clk_id) {
     }
 
     if (change_speed) {
-        uint64_t old_read_clock = read_clock.load();
-
-        // Write to the write clock's state.
-        update_speedup(new_speed, &clocks[old_read_clock % 2], &clocks[write_clock % 2]);
-
-        // Move the newly written clock into read_clock and make the other clock the write_clock.
-        read_clock.store(write_clock);
-        write_clock = write_clock + 1;
+        uint64_t old_read_clock_id = read_clock_id.load();
+        read_clock_id.store(write_clock_id);
+        update_speedup(new_speed, &clocks[old_read_clock_id % 2], &clocks[write_clock_id % 2]);
+        write_clock_id = write_clock_id + 1;
     }
-
-    // Release the write lock.
     write_lock.store(false);
   }
-cont:
 
+  // Critical read section.
   clk_id = base_clock(clk_id);
-  timespec fake;
-  uint64_t local_clock;
+  T val;
+  uint64_t used_clock;
   do {
-    local_clock = read_clock.load();
-    fake = fake_time_impl(clk_id, &clocks[local_clock % 2]);
-  } while (local_clock != read_clock.load());
-
+    used_clock = read_clock_id.load();
+    // Note: Unsynchronized read to clock state is technically UB.
+    val = f(clk_id, &clocks[used_clock % 2]);
+  } while (used_clock != read_clock_id.load());
   errno = orig_errno;
-  return fake;
+  return val;
+}
+
+timespec fake_time(int clk_id) {
+  auto get_time = [](int clk_id, const ClockState* clock_state) {
+    return fake_time_impl(clk_id, clock_state);
+  };
+  return do_fake_time_fn<timespec, get_time>(clk_id);
+}
+
+float current_speedup(int clk_id) {
+  auto get_speedup = [](int clk_id, const ClockState* clock_state) {
+    return clock_state->speedup;
+  };
+  return do_fake_time_fn<float, get_speedup>(clk_id);
 }
 }  // namespace
 
@@ -334,47 +404,41 @@ clock_t clock() {
   return (tp.tv_sec + (double)(tp.tv_nsec) / BILLION) * CLOCKS_PER_SEC;
 }
 
-// // NOTE: The error semantics for sleep functions isn't preserved in these wrappers.
-// int nanosleep(const struct timespec* req, struct timespec* rem) {
-//   try_updating_speedup();
-//   LAZY_LOAD_REAL(nanosleep);
-//   float speedup = global_clock_state.load().speedup;
-//   timespec goal_req = *req / speedup;
-//   timespec goal_rem;
-//   int ret = real_nanosleep(&goal_req, &goal_rem);
-//   if (rem) {
-//     *rem = goal_rem * speedup;
-//   }
-//   return ret;
-// }
-//
-// int usleep(useconds_t usec) {
-//   timespec orig_nanosleep;
-//   orig_nanosleep.tv_sec = usec / MILLION;
-//   orig_nanosleep.tv_nsec = (uint64_t)(usec * 1000) % BILLION;
-//   // Time speedup happens in the call to our override nanosleep.
-//   nanosleep(&orig_nanosleep, nullptr);
-//   return 0;
-// }
-//
-// unsigned int sleep(unsigned int seconds) {
-//   LAZY_LOAD_REAL(nanosleep);
-//   timespec sleep;
-//   sleep.tv_sec = seconds;
-//   sleep.tv_nsec = 0;
-//   nanosleep(&sleep, nullptr);
-//   return 0;
-// }
-//
-// int clock_nanosleep(clockid_t clockid, int flags, const struct timespec* request, struct timespec* remain) {
-//   LAZY_LOAD_REAL(clock_nanosleep);
-//   float speedup = global_clock_state.load().speedup;
-//   timespec goal_req = *request / speedup;
-//   timespec goal_rem;
-//   int ret = real_clock_nanosleep(clockid, flags, &goal_req, &goal_rem);
-//   *remain = goal_rem * speedup;
-//   return ret;
-// }
+// NOTE: The error semantics for sleep functions isn't preserved in these wrappers. How so?
+int nanosleep(const struct timespec* req, struct timespec* rem) {
+  LAZY_LOAD_REAL(nanosleep);
+  return clock_nanosleep(CLOCK_REALTIME, 0, req, rem);
+}
+
+int usleep(useconds_t usec) {
+  timespec sleep_t;
+  sleep_t.tv_sec = usec / MILLION;
+  sleep_t.tv_nsec = (uint64_t)(usec * 1000) % BILLION;
+  return nanosleep(&sleep_t, nullptr);
+}
+
+unsigned int sleep(unsigned int seconds) {
+  // TODO: Handle rem case.
+  LAZY_LOAD_REAL(nanosleep);
+  timespec sleep_t;
+  sleep_t.tv_sec = seconds;
+  sleep_t.tv_nsec = 0;
+  nanosleep(&sleep_t, nullptr);
+  return 0;
+}
+
+int clock_nanosleep(clockid_t clockid, int flags, const struct timespec* req, struct timespec* rem) {
+  // TODO: Handle flags.
+  LAZY_LOAD_REAL(clock_nanosleep);
+  const float speedup = current_speedup(clockid);
+  timespec goal_req = *req / speedup;
+  timespec goal_rem;
+  int ret = real_clock_nanosleep(clockid, flags, &goal_req, &goal_rem);
+  if (rem) {
+    *rem = goal_rem * speedup;
+  }
+  return ret;
+}
 
 void __set_speedup(float speedup) {
   test_update = 1;
