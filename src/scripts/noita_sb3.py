@@ -22,11 +22,11 @@ def PPO(out_dir, env, seed = 0, n_steps = 2048, ent_coef = .01):
     return stable_baselines3.PPO('CnnPolicy', env, verbose = 1, device = "cuda:0", tensorboard_log = os.path.join(out_dir, "tensorboard_out"), seed = seed, n_steps = n_steps, ent_coef = ent_coef)
 
 @gin.configurable
-def run(out_dir = "out/run/", seed = 0, timesteps = 1e6, n_stack = 3):
+def run(out_dir = "out/run/", seed = 0, timesteps = 1e6, n_stack = 8):
     out_dir = os.path.join(out_dir, str(seed))
     pathlib.Path(out_dir).mkdir(parents= True, exist_ok = True)
 
-    # Step duration is set to 0.25 in NoitaEnv.
+    # Step duration is set to 0.125 in NoitaEnv.
     orig_env = rewards.noita_env.NoitaEnv(out_dir = out_dir)
     env = VecFrameStack(DummyVecEnv([lambda: orig_env]), n_stack = n_stack)
 
@@ -54,7 +54,7 @@ def run(out_dir = "out/run/", seed = 0, timesteps = 1e6, n_stack = 3):
 # Move config into a gin file if it grows too big. See sb3_aor.py for an example.
 if __name__ == "__main__":
     for seed, n_steps in itertools.product((0,), (4000,)):
-        gin.bind_parameter("run.out_dir", f"out/noita_sb3_ppo_no_reg/n_steps_{n_steps}_seed_{seed}")
+        gin.bind_parameter("run.out_dir", f"disk/out/noita_sb3_ppo_no_reg/n_steps_{n_steps}_seed_{seed}")
         gin.bind_parameter("run.seed", seed)
         gin.bind_parameter("PPO.seed", seed)
         gin.bind_parameter("PPO.n_steps", n_steps)
