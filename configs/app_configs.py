@@ -78,7 +78,12 @@ app_configs = \
         # This has the tradeoff of being more work to install on end user machines. I hope
         # to switch back to steam once we've got a good sandbox setup.
         # Note: Using wine w/o the lutris proton build is slow (maybe ~80% realtime)
-        #       The performance variability breaks the "enter mine" macro.
+        #       and the performance variability breaks the "enter mine" macro.
+        #
+        # Performance notes:
+        #  Noita seems to run at a max 1.25x realtime (75fps) under time acceleration before being CPU bound (app is substaintially single threaded?)
+        #  however, the app runs well side-by-side hitting 60fps x 2 without substaintial lag spikes. Futhermore, if the app is largely single threaded,
+        #  lag spikes in an instance won't/can't affect another instance.
         "disable_time_control": True,
         "directory": "~/.steam/steam/steamapps/common/Noita",
         "command": "lutris lutris:rungameid/11",
