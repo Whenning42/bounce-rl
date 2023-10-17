@@ -106,7 +106,7 @@ class NoitaEnv(gym.core.Env):
             "scale": 1,
             "run_rate": run_rate,
             "pause_rate": pause_rate,
-            "step_duration": 0.25,
+            "step_duration": 0.125,
             "pixels_every_n_episodes": 1,
         }
         self.run_config: dict[str, Any] = run_config
