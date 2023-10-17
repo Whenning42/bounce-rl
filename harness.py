@@ -23,8 +23,6 @@ REOPEN_CLOSED_WINDOWS = False
 
 window_owners = {}
 
-# Shoutout to Andy!
-
 
 def handle_error(*args):
     window_id = args[0].resource_id.id
@@ -227,6 +225,15 @@ class Harness(object):
         if not None in self.windows:
             self.ready = True
 
+    def cleanup(self):
+        global window_owners
+        atexit.unregister(self.kill_subprocesses)
+        self.kill_subprocesses()
+        for k, v in list(window_owners.items()):
+            if v is self:
+                del(window_owners[k])
+        
+
     def tick(self):
         self.fps_helper()
 
@@ -286,4 +293,5 @@ class Harness(object):
         x, y, w, h = region
         capture = image_capture.ImageCapture(x, y, w, h)
         self.captures.append(capture)
-        return lambda: capture.get_image(self.windows[INSTANCE].id)
+        # Use a default argument to force the lambda not to capture a reference to self.
+        return lambda id=self.windows[INSTANCE].id: capture.get_image(id)
