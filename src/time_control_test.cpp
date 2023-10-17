@@ -92,42 +92,42 @@ TEST(TimeControl, Clock) {
 
 // The sleep functions are no longer implemented, but could be in the future.
 // Uncomment these tests if re-implemented.
-// TEST(TimeControl, Nanosleep) {
-//   timespec sleep;
-//   sleep.tv_sec = 4;
-//   sleep.tv_nsec = 0;
-//   __set_speedup(4);
-// 
-//   timespec start, end;
-// 
-//   __real_clock_gettime(CLOCK_REALTIME, &start);
-//   nanosleep(&sleep, nullptr);
-//   __real_clock_gettime(CLOCK_REALTIME, &end);
-// 
-//   EXPECT_NEAR(timespec_to_sec(end - start), 1, .01);
-// }
-// 
-// TEST(TimeControl, Usleep) {
-//   __set_speedup(2);
-//   timespec start, end;
-// 
-//   __real_clock_gettime(CLOCK_REALTIME, &start);
-//   usleep(2 * kMillion);
-//   __real_clock_gettime(CLOCK_REALTIME, &end);
-// 
-//   EXPECT_NEAR(timespec_to_sec(end - start), 1, .01);
-// }
-// 
-// TEST(TimeControl, Sleep) {
-//   __set_speedup(10);
-//   timespec start, end;
-// 
-//   __real_clock_gettime(CLOCK_REALTIME, &start);
-//   sleep(10);
-//   __real_clock_gettime(CLOCK_REALTIME, &end);
-// 
-//   EXPECT_NEAR(timespec_to_sec(end - start), 1, .01);
-// }
+TEST(TimeControl, Nanosleep) {
+  timespec sleep;
+  sleep.tv_sec = 4;
+  sleep.tv_nsec = 0;
+  __set_speedup(4);
+
+  timespec start, end;
+
+  __real_clock_gettime(CLOCK_REALTIME, &start);
+  nanosleep(&sleep, nullptr);
+  __real_clock_gettime(CLOCK_REALTIME, &end);
+
+  EXPECT_NEAR(timespec_to_sec(end - start), 1, .01);
+}
+
+TEST(TimeControl, Usleep) {
+  __set_speedup(2);
+  timespec start, end;
+
+  __real_clock_gettime(CLOCK_REALTIME, &start);
+  usleep(2 * kMillion);
+  __real_clock_gettime(CLOCK_REALTIME, &end);
+
+  EXPECT_NEAR(timespec_to_sec(end - start), 1, .01);
+}
+
+TEST(TimeControl, Sleep) {
+  __set_speedup(10);
+  timespec start, end;
+
+  __real_clock_gettime(CLOCK_REALTIME, &start);
+  sleep(10);
+  __real_clock_gettime(CLOCK_REALTIME, &end);
+
+  EXPECT_NEAR(timespec_to_sec(end - start), 1, .01);
+}
 
 TEST(TimeControl, MulOperator) {
   timespec t_1_5;
