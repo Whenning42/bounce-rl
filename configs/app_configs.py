@@ -86,7 +86,7 @@ app_configs = \
         #  lag spikes in an instance won't/can't affect another instance.
         "disable_time_control": True,
         "directory": "~/.steam/steam/steamapps/common/Noita",
-        "command": "lutris lutris:rungameid/11",
+        "command": "lutris lutris:rungameid/12",
         "window_title": "Noita.*",
         "init_cmd": "rm -rf ~/.wine/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save0*; \
                      cp mods/noita/golden_config.xml ~/.wine/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save_shared/config.xml",
