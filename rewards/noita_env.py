@@ -5,7 +5,7 @@
 # mouse over if with fake input. Maybe is related to killing the old noita
 # window. An x11 session per episdode would solve the issue.
 
-
+import datetime
 import os
 import time
 from enum import Enum
@@ -88,10 +88,11 @@ class NoitaEnv(gym.core.Env):
         # We're not yet launching noita with time control LD_PRELOAD. Once we do,
         # we can set run_rate and pause_rate to 4 and 0.25 respectively.
         run_rate: float = 1,
-        pause_rate: float = 1,
+        pause_rate: float = .1,
         env_conf: Optional[dict] = None,
         # Defaults to TerminateOnOverworld and TerminateOnSparseReward
         step_wrappers: list[Optional[Callable[StepVal, StepVal]]] = None,
+        skip_startup: bool = False,
     ):
         self.out_dir = out_dir
         self.run_rate = run_rate
@@ -125,7 +126,9 @@ class NoitaEnv(gym.core.Env):
             ("A", "D"),
             ("F",),
             ("E",),
-            ("1", "2", "3", "4"),
+            # Noita blows themself up too often if you give them the bomb at the outset.
+            # ("1", "2", "3", "4"),
+            ("1", "3", "4"),
             ("5", "6", "7", "8"),
             (keyboard.MouseButton.LEFT, keyboard.MouseButton.RIGHT),
         ]
@@ -145,7 +148,7 @@ class NoitaEnv(gym.core.Env):
         self.ep_num = 0
         self.env_step = 0
 
-        self._reset_env(skip_startup=True)
+        self._reset_env(skip_startup=skip_startup)
 
     def _reset_env(self, skip_startup: bool=False):
         self.ep_step = 0
