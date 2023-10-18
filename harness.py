@@ -169,7 +169,7 @@ class Harness(object):
         else:
             owned_windows = [w for w in open_windows if self.is_owned(w, self.subprocess_pids)]
         if len(owned_windows) == 0:
-            print("Still looking for window with title: ", self.app_config["window_title"])
+            print("Harness looking for window with title: ", self.app_config["window_title"])
 
         for w in owned_windows:
             if w not in self.windows:
