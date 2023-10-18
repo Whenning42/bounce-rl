@@ -27,7 +27,7 @@ def run(out_dir = "out/run/", seed = 0, timesteps = 1e6, n_stack = 8):
     pathlib.Path(out_dir).mkdir(parents= True, exist_ok = True)
 
     # Step duration is set to 0.125 in NoitaEnv.
-    orig_env = rewards.noita_env.NoitaEnv(out_dir = out_dir)
+    orig_env = rewards.noita_env.NoitaEnv(out_dir = out_dir, skip_startup=True)
     env = VecFrameStack(DummyVecEnv([lambda: orig_env]), n_stack = n_stack)
 
     eval_env = env
