@@ -151,6 +151,16 @@ class NoitaEnv(gym.core.Env):
         self._reset_env(skip_startup=skip_startup)
 
     def _reset_env(self, skip_startup: bool=False):
+        # Raises a runtime error if the environment fails to start.
+        src.time_writer.SetSpeedup(1)
+        for i in range(3):
+            did_reset = self._try_reset_env(skip_startup=skip_startup)
+            if did_reset:
+                return
+        raise RuntimeError("Failed to reset NoitaEnv.")
+
+    def _try_reset_env(self, skip_startup: bool=False) -> bool:
+        # Returns True if the reset was successful.
         self.ep_step = 0
         self.ep_num += 1
         self.image_dir = f"{self.out_dir}/screenshots/ep_{self.ep_num}"
@@ -173,15 +183,23 @@ class NoitaEnv(gym.core.Env):
             time.sleep(1)
         self.harness = Harness(self.app_config, self.run_config)
         self.state = NoitaState.UNKNOWN
-        self._wait_for_harness_init()
+        harness_init = self._wait_for_harness_init()
+        if not harness_init:
+            del(self.harness)
+            return False
         self._env_init(skip_startup=skip_startup)
+        return True
 
-    def _wait_for_harness_init(self):
+    def _wait_for_harness_init(self) -> bool:
+        # Returns True if the harness was initialized.
+        init_watch_dog = datetime.datetime.now()
         while not self.harness.ready:
             self.harness.tick()
-            time.sleep(0.5)
-            print("Waiting for harness")
-        print("Finished harness init!")
+            time.sleep(1)
+            if (datetime.datetime.now() - init_watch_dog).total_seconds() > 10:
+                print("Harness init timed out.")
+                return False
+        return True
 
     def _select_mode_macro(self) -> list[str]:
         return [
@@ -226,7 +244,6 @@ class NoitaEnv(gym.core.Env):
             time.sleep(t)
 
     def _env_init(self, skip_startup: bool):
-        print("Running NoitaEnv init!")
         if not skip_startup:
             self._run_init_sequence()
         self.state = NoitaState.RUNNING
@@ -304,7 +321,6 @@ class NoitaEnv(gym.core.Env):
     # def reset(self, *, seed: Any = None, options: Any = None) -> tuple[gym.core.ObsType, dict]:
     def reset(self, *, seed: Any = None, options: Any = None) -> gym.core.ObsType:
         """Seed isn't yet implemented. Options are ignored."""
-        print("Called reset")
         self._reset_env()
         pixels = self.harness.get_screen()
         info = self.info_callback.on_tick()
