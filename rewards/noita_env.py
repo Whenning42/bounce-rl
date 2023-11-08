@@ -7,14 +7,14 @@
 
 import datetime
 import os
+import pathlib
 import time
-from enum import Enum
-from typing import Any, Iterable, Optional, Callable
 from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Callable, Iterable, Optional
 
 import gym
 import numpy as np
-import pathlib
 import PIL.Image
 
 import configs.app_configs as app_configs
@@ -22,8 +22,9 @@ import keyboard
 import rewards.noita_info
 import rewards.noita_reward
 import src.time_writer
-from src.util import GrowingCircularFIFOArray, LinearInterpolator
 from harness import Harness
+from src.util import GrowingCircularFIFOArray, LinearInterpolator
+
 
 @dataclass
 class StepVal:
