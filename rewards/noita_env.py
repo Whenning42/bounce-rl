@@ -36,18 +36,22 @@ class StepVal:
     ep_step: int
     env_step: int
 
+
 class NoitaState(Enum):
     UNKNOWN = 0
     RUNNING = 1
     GAME_OVER = 2
 
+
 def is_overworld(info: dict) -> bool:
-    if int(info['y']) < -80:
+    if int(info["y"]) < -80:
         return True
     return False
 
+
 class TerminateOnOverworld:
     """Terminate the episode if the player is in the overworld."""
+
     def __call__(self, step: StepVal) -> StepVal:
         if is_overworld(step.info):
             step.terminated = True
@@ -56,19 +60,29 @@ class TerminateOnOverworld:
     def reset(self):
         pass
 
+
 class TerminateOnSparseReward:
     """Terminate the episode if the reward is zero for too many steps."""
-    def __init__(self, history_len: Optional[LinearInterpolator] = None, max_size: Optional[int] = None):
+
+    def __init__(
+        self,
+        history_len: Optional[LinearInterpolator] = None,
+        max_size: Optional[int] = None,
+    ):
         self.termination_penalty = 10
         if max_size is None:
-            max_size = 5*60*4
+            max_size = 5 * 60 * 4
         self.max_size = max_size
         if history_len is None:
-            history_len = LinearInterpolator(x_0=0, x_1=1000000, y_0=1.5*60*4, y_1=5*60*4, extrapolate=False)
+            history_len = LinearInterpolator(
+                x_0=0, x_1=1000000, y_0=1.5 * 60 * 4, y_1=5 * 60 * 4, extrapolate=False
+            )
         self.history_len = history_len
 
     def __call__(self, step: StepVal) -> StepVal:
-        self.reward_history.push(step.reward, int(self.history_len.get_value(step.ep_step)))
+        self.reward_history.push(
+            step.reward, int(self.history_len.get_value(step.ep_step))
+        )
         reward_history = self.reward_history.get_array()
         if np.sum(reward_history != 0) == 0:
             step.reward -= self.termination_penalty
@@ -142,7 +156,10 @@ class NoitaEnv(gym.core.Env):
             )
         )
         self.observation_space = gym.spaces.Box(
-            low=0, high=255, shape=(self.run_config["y_res"], self.run_config["x_res"], 3), dtype=np.uint8
+            low=0,
+            high=255,
+            shape=(self.run_config["y_res"], self.run_config["x_res"], 3),
+            dtype=np.uint8,
         )
 
         self.ep_step = 0
@@ -160,7 +177,7 @@ class NoitaEnv(gym.core.Env):
                 return
         raise RuntimeError("Failed to reset NoitaEnv.")
 
-    def _try_reset_env(self, skip_startup: bool=False) -> bool:
+    def _try_reset_env(self, skip_startup: bool = False) -> bool:
         # Returns True if the reset was successful.
         self.ep_step = 0
         self.ep_num += 1
@@ -177,16 +194,16 @@ class NoitaEnv(gym.core.Env):
             # Important because the new harness won't know which keys
             # were held.
             self.harness.keyboards[0].set_held_keys(set())
-            time.sleep(.1)
+            time.sleep(0.1)
             self.harness.kill_subprocesses()
             time.sleep(1)
-            os.system('killall noita.exe')
+            os.system("killall noita.exe")
             time.sleep(1)
         self.harness = Harness(self.app_config, self.run_config)
         self.state = NoitaState.UNKNOWN
         harness_init = self._wait_for_harness_init()
         if not harness_init:
-            del(self.harness)
+            del self.harness
             return False
         self._env_init(skip_startup=skip_startup)
         return True
@@ -212,7 +229,7 @@ class NoitaEnv(gym.core.Env):
         ]
 
     def _run_init_sequence(self):
-        time.sleep(.5)
+        time.sleep(0.5)
         # Start the game
         menu_keys = (
             # Enter mod settings
@@ -255,7 +272,9 @@ class NoitaEnv(gym.core.Env):
 
     # SB3 expects `done` instead of `terminated` and `truncated`.
     # def step(self, action: tuple[Iterable, Iterable]) -> tuple[np.ndarray, float, bool, bool, dict]:
-    def step(self, action: tuple[Iterable, Iterable]) -> tuple[np.ndarray, float, bool, dict]:
+    def step(
+        self, action: tuple[Iterable, Iterable]
+    ) -> tuple[np.ndarray, float, bool, dict]:
         self.ep_step += 1
         self.env_step += 1
 
@@ -266,7 +285,7 @@ class NoitaEnv(gym.core.Env):
             action = action[0:7], action[7:9]
         discrete_action, continuous_action = action
         discrete_action = [int(x) for x in discrete_action]
-        
+
         held_mouse_buttons = set()
         held_keys = set()
         for i, s in zip(discrete_action, self.input_space):
@@ -288,9 +307,9 @@ class NoitaEnv(gym.core.Env):
         # Step the harness
         # TODO: Move time control into harness
         self.harness.tick()
-        src.time_writer.SetSpeedup(self.run_config["run_rate"])
+        src.time_writer.SetSpeedup(self.run_config["run_rate"], str(self.instance))
         time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
-        src.time_writer.SetSpeedup(self.run_config["pause_rate"])
+        src.time_writer.SetSpeedup(self.run_config["pause_rate"], str(self.instance))
         pixels = self.harness.get_screen()
 
         # Compute step values
@@ -298,7 +317,9 @@ class NoitaEnv(gym.core.Env):
         reward = self.reward_callback.update(info)
         terminated = not info["is_alive"]
         truncated = False
-        step_val = StepVal(pixels, reward, terminated, truncated, info, self.ep_step, self.env_step)
+        step_val = StepVal(
+            pixels, reward, terminated, truncated, info, self.ep_step, self.env_step
+        )
 
         # Apply any step wrappers
         for wrapper in self.step_wrappers:
@@ -309,14 +330,27 @@ class NoitaEnv(gym.core.Env):
         im.save(f"{self.image_dir}/step_{self.ep_step}.png")
 
         # Save step values minus pixels
-        save_val = StepVal(None, step_val.reward, step_val.terminated, step_val.truncated, step_val.info, step_val.ep_step, step_val.env_step)
+        save_val = StepVal(
+            None,
+            step_val.reward,
+            step_val.terminated,
+            step_val.truncated,
+            step_val.info,
+            step_val.ep_step,
+            step_val.env_step,
+        )
         np.save(f"{self.step_dir}/step_{self.ep_step}.npy", save_val)
 
         # Save actions
         np.save(f"{self.step_dir}/action_{self.ep_step}.npy", orig_action)
 
         # return pixels, reward, terminated, truncated, info
-        return step_val.pixels, step_val.reward, step_val.terminated or step_val.truncated, step_val.info
+        return (
+            step_val.pixels,
+            step_val.reward,
+            step_val.terminated or step_val.truncated,
+            step_val.info,
+        )
 
     # SB3 doesn't handle info returned in reset method.
     # def reset(self, *, seed: Any = None, options: Any = None) -> tuple[gym.core.ObsType, dict]:
@@ -329,5 +363,4 @@ class NoitaEnv(gym.core.Env):
         return pixels
 
     def run_info(self):
-        return {'episode_step': self.ep_step,
-                'environment_step': self.env_step}
+        return {"episode_step": self.ep_step, "environment_step": self.env_step}
