@@ -1,23 +1,24 @@
 import atexit
-import image_capture
-import fps_helper
-import numpy as np
 import os
 import re
-import subprocess
-import signal
-import time
 import shlex
-import keyboard
-import util
+import signal
 import string
-import psutil
+import subprocess
+import sys
+import time
 
-from Xlib import display, Xatom
+import numpy as np
+import psutil
+import Xlib.protocol
 import Xlib.X
 import Xlib.XK
-import Xlib.protocol
-import sys
+from Xlib import Xatom, display
+
+import fps_helper
+import image_capture
+import keyboard
+import util
 
 REOPEN_CLOSED_WINDOWS = False
 
@@ -56,7 +57,9 @@ class Harness(object):
         if "init_cmd" in self.app_config:
             os.system(self.app_config["init_cmd"])
 
-        self.fps_helper = fps_helper.Helper(throttle_fps=self.run_config.get("max_tick_rate"))
+        self.fps_helper = fps_helper.Helper(
+            throttle_fps=self.run_config.get("max_tick_rate")
+        )
 
         window_count = 1
         self.window_title = self.app_config["window_title"]
@@ -107,7 +110,7 @@ class Harness(object):
             env["LD_PRELOAD"] = "build/time_control.so"
         if sys.prefix != sys.base_prefix:
             # Drop the virtualenv path for child process
-            env["PATH"] = ':'.join(env["PATH"].split(':')[1:])
+            env["PATH"] = ":".join(env["PATH"].split(":")[1:])
         # Only necessary for lutris envs, but is harmless in other envs
         env["LUTRIS_SKIP_INIT"] = "1"
         if self.instance is not None:
@@ -167,9 +170,14 @@ class Harness(object):
         if self.app_config.get("process_mode", "") == "separate":
             owned_windows = open_windows
         else:
-            owned_windows = [w for w in open_windows if self.is_owned(w, self.subprocess_pids)]
+            owned_windows = [
+                w for w in open_windows if self.is_owned(w, self.subprocess_pids)
+            ]
         if len(owned_windows) == 0:
-            print("Harness looking for window with title: ", self.app_config["window_title"])
+            print(
+                "Harness looking for window with title: ",
+                self.app_config["window_title"],
+            )
 
         for w in owned_windows:
             if w not in self.windows:
@@ -211,8 +219,16 @@ class Harness(object):
                 # This behavior should probably be deprecated.
                 row_size = self.run_config.get("row_size", 1)
                 w.configure(
-                    x=int(self.run_config["scale"] * self.run_config["x_res"] * (pos % row_size)),
-                    y=int(self.run_config["scale"] * self.run_config["y_res"] * (pos // row_size)),
+                    x=int(
+                        self.run_config["scale"]
+                        * self.run_config["x_res"]
+                        * (pos % row_size)
+                    ),
+                    y=int(
+                        self.run_config["scale"]
+                        * self.run_config["y_res"]
+                        * (pos // row_size)
+                    ),
                     width=int(self.run_config["scale"] * self.run_config["x_res"]),
                     height=int(self.run_config["scale"] * self.run_config["y_res"]),
                 )
@@ -231,8 +247,7 @@ class Harness(object):
         self.kill_subprocesses()
         for k, v in list(window_owners.items()):
             if v is self:
-                del(window_owners[k])
-        
+                del window_owners[k]
 
     def tick(self):
         self.fps_helper()
@@ -263,7 +278,10 @@ class Harness(object):
                 continue
             for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual]:
                 e = Xlib.protocol.event.FocusIn(
-                    display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal
+                    display=self.display,
+                    window=w,
+                    detail=detail,
+                    mode=Xlib.X.NotifyNormal,
                 )
                 self.display.send_event(w, e)
                 w.change_attributes(event_mask=Xlib.X.FocusChangeMask)
