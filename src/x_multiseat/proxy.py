@@ -231,9 +231,7 @@ class EventReplyParser:
             if n < 8:
                 return
             logging.debug(
-                "Consuming client received connection setup of",
-                len(self.byte_buffer),
-                "bytes",
+                f"Consuming client received connection setup of {len(self.byte_buffer)} bytes"
             )
             code, major, minor, additional_data_len = struct.unpack(
                 "BxHHH", self.byte_buffer[:8]
@@ -287,11 +285,11 @@ class EventReplyParser:
                 should_filter = self.should_filter_event(code)
 
                 if code <= LAST_STANDARD_EVENT and should_filter:
-                    logging.info("Filtering an event. Code", code, flush=True)
+                    logging.info(f"Filtering an event. Code {code}")
                     self.discard_bytes(32)
                     continue
                 elif code > LAST_STANDARD_EVENT and should_filter:
-                    logging.error("UnimplementedError", flush=True)
+                    logging.error("UnimplementedError")
                     raise NotImplementedError
 
                 if code == FOCUS_IN:
@@ -313,7 +311,7 @@ class EventReplyParser:
                 code = struct.unpack(
                     "xB", self.byte_buffer[self.message_end : self.message_end + 2]
                 )
-                logging.info("X11 Error:", code)
+                logging.info(f"X11 Error: {code}")
                 self.commit_message(32)
                 continue
             if is_reply:
@@ -330,7 +328,7 @@ class EventReplyParser:
             sent = self.socket.sendmsg([data], self.anc_data)
             self.sent_end += sent
             assert sent == len(data)
-            logging.debug("Wrote: ", sent)
+            logging.debug(f"Wrote: {sent}")
 
         # Remove all fully processed messages from the byte_buffer.
         self.byte_buffer = self.byte_buffer[self.message_end :]
