@@ -14,7 +14,7 @@ except FileNotFoundError:
 app_configs = [
     {
         "conf_title": "Skyrogue",
-        # Skyrogue tries launches steam if the working directory isn't the game's directory.,
+        # Skyrogue tries launches steam if the working directory isn't the game's directory.
         "directory": "~/.local/share/Steam/steamapps/common/Sky Rogue",
         "command": "./skyrogue.x86",
         "window_title": "Sky Rogue",
