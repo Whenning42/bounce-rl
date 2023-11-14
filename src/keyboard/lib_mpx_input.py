@@ -16,6 +16,8 @@ def make_lib_mpx_input():
         void key_event(Display* display, unsigned int keycode, bool is_press);
         void move_mouse(Display* display, int x, int y);
         void button_event(Display* display, unsigned int button, bool is_press);
+
+        void xflush(Display* display);
     """
     )
     return mpx_input_ffi.dlopen("lib_mpx_input.so"), mpx_input_ffi
