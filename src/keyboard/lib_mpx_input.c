@@ -67,3 +67,7 @@ void button_event(Display* display, unsigned int button, bool is_press) {
     XTestFakeButtonEvent(display, button, is_press, 0);
     XFlush(display);
 }
+
+void xflush(Display* display) {
+    XFlush(display);
+}
