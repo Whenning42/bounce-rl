@@ -2,6 +2,8 @@
 # TODO: Rename to reflect added mouse capabilities.
 # FIXME: Window position and dimensions need to actually
 # come from the window.
+# TODO: Move failsafe and keysym/keycode functions to a separate class.
+#       This will allow this file to be py-xlib free.
 
 import _thread
 import re
@@ -16,7 +18,10 @@ import Xlib.display
 import Xlib.protocol
 import Xlib.X
 import Xlib.XK
-from Xlib.ext import xinput, xtest
+import Xlib.xobject
+from Xlib.ext import xinput
+
+from src.keyboard import lib_mpx_input
 
 
 def keysym_for_key_name(key_name):
@@ -37,6 +42,12 @@ class MouseButton(Enum):
     RIGHT = 3
 
 
+def _setup_mpx_devices(display, window, lib_mpx_input):
+    """Sets up new XI2 pointer and keyboards for this logical keyboard."""
+    lib_mpx_input.make_cursor(display, window.id, f"devices_for_{window}".encode())
+    lib_mpx_input.xflush(display)
+
+
 class Keyboard(object):
     PRESS = 1
     RELEASE = -1
@@ -46,19 +57,28 @@ class Keyboard(object):
 
     global_mutex = threading.Lock()
 
-    def __init__(self, display, window, keyboard_config: dict = {}):
+    def __init__(
+        self,
+        display: Xlib.display.Display,
+        window: Xlib.xobject.drawable.Window,
+        window_x: int = 0,
+        window_y: int = 0,
+        keyboard_config: dict = {},
+    ):
         self.last_keymap = np.zeros(84)
-        self.focused_window = window
+        self.window = window
         print("Keyboard win:", window)
         # TODO: Get these values from Xlib window properties.
-        self.window_x = 0
+        self.window_x = window_x
+        self.window_y = window_y
         self.window_w = 640
-        self.window_y = 360
         self.window_h = 360
-        self.display = display
+        self.py_xlib_display = display
+        self.lib_mpx_input, self.lib_mpx_input_ffi = lib_mpx_input.make_lib_mpx_input()
+        self.display = self.lib_mpx_input.open_display("".encode())
+        _setup_mpx_devices(self.display, self.window, self.lib_mpx_input)
+
         self.sequence_keydown_time = keyboard_config.get("sequence_keydown_time", 0.25)
-        event_mode_req: str = keyboard_config.get("mode", "SEND_EVENT")
-        self.event_mode: KeyboardEventMode = KeyboardEventMode[event_mode_req]
 
         self.held_keys: set[str] = set()
         self.held_mouse_buttons: set[MouseButton] = set()
@@ -68,7 +88,7 @@ class Keyboard(object):
 
     # Allows the user to press ctrl-shift-9 to kill the program.
     def _run_failsafe(self) -> None:
-        # Get all non-xtest keyboard device ids from the CLI, since python-xlib doesn't yet
+        # Get all non-xtest keyboard device ids from the CLI, since python-xlib doesn't
         # implement list devices.
         list_result = subprocess.run(
             "xinput list | awk '/keyboard/ && /slave/ && !/XTEST/'",
@@ -87,14 +107,15 @@ class Keyboard(object):
             (keyboard_id, xinput.KeyPressMask | xinput.KeyReleaseMask)
             for keyboard_id in keyboard_ids
         ]
-        root = self.display.screen().root
+        root = self.py_xlib_display.screen().root
         root.xinput_select_events(event_masks)
 
         while True:
-            event = self.display.next_event()
-            if event.type == self.display.extension_event.GenericEvent:
+            event = self.py_xlib_display.next_event()
+            if event.type == self.py_xlib_display.extension_event.GenericEvent:
                 if (
-                    event.data["detail"] == self.display.keysym_to_keycode(keysym_for_key_name("9"))
+                    event.data["detail"]
+                    == self.py_xlib_display.keysym_to_keycode(keysym_for_key_name("9"))
                     and event.data["mods"]["effective_mods"] & Xlib.X.ShiftMask
                     and event.data["mods"]["effective_mods"] & Xlib.X.ControlMask
                 ):
@@ -130,7 +151,8 @@ class Keyboard(object):
 
     # Takes a set of key names to be held down and performs the key presses and releases
     # that get the keyboard to that state.
-    # Key set is provdided in the form of a set of x key names with the XK_ prefix removed.
+    # Key set is provdided in the form of a set of x key names with the XK_ prefix
+    # removed.
     # Note: This function is oblivious to key presses and releases that occur from
     # any other method of this class and so calling this and other methods may be
     # error prone.
@@ -192,114 +214,27 @@ class Keyboard(object):
             self.release_key(key)
             time.sleep(0.25)
 
-    def _get_key_x_event(self, key_name: str, direction: int, modifier: int = 0):
+    def key_name_to_keycode(self, display, key_name):
         keysym = keysym_for_key_name(key_name)
-        keycode = self.display.keysym_to_keycode(keysym)
+        keycode = display.keysym_to_keycode(keysym)
+        return keycode
 
-        modifier = int(modifier)
-        root = self.display.screen().root
-
-        if direction == Keyboard.PRESS:
-            return Xlib.protocol.event.KeyPress(
-                detail=keycode,
-                time=0,
-                root=root,
-                window=self.focused_window,
-                child=Xlib.X.NONE,
-                root_x=0,
-                root_y=0,
-                event_x=1,
-                event_y=1,
-                state=modifier,
-                same_screen=0,
-            )
-        elif direction == Keyboard.RELEASE:
-            return Xlib.protocol.event.KeyRelease(
-                detail=keycode,
-                time=0,
-                root=root,
-                window=self.focused_window,
-                child=Xlib.X.NONE,
-                root_x=0,
-                root_y=0,
-                event_x=1,
-                event_y=1,
-                state=modifier,
-                same_screen=0,
-            )
-        else:
-            # Unsupported direction
-            assert False
-
-    def _change_key(self, key_name: str, direction, modifier=0):
-        self.global_mutex.acquire()
-        if self.event_mode == KeyboardEventMode.SEND_EVENT:
-            # Focus the window we're sending the event to.
-            for detail in [
-                Xlib.X.NotifyAncestor,
-                Xlib.X.NotifyVirtual,
-                Xlib.X.NotifyInferior,
-                Xlib.X.NotifyNonlinear,
-                Xlib.X.NotifyNonlinearVirtual,
-                Xlib.X.NotifyPointer,
-                Xlib.X.NotifyPointerRoot,
-                Xlib.X.NotifyDetailNone,
-            ]:
-                w = self.focused_window
-                e = Xlib.protocol.event.FocusIn(
-                    display=self.display, window=w, detail=detail, mode=Xlib.X.NotifyNormal
-                )
-                self.display.send_event(w, e)
-                self.display.flush()
-
-            # Set the input focus to the window we want.
-            self.display.set_input_focus(
-                self.focused_window, Xlib.X.RevertToNone, Xlib.X.CurrentTime
-            )
-
-            event = self._get_key_x_event(key_name, direction, modifier)
-            self.display.send_event(
-                self.focused_window,
-                event,
-                propagate=False,
-                event_mask=Xlib.X.KeyPress | Xlib.X.KeyRelease,
-            )
-            # self.display.send_event(self.focused_window, event, propagate = False, event_mask = 0)
-            self.display.flush()
-
-            # self.display.sync()
-        elif self.event_mode == KeyboardEventMode.FAKE_INPUT:
-            keysym = keysym_for_key_name(key_name)
-            keycode = self.display.keysym_to_keycode(keysym)
-
-            if direction == Keyboard.PRESS:
-                event_type = Xlib.X.KeyPress
-            else:
-                event_type = Xlib.X.KeyRelease
-            xtest.fake_input(self.display, event_type, keycode)
-            self.display.flush()
-        self.global_mutex.release()
-
-    def assert_fake_input_mode(self) -> None:
-        assert self.event_mode == KeyboardEventMode.FAKE_INPUT
+    def _change_key(self, key_name: str, direction: int, modifier=0):
+        keycode = self.key_name_to_keycode(self.py_xlib_display, key_name)
+        self.lib_mpx_input.key_event(self.display, keycode, direction)
+        self.lib_mpx_input.xflush(self.display)
 
     def move_mouse(self, x: Union[int, float], y: Union[int, float]) -> None:
-        self.assert_fake_input_mode()
         x = min(max(int(x), 1), self.window_w - 1)
         y = min(max(int(y), 1), self.window_h - 1)
         x = x + self.window_x
         y = y + self.window_y
-        xtest.fake_input(self.display, Xlib.X.MotionNotify, x=x, y=y)
-        self.display.flush()
+        self.lib_mpx_input.move_mouse(self.display, x, y)
+        self.lib_mpx_input.xflush(self.display)
 
     def set_mouse_button(self, button: MouseButton, direction: int) -> None:
-        self.assert_fake_input_mode()
-        if direction == Keyboard.PRESS:
-            event_type = Xlib.X.ButtonPress
-        else:
-            event_type = Xlib.X.ButtonRelease
-        xtest.fake_input(self.display, event_type, button.value)
-        self.display.flush()
+        self.lib_mpx_input.button_event(self.display, button.value, direction)
+        self.lib_mpx_input.xflush(self.display)
 
     def set_held_mouse_buttons(self, mouse_buttons: set[MouseButton]):
         self.assert_fake_input_mode()
