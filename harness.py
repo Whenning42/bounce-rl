@@ -49,10 +49,23 @@ def suppress_error(*args):
 
 
 class Harness(object):
-    def __init__(self, app_config, run_config, instance=None):
+    def __init__(
+        self,
+        app_config,
+        run_config,
+        instance=None,
+        x_pos: int = 0,
+        y_pos: int = 0,
+        environment: dict = None,
+    ):
         self.app_config = app_config
         self.run_config = run_config
         self.instance = instance
+        self.x_pos = x_pos
+        self.y_pos = y_pos
+        if environment is None:
+            environment = {}
+        self.environment = environment
 
         if "init_cmd" in self.app_config:
             os.system(self.app_config["init_cmd"])
@@ -106,11 +119,15 @@ class Harness(object):
 
     def open_new_window(self):
         env = os.environ.copy()
+        env.update(self.environment)
+
         if not self.app_config.get("disable_time_control", False):
             env["LD_PRELOAD"] = "build/time_control.so"
         if sys.prefix != sys.base_prefix:
             # Drop the virtualenv path for child process
             env["PATH"] = ":".join(env["PATH"].split(":")[1:])
+        if self.app_config.get("use_x_proxy", False):
+            env["DISPLAY"] = ":1"
         # Only necessary for lutris envs, but is harmless in other envs
         env["LUTRIS_SKIP_INIT"] = "1"
         if self.instance is not None:
@@ -119,20 +136,20 @@ class Harness(object):
         split_command = shlex.split(self.app_config["command"])
         directory_template = string.Template(self.app_config["directory"])
         directory = directory_template.substitute(i=self.instance)
+        if directory == "":
+            directory = None
         process = subprocess.Popen(
             split_command,
             cwd=directory,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
+            stdout=None,
+            stderr=None,
             env=env,
         )
-        # process = subprocess.Popen(split_command, cwd=directory, env=env)
         self.subprocess_pids.append(process.pid)
 
     # Return True if the window's process is a descendant any of the child_pids.
     def is_owned(self, window, child_pids):
-        # TODO: I could change the window connection algorithm to not
-        # use _NET_WM_PID.
+        # Note: Requires the application to set _NET_WM_PID annotations on the window.
         window_pid_result = query_window_property(
             self.display, window, "_NET_WM_PID", Xatom.CARDINAL
         )
@@ -183,52 +200,31 @@ class Harness(object):
             if w not in self.windows:
                 # Make sure we haven't opened too many instances
                 assert None in self.windows
+
                 loc = self.windows.index(None)
+                x = int(
+                    self.run_config["scale"] * self.run_config["x_res"] * self.x_pos
+                )
+                y = int(
+                    self.run_config["scale"] * self.run_config["y_res"] * self.y_pos
+                )
                 self.windows[loc] = w
                 self.keyboards[loc] = keyboard.Keyboard(
-                    self.display, w, self.app_config.get("keyboard_config", {})
+                    self.display, w, x, y, self.app_config.get("keyboard_config", {})
                 )
                 # Noita environment can't have mouse over a menu item at launch.
                 # The enviroment would like to configure this mouse move at launch,
                 # but isn't given a callback that runs at the right time.
                 self.keyboards[loc].move_mouse(5, 5)
-                print(w)
-                print(hex(w.id))
-                # Make the window floating and borderless.
-                subprocess.Popen(
-                    [
-                        "i3-msg",
-                        "[id=" + hex(w.id) + "]",
-                        "floating",
-                        "enable;",
-                        "border",
-                        "pixel",
-                        "0",
-                    ]
-                )
                 self.display.flush()
                 time.sleep(0.5)
                 self.display.flush()
 
-                if self.instance is None:
-                    pos = 1
-                else:
-                    pos = self.instance
-
                 # The harness used support tiling windows across the screen.
                 # This behavior should probably be deprecated.
-                row_size = self.run_config.get("row_size", 1)
                 w.configure(
-                    x=int(
-                        self.run_config["scale"]
-                        * self.run_config["x_res"]
-                        * (pos % row_size)
-                    ),
-                    y=int(
-                        self.run_config["scale"]
-                        * self.run_config["y_res"]
-                        * (pos // row_size)
-                    ),
+                    x=x,
+                    y=y,
                     width=int(self.run_config["scale"] * self.run_config["x_res"]),
                     height=int(self.run_config["scale"] * self.run_config["y_res"]),
                 )
@@ -238,7 +234,7 @@ class Harness(object):
                 )
                 window_owners[w.id] = self
 
-        if not None in self.windows:
+        if None not in self.windows:
             self.ready = True
 
     def cleanup(self):

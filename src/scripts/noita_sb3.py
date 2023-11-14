@@ -11,7 +11,7 @@ import time
 import gin
 import stable_baselines3
 import stable_baselines3.common.env_checker
-from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecFrameStack
 
 import rewards.noita_env
 
@@ -33,13 +33,21 @@ def PPO(out_dir, env, seed=0, n_steps=2048, ent_coef=0.01):
 
 
 @gin.configurable
-def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8):
+def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8, num_envs=1):
     out_dir = os.path.join(out_dir, str(seed))
     pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
 
     # Step duration is set to 0.125 in NoitaEnv.
-    orig_env = rewards.noita_env.NoitaEnv(out_dir=out_dir, skip_startup=True)
-    env = VecFrameStack(DummyVecEnv([lambda: orig_env]), n_stack=n_stack)
+    rewards.noita_env.NoitaEnv.pre_init(num_envs=num_envs)
+    env_fns = []
+    for i in range(num_envs):
+        env_out = out_dir + f"/env_{i}"
+        env_fns.append(
+            lambda: rewards.noita_env.NoitaEnv(
+                out_dir=env_out, skip_startup=True, x_pos=i, instance=i
+            )
+        )
+    env = VecFrameStack(SubprocVecEnv(env_fns), n_stack=n_stack)
 
     eval_env = env
     # Makes episode length and mean reward visible in tensorboard logging.
@@ -69,7 +77,6 @@ def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8):
     exit()
 
     # SB3 doesn't close the env after learn call?
-    orig_env.close()
     time.sleep(1)
 
 

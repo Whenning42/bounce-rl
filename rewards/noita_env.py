@@ -5,9 +5,12 @@
 # mouse over if with fake input. Maybe is related to killing the old noita
 # window. An x11 session per episdode would solve the issue.
 
+import atexit
 import datetime
 import os
 import pathlib
+import signal
+import subprocess
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -97,24 +100,38 @@ class TerminateOnSparseReward:
 
 
 class NoitaEnv(gym.core.Env):
+    singleton_init = False
+
     def __init__(
         self,
         out_dir: Optional[str] = None,
         # We're not yet launching noita with time control LD_PRELOAD. Once we do,
         # we can set run_rate and pause_rate to 4 and 0.25 respectively.
         run_rate: float = 1,
-        pause_rate: float = .1,
+        pause_rate: float = 0.1,
         env_conf: Optional[dict] = None,
         # Defaults to TerminateOnOverworld and TerminateOnSparseReward
         step_wrappers: list[Optional[Callable[StepVal, StepVal]]] = None,
         skip_startup: bool = False,
+        x_pos: int = 0,
+        y_pos: int = 0,
+        instance: int = 0,
     ):
+        # In a multiprocessing setup, pre_init has been called, but not in process.
+        # if not self.singleton_init:
+        #     raise RuntimeError(
+        #         "NoitaEnv.pre_init must be called before any NoitaEnv instances are created."
+        #     )
+
         self.out_dir = out_dir
         self.run_rate = run_rate
         self.pause_rate = pause_rate
         if env_conf is None:
             env_conf = {}
         self.env_conf = env_conf
+        self.x_pos = x_pos
+        self.y_pos = y_pos
+        self.instance = instance
         run_config = {
             "app": "Noita",
             "x_res": 640,
@@ -168,9 +185,25 @@ class NoitaEnv(gym.core.Env):
 
         self._reset_env(skip_startup=skip_startup)
 
-    def _reset_env(self, skip_startup: bool=False):
+    @classmethod
+    def pre_init(cls, num_envs: int = 1):
+        """Should be called before any NoitaEnv instances are created.
+
+        Starts the x proxy."""
+
+        if cls.singleton_init:
+            raise RuntimeError("NoitaEnv.pre_init has already been called.")
+
+        proxy_proc = subprocess.Popen(["python", "src/x_multiseat/proxy.py"])
+        atexit.register(proxy_proc.kill)
+        signal.signal(signal.SIGINT, proxy_proc.kill)
+        signal.signal(signal.SIGTERM, proxy_proc.kill)
+        signal.signal(signal.SIGHUP, proxy_proc.kill)
+        cls.singleton_init = True
+
+    def _reset_env(self, skip_startup: bool = False):
         # Raises a runtime error if the environment fails to start.
-        src.time_writer.SetSpeedup(1)
+        src.time_writer.SetSpeedup(1, str(self.instance))
         for i in range(3):
             did_reset = self._try_reset_env(skip_startup=skip_startup)
             if did_reset:
@@ -199,7 +232,15 @@ class NoitaEnv(gym.core.Env):
             time.sleep(1)
             os.system("killall noita.exe")
             time.sleep(1)
-        self.harness = Harness(self.app_config, self.run_config)
+        env = {"WINEPREFIX": f"/tmp/noita_wine_prefixes/wine_prefix_{self.instance}"}
+        self.harness = Harness(
+            self.app_config,
+            self.run_config,
+            x_pos=self.x_pos,
+            y_pos=self.y_pos,
+            instance=self.instance,
+            environment=env,
+        )
         self.state = NoitaState.UNKNOWN
         harness_init = self._wait_for_harness_init()
         if not harness_init:
