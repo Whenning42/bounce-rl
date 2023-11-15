@@ -144,7 +144,9 @@ class NoitaEnv(gym.core.Env):
         }
         self.run_config: dict[str, Any] = run_config
         self.app_config = app_configs.LoadAppConfig(run_config["app"])
-        self.info_callback = rewards.noita_info.NoitaInfo()
+        self.environment = {"WINEPREFIX": f"/tmp/env_dirs_{self.instance}/wine",
+                            "ENV_PREFIX": f"/tmp/env_dirs_{self.instance}"}
+        self.info_callback = rewards.noita_info.NoitaInfo(pipe_dir = self.environment["ENV_PREFIX"])
         self.reward_callback = rewards.noita_reward.NoitaReward()
 
         if step_wrappers is None:
@@ -228,18 +230,16 @@ class NoitaEnv(gym.core.Env):
             # were held.
             self.harness.keyboards[0].set_held_keys(set())
             time.sleep(0.1)
-            self.harness.kill_subprocesses()
+            self.harness.cleanup()
+            # os.system("killall noita.exe")
             time.sleep(1)
-            os.system("killall noita.exe")
-            time.sleep(1)
-        env = {"WINEPREFIX": f"/tmp/noita_wine_prefixes/wine_prefix_{self.instance}"}
         self.harness = Harness(
             self.app_config,
             self.run_config,
             x_pos=self.x_pos,
             y_pos=self.y_pos,
             instance=self.instance,
-            environment=env,
+            environment=self.environment,
         )
         self.state = NoitaState.UNKNOWN
         harness_init = self._wait_for_harness_init()
@@ -255,7 +255,7 @@ class NoitaEnv(gym.core.Env):
         while not self.harness.ready:
             self.harness.tick()
             time.sleep(1)
-            if (datetime.datetime.now() - init_watch_dog).total_seconds() > 10:
+            if (datetime.datetime.now() - init_watch_dog).total_seconds() > 25:
                 print("Harness init timed out.")
                 return False
         return True
@@ -297,7 +297,7 @@ class NoitaEnv(gym.core.Env):
 
         # Fly into the mines
         time.sleep(10)
-        run_sequence = ((7.2, ("D",)), (1.0, ("W", "D")), (5.5, ("D",)))
+        run_sequence = ((7.2, ("D",)), (1.0, ("W", "D")), (6.5, ("D",)))
         for t, keys in run_sequence + ((0, ()),):
             self.harness.keyboards[0].set_held_keys(keys)
             time.sleep(t)

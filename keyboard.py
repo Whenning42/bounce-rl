@@ -42,15 +42,18 @@ class MouseButton(Enum):
     RIGHT = 3
 
 
-def _setup_mpx_devices(display, window, lib_mpx_input):
+def _setup_mpx_devices(display, window, cursor_name, lib_mpx_input, window_x, window_y):
     """Sets up new XI2 pointer and keyboards for this logical keyboard."""
-    lib_mpx_input.make_cursor(display, window.id, f"devices_for_{window}".encode())
-    lib_mpx_input.xflush(display)
+    lib_mpx_input.make_cursor(display, window.id, cursor_name.encode())
+    lib_mpx_input.move_mouse(display, window_x + 5, window_y + 5)
+    lib_mpx_input.button_event(display, MouseButton.LEFT.value, Keyboard.PRESS)
+    time.sleep(.01)
+    lib_mpx_input.button_event(display, MouseButton.LEFT.value, Keyboard.RELEASE)
 
 
 class Keyboard(object):
     PRESS = 1
-    RELEASE = -1
+    RELEASE = 0
     SHIFT_MOD = 1
     CTRL_MOD = 4
     ALT_MOD = 8
@@ -76,7 +79,8 @@ class Keyboard(object):
         self.py_xlib_display = display
         self.lib_mpx_input, self.lib_mpx_input_ffi = lib_mpx_input.make_lib_mpx_input()
         self.display = self.lib_mpx_input.open_display("".encode())
-        _setup_mpx_devices(self.display, self.window, self.lib_mpx_input)
+        self.cursor_name = f"devices_for_{window.id}"
+        _setup_mpx_devices(self.display, self.window, self.cursor_name, self.lib_mpx_input, self.window_x, self.window_y)
 
         self.sequence_keydown_time = keyboard_config.get("sequence_keydown_time", 0.25)
 
@@ -222,7 +226,6 @@ class Keyboard(object):
     def _change_key(self, key_name: str, direction: int, modifier=0):
         keycode = self.key_name_to_keycode(self.py_xlib_display, key_name)
         self.lib_mpx_input.key_event(self.display, keycode, direction)
-        self.lib_mpx_input.xflush(self.display)
 
     def move_mouse(self, x: Union[int, float], y: Union[int, float]) -> None:
         x = min(max(int(x), 1), self.window_w - 1)
@@ -230,14 +233,11 @@ class Keyboard(object):
         x = x + self.window_x
         y = y + self.window_y
         self.lib_mpx_input.move_mouse(self.display, x, y)
-        self.lib_mpx_input.xflush(self.display)
 
     def set_mouse_button(self, button: MouseButton, direction: int) -> None:
         self.lib_mpx_input.button_event(self.display, button.value, direction)
-        self.lib_mpx_input.xflush(self.display)
 
     def set_held_mouse_buttons(self, mouse_buttons: set[MouseButton]):
-        self.assert_fake_input_mode()
         # Implements re-press mouse mode.
         for button in self.held_mouse_buttons:
             self.set_mouse_button(button, Keyboard.RELEASE)
@@ -245,3 +245,7 @@ class Keyboard(object):
         for button in mouse_buttons:
             self.set_mouse_button(button, Keyboard.PRESS)
         self.held_mouse_buttons = mouse_buttons
+
+    def cleanup(self):
+        print(f"Deleting cursor: {self.cursor_name}")
+        self.lib_mpx_input.delete_cursor(self.display, self.cursor_name.encode())
