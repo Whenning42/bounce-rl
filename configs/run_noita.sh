@@ -17,7 +17,7 @@ export WINEARCH="win64"
 export WINE="/home/william/.local/share/Steam/steamapps/common/Proton 8.0/dist/bin/wine"
 export WINE_MONO_CACHE_DIR="/home/william/.local/share/lutris/runners/wine/Proton 8.0/mono"
 export WINE_GECKO_CACHE_DIR="/home/william/.local/share/lutris/runners/wine/Proton 8.0/gecko"
-export WINEESYNC="1"
+export WINEESYNC="0"
 export WINEFSYNC="1"
 export WINE_FULLSCREEN_FSR="1"
 export DXVK_NVAPIHACK="0"
@@ -38,6 +38,7 @@ export TERM="xterm"
 if [[ "$WINEPREFIX" == "$MAIN_SAVE" ]]; then
     :
 else
+    echo "Setting up prefix: $WINEPREFIX"
     rm -rf $WINEPREFIX
     mkdir -p $WINEPREFIX
     cp -r $MAIN_SAVE/* $WINEPREFIX
@@ -51,4 +52,7 @@ cp mods/noita/golden_config.xml \
 cd /home/william/.steam/steam/steamapps/common/Noita
 
 # Command
-'/home/william/.local/share/Steam/steamapps/common/Proton 8.0/dist/bin/wine' /home/william/.steam/steam/steamapps/common/Noita/noita.exe
+'/home/william/.local/share/Steam/steamapps/common/Proton 8.0/dist/bin/wine' /home/william/.steam/steam/steamapps/common/Noita/noita.exe &
+trap "kill $(jobs -p)" EXIT
+wait
+

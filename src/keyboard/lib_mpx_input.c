@@ -3,6 +3,7 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/XInput2.h>
 #include <X11/extensions/XTest.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -40,6 +41,7 @@ void make_cursor(Display* display, Window client_connection_window, char* cursor
 void delete_cursor(Display* display, char* cursor_name) {
     int cursor_id = get_cursor_id(display, cursor_name);
     if (cursor_id == -1) {
+        printf("Failed to find cursor %s\n", cursor_name);
         return;
     }
 

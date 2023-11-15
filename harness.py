@@ -7,6 +7,7 @@ import string
 import subprocess
 import sys
 import time
+import traceback
 
 import numpy as np
 import psutil
@@ -100,8 +101,11 @@ class Harness(object):
         self.ready = False
 
     def kill_subprocesses(self):
+        print("kill subprocess")
+        traceback.print_stack()
         for pid in self.subprocess_pids:
-            os.kill(pid, signal.SIGKILL)
+            print("Killing subprocess", pid)
+            os.kill(pid, signal.SIGTERM)
 
     def window_closed(self, window_id):
         global window_owners
@@ -122,7 +126,7 @@ class Harness(object):
         env.update(self.environment)
 
         if not self.app_config.get("disable_time_control", False):
-            env["LD_PRELOAD"] = "build/time_control.so"
+            env["LD_PRELOAD"] = "libtime_control.so"
         if sys.prefix != sys.base_prefix:
             # Drop the virtualenv path for child process
             env["PATH"] = ":".join(env["PATH"].split(":")[1:])
@@ -145,6 +149,7 @@ class Harness(object):
             stderr=None,
             env=env,
         )
+        print("Started subprocess", process.pid)
         self.subprocess_pids.append(process.pid)
 
     # Return True if the window's process is a descendant any of the child_pids.
@@ -208,6 +213,17 @@ class Harness(object):
                 y = int(
                     self.run_config["scale"] * self.run_config["y_res"] * self.y_pos
                 )
+                # Note: Configure has to happen before keyboard, since keyboard
+                # clicks on the window's expected absolute position to focus
+                # the window.
+                w.configure(
+                    x=x,
+                    y=y,
+                    width=int(self.run_config["scale"] * self.run_config["x_res"]),
+                    height=int(self.run_config["scale"] * self.run_config["y_res"]),
+                )
+                self.display.sync()
+
                 self.windows[loc] = w
                 self.keyboards[loc] = keyboard.Keyboard(
                     self.display, w, x, y, self.app_config.get("keyboard_config", {})
@@ -220,14 +236,6 @@ class Harness(object):
                 time.sleep(0.5)
                 self.display.flush()
 
-                # The harness used support tiling windows across the screen.
-                # This behavior should probably be deprecated.
-                w.configure(
-                    x=x,
-                    y=y,
-                    width=int(self.run_config["scale"] * self.run_config["x_res"]),
-                    height=int(self.run_config["scale"] * self.run_config["y_res"]),
-                )
                 self.display.flush()
                 self.full_window_capture = self.add_capture(
                     (0, 0, self.run_config["x_res"], self.run_config["y_res"])
@@ -241,6 +249,8 @@ class Harness(object):
         global window_owners
         atexit.unregister(self.kill_subprocesses)
         self.kill_subprocesses()
+        for kb in self.keyboards:
+            kb.cleanup()
         for k, v in list(window_owners.items()):
             if v is self:
                 del window_owners[k]

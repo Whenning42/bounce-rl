@@ -21,7 +21,7 @@ import socket
 import struct
 from collections.abc import Iterable
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(filename='proxy.log', filemode='w', level=logging.DEBUG)
 
 # Global first constructed XMessageStream. This is used by main to get the server
 # timestamp.
@@ -342,9 +342,13 @@ class XServerToClientStream:
     def __init__(self, socket, request_codes: dict):
         self.offset = 0
         self.sequence_number = 0
+        self.socket = socket
         self.byte_stream = EventReplyParser(socket, request_codes)
 
     def sendmsg(self, buffers, anc_data):
+        self.socket.sendmsg(buffers, anc_data)
+        return
+
         self.byte_stream.consume_anc(anc_data)
         # self.byte_stream.socket.sendmsg([], anc_data)
         for data in buffers:
@@ -475,9 +479,9 @@ class Proxy:
                         self.cleanup_from_client(mirror_socket, rs)
                         break
 
-                    assert (flags & socket.MSG_TRUNC == 0) and (
-                        flags & socket.MSG_CTRUNC == 0
-                    )
+                    # assert (flags & socket.MSG_TRUNC == 0) and (
+                    #     flags & socket.MSG_CTRUNC == 0
+                    # )
 
                     n = len(recv_data)
                     if n > self.max_p:

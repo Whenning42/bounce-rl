@@ -16,7 +16,7 @@ Logged files are:
 -- the Gym env.
 
 math.randomseed(os.time())
-PIPE_DIR = "/tmp/rl_env"
+PIPE_DIR = os.getenv("ENV_PREFIX")
 STATS_EVERY_N_FRAMES = 15
 print(" ======== Piping output to: " .. PIPE_DIR .. " ========")
 

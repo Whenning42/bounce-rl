@@ -33,7 +33,7 @@ def PPO(out_dir, env, seed=0, n_steps=2048, ent_coef=0.01):
 
 
 @gin.configurable
-def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8, num_envs=1):
+def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8, num_envs=4):
     out_dir = os.path.join(out_dir, str(seed))
     pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
 
@@ -43,7 +43,7 @@ def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8, num_envs=1):
     for i in range(num_envs):
         env_out = out_dir + f"/env_{i}"
         env_fns.append(
-            lambda: rewards.noita_env.NoitaEnv(
+            lambda i=i: rewards.noita_env.NoitaEnv(
                 out_dir=env_out, skip_startup=True, x_pos=i, instance=i
             )
         )
@@ -82,10 +82,10 @@ def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8, num_envs=1):
 
 # Move config into a gin file if it grows too big. See sb3_aor.py for an example.
 if __name__ == "__main__":
-    for seed, n_steps in itertools.product((0,), (4000,)):
+    for seed, n_steps in itertools.product((0,), (1000,)):
         gin.bind_parameter(
             "run.out_dir",
-            f"disk/out/noita_sb3_ppo_no_reg/n_steps_{n_steps}_seed_{seed}",
+            f"disk/out/noita_sb3_ppo_no_reg_par/n_steps_{n_steps}_seed_{seed}",
         )
         gin.bind_parameter("run.seed", seed)
         gin.bind_parameter("PPO.seed", seed)

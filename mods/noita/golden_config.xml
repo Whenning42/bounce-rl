@@ -25,7 +25,7 @@
   joystick_rumble_intensity="1" 
   joysticks_enabled="1" 
   language="en" 
-  last_started_game_version_hash="3cb5b0870058b819c65ca3288fdfc6c2cf554021" 
+  last_started_game_version_hash="ec4ca8f293e2855303def7a874e19cf21b1e1aff" 
   mods_disclaimer_accepted="1" 
   mods_sandbox_enabled="1" 
   mods_sandbox_warning_done="0" 
@@ -67,7 +67,8 @@
   ui_snappy_hover_boxes="0" 
   vsync="0" 
   window_h="360" 
-  window_w="640" >
+  window_w="640" >
+
   <KeyboardControls 
     aim_stick.primary="0" 
     aim_stick.primary_name="" 
@@ -190,8 +191,10 @@
     key_use_wand.primary="-1" 
     key_use_wand.primary_name="$$input_mouseleft" 
     key_use_wand.secondary="0" 
-    key_use_wand.secondary_name="" >
-  </KeyboardControls>
+    key_use_wand.secondary_name="" >
+
+  </KeyboardControls>
+
   <GamepadControls 
     aim_stick.primary="22" 
     aim_stick.primary_name="$$input_xboxbutton_right_stick_moved" 
@@ -314,6 +317,9 @@
     key_use_wand.primary="48" 
     key_use_wand.primary_name="$$input_xboxbutton_analog_01" 
     key_use_wand.secondary="0" 
-    key_use_wand.secondary_name="" >
-  </GamepadControls>
-</Config>
+    key_use_wand.secondary_name="" >
+
+  </GamepadControls>
+
+</Config>
+
