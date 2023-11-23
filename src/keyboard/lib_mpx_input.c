@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 
 int get_cursor_id(Display* display, char* cursor_name) {
     int num_devices;
@@ -25,7 +26,7 @@ Display* open_display(char* display_name) {
     return XOpenDisplay(display_name);
 }
 
-void make_cursor(Display* display, Window client_connection_window, char* cursor_name) {
+void make_cursor(Display* display, char* cursor_name) {
     XIAddMasterInfo add;
     add.type = XIAddMaster;
     add.name = cursor_name;
@@ -34,14 +35,24 @@ void make_cursor(Display* display, Window client_connection_window, char* cursor
     XIChangeHierarchy(display, (XIAnyHierarchyChangeInfo*)&add, 1);
     int device_id = get_cursor_id(display, cursor_name);
     XISetClientPointer(display, 0, device_id);
-    XISetClientPointer(display, client_connection_window, device_id);
+    XSync(display, False);
+}
+
+void assign_cursor(Display* display, Window client_connection_window, char* cursor_name) {
+    int cursor_id = get_cursor_id(display, cursor_name);
+    if (cursor_id == -1) {
+        printf("Assign cursor not found: %s\n", cursor_name);
+        return;
+    }
+    XISetClientPointer(display, 0, cursor_id);
+    XISetClientPointer(display, client_connection_window, cursor_id);
     XSync(display, False);
 }
 
 void delete_cursor(Display* display, char* cursor_name) {
     int cursor_id = get_cursor_id(display, cursor_name);
     if (cursor_id == -1) {
-        printf("Failed to find cursor %s\n", cursor_name);
+        printf("Delete cursor not found: %s\n", cursor_name);
         return;
     }
 

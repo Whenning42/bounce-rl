@@ -26,6 +26,7 @@ import rewards.noita_info
 import rewards.noita_reward
 import src.time_writer
 from harness import Harness
+from src.keyboard import lib_mpx_input
 from src.util import GrowingCircularFIFOArray, LinearInterpolator
 
 
@@ -196,8 +197,21 @@ class NoitaEnv(gym.core.Env):
         if cls.singleton_init:
             raise RuntimeError("NoitaEnv.pre_init has already been called.")
 
+        lib_mpx, lib_mpx_ffi = lib_mpx_input.make_lib_mpx_input()
+        display = lib_mpx.open_display(b":0")
+        for i in range(num_envs):
+            lib_mpx.make_cursor(display, lib_mpx_input.cursor_name(i).encode("utf-8"))
+
         proxy_proc = subprocess.Popen(["python", "src/x_multiseat/proxy.py"])
         atexit.register(proxy_proc.kill)
+
+        def cleanup_cursors():
+            for i in range(num_envs):
+                lib_mpx.delete_cursor(
+                    display, lib_mpx_input.cursor_name(i).encode("utf-8")
+                )
+
+        atexit.register(cleanup_cursors)
         signal.signal(signal.SIGINT, proxy_proc.kill)
         signal.signal(signal.SIGTERM, proxy_proc.kill)
         signal.signal(signal.SIGHUP, proxy_proc.kill)

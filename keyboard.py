@@ -42,15 +42,6 @@ class MouseButton(Enum):
     RIGHT = 3
 
 
-def _setup_mpx_devices(display, window, cursor_name, lib_mpx_input, window_x, window_y):
-    """Sets up new XI2 pointer and keyboards for this logical keyboard."""
-    lib_mpx_input.make_cursor(display, window.id, cursor_name.encode())
-    lib_mpx_input.move_mouse(display, window_x + 5, window_y + 5)
-    lib_mpx_input.button_event(display, MouseButton.LEFT.value, Keyboard.PRESS)
-    time.sleep(.01)
-    lib_mpx_input.button_event(display, MouseButton.LEFT.value, Keyboard.RELEASE)
-
-
 class Keyboard(object):
     PRESS = 1
     RELEASE = 0
@@ -67,6 +58,7 @@ class Keyboard(object):
         window_x: int = 0,
         window_y: int = 0,
         keyboard_config: dict = {},
+        instance: int = 0,
     ):
         self.last_keymap = np.zeros(84)
         self.window = window
@@ -79,8 +71,9 @@ class Keyboard(object):
         self.py_xlib_display = display
         self.lib_mpx_input, self.lib_mpx_input_ffi = lib_mpx_input.make_lib_mpx_input()
         self.display = self.lib_mpx_input.open_display("".encode())
-        self.cursor_name = f"devices_for_{window.id}"
-        _setup_mpx_devices(self.display, self.window, self.cursor_name, self.lib_mpx_input, self.window_x, self.window_y)
+        self.lib_mpx_input.assign_cursor(
+            self.display, self.window.id, lib_mpx_input.cursor_name(instance).encode()
+        )
 
         self.sequence_keydown_time = keyboard_config.get("sequence_keydown_time", 0.25)
 
@@ -247,5 +240,4 @@ class Keyboard(object):
         self.held_mouse_buttons = mouse_buttons
 
     def cleanup(self):
-        print(f"Deleting cursor: {self.cursor_name}")
-        self.lib_mpx_input.delete_cursor(self.display, self.cursor_name.encode())
+        pass
