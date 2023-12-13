@@ -309,12 +309,15 @@ class NoitaEnv(gym.core.Env):
         self.harness.keyboards[0].move_mouse(10, 10)
         self.harness.keyboards[0].key_sequence(menu_keys)
 
+        time.sleep(4)
+        """
         # Fly into the mines
         time.sleep(10)
         run_sequence = ((7.2, ("D",)), (1.0, ("W", "D")), (6.5, ("D",)))
         for t, keys in run_sequence + ((0, ()),):
             self.harness.keyboards[0].set_held_keys(keys)
             time.sleep(t)
+        """
 
     def _env_init(self, skip_startup: bool):
         if not skip_startup:
