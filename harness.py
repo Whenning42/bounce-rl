@@ -19,6 +19,7 @@ from Xlib import Xatom, display
 import fps_helper
 import image_capture
 import keyboard
+import src.containers.container as container
 import util
 
 REOPEN_CLOSED_WINDOWS = False
@@ -89,6 +90,7 @@ class Harness(object):
         self.display.flush()
 
         self.subprocess_pids = []
+        self.pid_mapper = None
         atexit.register(self.kill_subprocesses)
 
         for i in range(window_count):
@@ -142,15 +144,12 @@ class Harness(object):
         directory = directory_template.substitute(i=self.instance)
         if directory == "":
             directory = None
-        process = subprocess.Popen(
-            split_command,
-            cwd=directory,
-            stdout=None,
-            stderr=None,
-            env=env,
+        pid, pid_mapper = container.launch_process_container(
+            split_command, directory, env, pid_offset=50 * self.instance
         )
-        print("Started subprocess", process.pid)
-        self.subprocess_pids.append(process.pid)
+        print("Started subprocess", id)
+        self.subprocess_pids.append(pid)
+        self.pid_mapper = pid_mapper
 
     # Return True if the window's process is a descendant any of the child_pids.
     def is_owned(self, window, child_pids):
@@ -162,6 +161,10 @@ class Harness(object):
             window_pid_result is not None
         ), "Harness requires the running window manager to implement _NET_WM_PID annotations."
         window_pid = window_pid_result[0]
+        print("Got window pid: ", window_pid)
+        # The _NET_WM_PID will be a pid in the container namespace. We need to map it
+        # back to the host pid namespace.
+        window_pid = self.pid_mapper.get(window_pid)
         window_ps = psutil.Process(window_pid)
         while window_ps is not None:
             if window_ps.pid in child_pids:
