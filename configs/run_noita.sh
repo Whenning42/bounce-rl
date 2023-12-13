@@ -33,6 +33,12 @@ export SteamGameId="lutris-game"
 export WINE_LARGE_ADDRESS_AWARE="1"
 export TERM="xterm"
 
+
+echo "Running offset: $PID_OFFSET"
+for i in $(seq 1 $PID_OFFSET); do
+    touch "/tmp/noop.txt"
+done
+
 # Restore the games state and config from the main save and the golden config
 # respectively.
 if [[ "$WINEPREFIX" == "$MAIN_SAVE" ]]; then
