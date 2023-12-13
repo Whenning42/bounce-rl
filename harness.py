@@ -324,3 +324,11 @@ class Harness(object):
         self.captures.append(capture)
         # Use a default argument to force the lambda not to capture a reference to self.
         return lambda id=self.windows[INSTANCE].id: capture.get_image(id)
+
+    def pause(self):
+        pgid = os.getpgid(self.subprocess_pids[0])
+        os.killpg(pgid, signal.SIGSTOP)
+
+    def resume(self):
+        pgid = os.getpgid(self.subprocess_pids[0])
+        os.killpg(pgid, signal.SIGCONT)
