@@ -21,7 +21,7 @@ import socket
 import struct
 from collections.abc import Iterable
 
-logging.basicConfig(filename='proxy.log', filemode='w', level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
 
 # Global first constructed XMessageStream. This is used by main to get the server
 # timestamp.
