@@ -11,9 +11,10 @@ import time
 import gin
 import stable_baselines3
 import stable_baselines3.common.env_checker
-from stable_baselines3.common.vec_env import SubprocVecEnv, VecFrameStack
+from stable_baselines3.common.vec_env import VecFrameStack
 
 import rewards.noita_env
+from src.env.pool_vec_env import PoolVecEnv
 
 discrete = False
 
@@ -47,7 +48,9 @@ def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8, num_envs=4):
                 out_dir=env_out, skip_startup=True, x_pos=i, instance=i
             )
         )
-    env = VecFrameStack(SubprocVecEnv(env_fns), n_stack=n_stack)
+    env = VecFrameStack(
+        PoolVecEnv(env_fns, n=num_envs, k=num_envs - 1), n_stack=n_stack
+    )
 
     eval_env = env
     # Makes episode length and mean reward visible in tensorboard logging.
