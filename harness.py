@@ -7,7 +7,6 @@ import string
 import subprocess
 import sys
 import time
-import traceback
 
 import numpy as np
 import psutil
@@ -104,7 +103,6 @@ class Harness(object):
 
     def kill_subprocesses(self):
         print("kill subprocess")
-        traceback.print_stack()
         for pid in self.subprocess_pids:
             print("Killing subprocess", pid)
             os.kill(pid, signal.SIGTERM)
