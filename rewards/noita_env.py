@@ -145,9 +145,13 @@ class NoitaEnv(gym.core.Env):
         }
         self.run_config: dict[str, Any] = run_config
         self.app_config = app_configs.LoadAppConfig(run_config["app"])
-        self.environment = {"WINEPREFIX": f"/tmp/env_dirs_{self.instance}/wine",
-                            "ENV_PREFIX": f"/tmp/env_dirs_{self.instance}"}
-        self.info_callback = rewards.noita_info.NoitaInfo(pipe_dir = self.environment["ENV_PREFIX"])
+        self.environment = {
+            "WINEPREFIX": f"/tmp/env_dirs_{self.instance}/wine",
+            "ENV_PREFIX": f"/tmp/env_dirs_{self.instance}",
+        }
+        self.info_callback = rewards.noita_info.NoitaInfo(
+            pipe_dir=self.environment["ENV_PREFIX"]
+        )
         self.reward_callback = rewards.noita_reward.NoitaReward()
 
         if step_wrappers is None:
