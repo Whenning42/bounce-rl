@@ -109,7 +109,7 @@ class NoitaEnv(gym.core.Env):
         # We're not yet launching noita with time control LD_PRELOAD. Once we do,
         # we can set run_rate and pause_rate to 4 and 0.25 respectively.
         run_rate: float = 1,
-        pause_rate: float = 0.1,
+        pause_rate: float = 0.001,
         env_conf: Optional[dict] = None,
         # Defaults to TerminateOnOverworld and TerminateOnSparseReward
         step_wrappers: list[Optional[Callable[StepVal, StepVal]]] = None,
@@ -426,3 +426,11 @@ class NoitaEnv(gym.core.Env):
 
     def run_info(self):
         return {"episode_step": self.ep_step, "environment_step": self.env_step}
+
+    def pause(self):
+        self.harness.keyboards[0].key_sequence(["Escape"])
+        # self.harness.pause()
+
+    def resume(self):
+        self.harness.keyboards[0].key_sequence(["Escape"])
+        # self.harness.resume()
