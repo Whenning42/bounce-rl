@@ -69,5 +69,4 @@ class NoitaInfo:
             self.is_alive = False
 
         self.info["is_alive"] = self.is_alive
-        print("Got info:", self.info)
         return self.info.copy()
