@@ -1,4 +1,5 @@
 import atexit
+import logging
 import os
 import re
 import shlex
@@ -21,6 +22,9 @@ import keyboard
 import src.containers.container as container
 import util
 
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
+
+
 REOPEN_CLOSED_WINDOWS = False
 
 window_owners = {}
@@ -31,17 +35,19 @@ def handle_error(*args):
     if window_id in window_owners:
         window_owners[window_id].window_closed(window_id)
     else:
-        print("Orphan window closed:", window_id)
+        logging.debug("Orphan window closed: %s", window_id)
 
 
 # Caller has to unpack the property return value.
 # For "_NET_WM_PID" property, it's an array of ints. For other types I'm not sure.
 def query_window_property(display, window, property_name, property_type):
     property_name_atom = display.get_atom(property_name)
-    result = window.get_full_property(property_name_atom, property_type)
-    if result:
-        return result.value
-    return None
+    try:
+        result = window.get_full_property(property_name_atom, property_type)
+        if result:
+            return result.value
+    except Xlib.error.BadWindow:
+        return -1
 
 
 # A no-op error handler.
@@ -102,9 +108,9 @@ class Harness(object):
         self.ready = False
 
     def kill_subprocesses(self):
-        print("kill subprocess")
+        logging.debug("kill subprocess")
         for pid in self.subprocess_pids:
-            print("Killing subprocess", pid)
+            logging.debug("Killing subprocess: %s", pid)
             os.kill(pid, signal.SIGTERM)
 
     def window_closed(self, window_id):
@@ -145,7 +151,7 @@ class Harness(object):
         pid, pid_mapper = container.launch_process_container(
             split_command, directory, env, pid_offset=50 * self.instance
         )
-        print("Started subprocess", id)
+        logging.debug("Started subprocess: %s", id)
         self.subprocess_pids.append(pid)
         self.pid_mapper = pid_mapper
 
@@ -159,7 +165,7 @@ class Harness(object):
             window_pid_result is not None
         ), "Harness requires the running window manager to implement _NET_WM_PID annotations."
         window_pid = window_pid_result[0]
-        print("Got window pid: ", window_pid)
+        logging.debug("Got window pid: %s", window_pid)
         # The _NET_WM_PID will be a pid in the container namespace. We need to map it
         # back to the host pid namespace.
         window_pid = self.pid_mapper.get(window_pid)
@@ -197,8 +203,8 @@ class Harness(object):
                 w for w in open_windows if self.is_owned(w, self.subprocess_pids)
             ]
         if len(owned_windows) == 0:
-            print(
-                "Harness looking for window with title: ",
+            logging.debug(
+                "Harness looking for window with title: %s",
                 self.app_config["window_title"],
             )
 
@@ -277,7 +283,7 @@ class Harness(object):
                     callback.on_tick()
 
         if self.windows.count(-1) == len(self.windows):
-            print("All windows closed. Exiting.")
+            logging.debug("All windows closed. Exiting.")
             return False
         return True
 
