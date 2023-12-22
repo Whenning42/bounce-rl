@@ -422,9 +422,9 @@ class Proxy:
         x_conn_path = _display_path(self.client_display)
         self.client_socket.bind(x_conn_path)
         atexit.register(lambda: os.remove(x_conn_path))
-        signal.signal(signal.SIGTERM, lambda: os.remove(x_conn_path))
-        signal.signal(signal.SIGINT, lambda: os.remove(x_conn_path))
-        signal.signal(signal.SIGHUP, lambda: os.remove(x_conn_path))
+        signal.signal(signal.SIGTERM, lambda signum, frame: os.remove(x_conn_path))
+        signal.signal(signal.SIGINT, lambda signum, frame: os.remove(x_conn_path))
+        signal.signal(signal.SIGHUP, lambda signum, frame: os.remove(x_conn_path))
         self.client_socket.listen(200)
 
         self.client_connections = set()
