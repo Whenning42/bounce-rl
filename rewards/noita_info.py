@@ -39,7 +39,7 @@ class NoitaInfo:
         Path(pipe_dir).mkdir(parents=True, exist_ok=True)
 
         # Keep in sync with Noita mod.
-        self.info = {"biome": "", "hp": 100, "max_hp": 100, "gold": 0, "x": 0, "y": 0}
+        self.info = {"biome": "", "hp": 100, "max_hp": 100, "gold": 0, "x": 0, "y": 0, "tick": 0}
         self.info_file = os.path.join(pipe_dir, "noita_stats.tsv")
         self.info_tail = FileTail(
             self.info_file, "a+", ", ".join([str(v) for v in self.info.values()])
@@ -51,6 +51,9 @@ class NoitaInfo:
         # Clear any existing notifications.
         self.on_tick()
         self.is_alive = True
+
+    def current_info(self) -> dict:
+        return self.info.copy()
 
     def on_tick(self) -> dict:
         # Update info
