@@ -18,8 +18,8 @@ def _worker(
         try:
             cmd, data = remote.recv()
             if cmd == "step":
-                observation, reward, done, info = env.step(data)
-                remote.send((observation, reward, done, info, reset_info))
+                result = env.step(data)
+                remote.send((result, reset_info))
             elif cmd == "reset":
                 maybe_options = {"options": data[1]} if data[1] else {}
                 observation = env.reset(seed=data[0], **maybe_options)
@@ -103,10 +103,9 @@ class SubprocEnv(gym.Env):
     def step(self, action: np.ndarray) -> tuple:
         self.remote.send(("step", action))
         self.waiting = True
-        result = self.remote.recv()
+        result, self.reset_info = self.remote.recv()
         self.waiting = False
-        obs, rew, done, info, self.reset_info = result
-        return obs, rew, done, info
+        return result
 
     def reset(self, seed=None):
         self.remote.send(("reset", (0, None)))

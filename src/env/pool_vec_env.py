@@ -66,6 +66,13 @@ class PoolVecEnv:
             results = list(
                 executor.map(lambda v: v[0].step(v[1]), zip(self.live_envs, actions))
             )
+
+        # Reset failed environments.
+        for i, r in enumerate(results):
+            if r is None:
+                self._reset_live_env(i)
+                results[i] = self.live_envs[i].step(actions[i])
+        print(results)
         obs, rews, dones, infos = zip(*results)
         for i, done in enumerate(dones):
             if done:
