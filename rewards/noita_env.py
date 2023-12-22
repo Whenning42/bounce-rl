@@ -359,6 +359,10 @@ class NoitaEnv(gym.core.Env):
         # Apply inputs
         self.harness.keyboards[0].set_held_keys(held_keys)
         self.harness.keyboards[0].set_held_mouse_buttons(held_mouse_buttons)
+        # There are 9 inputs, so they're likely normalized w/ std 1/root(9).
+        # We scale the outputs back here.
+        continuous_action = [c*3 for c in continuous_action]
+        # Rescale to 0-1
         continuous_action = [(c + 1) / 2 for c in continuous_action]
         mouse_pos = (
             continuous_action[0] * self.run_config["x_res"],
