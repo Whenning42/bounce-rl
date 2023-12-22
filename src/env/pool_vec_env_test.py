@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock
 
 import numpy as np
 
@@ -71,5 +72,21 @@ class TestPoolVecEnv(unittest.TestCase):
         obs, rew, done, info = env.step(np.array([1]))
         self.assertEqual(obs, [0])
         self.assertEqual(rew, [1])
+        self.assertEqual(done, [False])
+        self.assertEqual(info, [{}])
+
+    def test_failed_step_handling(self):
+        def get_mock_env():
+            c_env = FakeTestEnv()
+            c_env.step = Mock()
+            c_env.step.side_effect = [None, (1, 2, False, {})]
+            c_env.reset = Mock()
+            c_env.reset.return_value = 1
+            return c_env
+
+        env = PoolVecEnv([get_mock_env], n=1, k=1)
+        obs, rew, done, info = env.step(np.array([1]))
+        self.assertEqual(obs, [1])
+        self.assertEqual(rew, [2])
         self.assertEqual(done, [False])
         self.assertEqual(info, [{}])
