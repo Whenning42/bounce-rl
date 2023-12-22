@@ -133,23 +133,13 @@ class NoitaEnv(gym.core.Env):
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.instance = instance
-        run_config = {
-            "app": "Noita",
-            "x_res": 640,
-            "y_res": 360,
-            "scale": 1,
-            "run_rate": run_rate,
-            "pause_rate": pause_rate,
-            "step_duration": 0.125,
-            "pixels_every_n_episodes": 1,
-        }
-        self.run_config: dict[str, Any] = run_config
-        self.app_config = app_configs.LoadAppConfig(run_config["app"])
+        self.run_config: dict[str, Any] = NoitaEnv._run_config()
+        self.app_config = app_configs.LoadAppConfig(self.run_config["app"])
         self.environment = {
             "WINEPREFIX": f"/tmp/env_dirs_{self.instance}/wine",
             "ENV_PREFIX": f"/tmp/env_dirs_{self.instance}",
         }
-        self.info_callback = rewards.noita_info.NoitaInfo(
+        self.noita_info = rewards.noita_info.NoitaInfo(
             pipe_dir=self.environment["ENV_PREFIX"]
         )
         self.reward_callback = rewards.noita_reward.NoitaReward()
@@ -160,7 +150,44 @@ class NoitaEnv(gym.core.Env):
 
         # TODO: Add mouse velocity as a feature.
         # TODO: Add inventory (I) as an input.
-        self.input_space = [
+        self.input_space = NoitaEnv._input_space()
+        self.action_space = NoitaEnv.action_space()
+        self.observation_space = NoitaEnv.observation_space()
+
+        self.ep_step = 0
+        self.ep_num = 0
+        self.env_step = 0
+
+        self._reset_env(skip_startup=skip_startup)
+
+    @staticmethod
+    def _run_config() -> dict[str, Any]:
+        return {
+            "app": "Noita",
+            "x_res": 640,
+            "y_res": 360,
+            "scale": 1,
+            "run_rate": 1,
+            "pause_rate": 0.001,
+            "step_duration": 0.166,
+            "pixels_every_n_episodes": 1,
+        }
+
+    @staticmethod
+    def observation_space() -> gym.spaces.Box:
+        run_config = NoitaEnv._run_config()
+        return gym.spaces.Box(
+            low=0,
+            high=255,
+            shape=(run_config["y_res"], run_config["x_res"], 3),
+            dtype=np.uint8,
+        )
+
+    @staticmethod
+    def _input_space() -> list[tuple[str, ...]]:
+        # TODO: Add mouse velocity as a feature.
+        # TODO: Add inventory (I) as an input.
+        return [
             ("W", "S"),
             ("A", "D"),
             ("F",),
@@ -171,26 +198,16 @@ class NoitaEnv(gym.core.Env):
             ("5", "6", "7", "8"),
             (keyboard.MouseButton.LEFT, keyboard.MouseButton.RIGHT),
         ]
-        self.input_space = [x + (None,) for x in self.input_space]
-        discrete_lens = [len(x) for x in self.input_space]
-        self.action_space = gym.spaces.Tuple(
+
+    @staticmethod
+    def action_space() -> gym.spaces.Tuple:
+        discrete_lens = [len(x) for x in NoitaEnv._input_space()]
+        return gym.spaces.Tuple(
             (
                 gym.spaces.MultiDiscrete(discrete_lens),
                 gym.spaces.Box(low=-1, high=1, shape=(2,)),
             )
         )
-        self.observation_space = gym.spaces.Box(
-            low=0,
-            high=255,
-            shape=(self.run_config["y_res"], self.run_config["x_res"], 3),
-            dtype=np.uint8,
-        )
-
-        self.ep_step = 0
-        self.ep_num = 0
-        self.env_step = 0
-
-        self._reset_env(skip_startup=skip_startup)
 
     @classmethod
     def pre_init(cls, num_envs: int = 1):
