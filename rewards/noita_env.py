@@ -288,7 +288,7 @@ class NoitaEnv(gym.core.Env):
         ]
 
     def _run_init_sequence(self):
-        time.sleep(0.5)
+        time.sleep(2.5)
         # Start the game
         menu_keys = (
             # Enter mod settings
@@ -313,7 +313,7 @@ class NoitaEnv(gym.core.Env):
         self.harness.keyboards[0].move_mouse(10, 10)
         self.harness.keyboards[0].key_sequence(menu_keys)
 
-        time.sleep(4)
+        time.sleep(8)
         """
         # Fly into the mines
         time.sleep(10)
