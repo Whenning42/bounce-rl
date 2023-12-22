@@ -7,6 +7,7 @@
 
 import atexit
 import datetime
+import logging
 import os
 import pathlib
 import signal
@@ -28,6 +29,8 @@ import src.time_writer
 from harness import Harness
 from src.keyboard import lib_mpx_input
 from src.util import GrowingCircularFIFOArray, LinearInterpolator
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
 
 
 @dataclass
@@ -245,6 +248,7 @@ class NoitaEnv(gym.core.Env):
             did_reset = self._try_reset_env(skip_startup=skip_startup)
             if did_reset:
                 return
+            print("WARNING: Failed to reset NoitaEnv. Retrying...")
         raise RuntimeError("Failed to reset NoitaEnv.")
 
     def _try_reset_env(self, skip_startup: bool = False) -> bool:
@@ -350,10 +354,11 @@ class NoitaEnv(gym.core.Env):
         pass
 
     # SB3 expects `done` instead of `terminated` and `truncated`.
-    # def step(self, action: tuple[Iterable, Iterable]) -> tuple[np.ndarray, float, bool, bool, dict]:
     def step(
         self, action: tuple[Iterable, Iterable]
-    ) -> tuple[np.ndarray, float, bool, dict]:
+    ) -> Optional[tuple[np.ndarray, float, bool, dict]]:
+        '''Returns None if the environment is unable to be stepped. In this case
+        the environment should be reset.'''''
         self.ep_step += 1
         self.env_step += 1
 
@@ -390,13 +395,21 @@ class NoitaEnv(gym.core.Env):
         # Step the harness
         # TODO: Move time control into harness
         self.harness.tick()
-        src.time_writer.SetSpeedup(self.run_config["run_rate"], str(self.instance))
-        time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
-        src.time_writer.SetSpeedup(self.run_config["pause_rate"], str(self.instance))
+        init_info = self.noita_info.current_info()
+        retries = 3
+        for i in range(retries):
+            src.time_writer.SetSpeedup(self.run_config["run_rate"], str(self.instance))
+            time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
+            src.time_writer.SetSpeedup(self.run_config["pause_rate"], str(self.instance))
+            info = self.noita_info.on_tick()
+            if info["tick"] != init_info["tick"]:
+                break
+            if i == retries - 1:
+                logging.warning("NoitaEnv: Failed to step the environment.")
+                return None
         pixels = self.harness.get_screen()
 
         # Compute step values
-        info = self.info_callback.on_tick()
         reward = self.reward_callback.update(info)
         terminated = not info["is_alive"]
         truncated = False
@@ -441,7 +454,7 @@ class NoitaEnv(gym.core.Env):
         """Seed isn't yet implemented. Options are ignored."""
         self._reset_env()
         pixels = self.harness.get_screen()
-        info = self.info_callback.on_tick()
+        info = self.noita_info.on_tick()
         # return pixels, info
         return pixels
 
