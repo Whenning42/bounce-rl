@@ -500,6 +500,7 @@ class Proxy:
                         break
 
     def cleanup_from_client(self, mirror_socket, rs):
+        rs.close()
         mirror_socket.close()
         self.sockets.remove(rs)
         self.sockets.remove(mirror_socket.get_socket())
@@ -508,6 +509,7 @@ class Proxy:
 
     def cleanup_from_server(self, mirror_socket, rs):
         rs.close()
+        mirror_socket.close()
         self.sockets.remove(rs)
         self.sockets.remove(mirror_socket.get_socket())
         self.mirrors.pop(rs, None)
