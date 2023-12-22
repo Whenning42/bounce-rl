@@ -54,9 +54,11 @@ function LogStats()
     if wallet == nil then print("Nil wallet") return end
     local gold = ComponentGetValue(wallet, "money") + ComponentGetValue(wallet, "money_spent")
 
+    local tick_id = GameGetFrameNum()
+
     -- Write to file
     local file = io.open(PIPE_DIR .. "/noita_stats.tsv", "a")
-    file:write(string.format("%s\t%d\t%d\t%d\t%d\t%d\n", biome, hp, max_hp, gold, x, y))
+    file:write(string.format("%s\t%d\t%d\t%d\t%d\t%d\t%d\n", biome, hp, max_hp, gold, x, y, tick_id))
     file:close()
 end
 
