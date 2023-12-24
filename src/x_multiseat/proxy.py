@@ -466,6 +466,9 @@ class Proxy:
                     self.display_connections.add(display_connection)
                     continue
                 else:
+                    if rs not in self.sockets:
+                        continue
+
                     mirror_socket = self.mirrors.get(rs, None)
                     if mirror_socket is None:
                         assert False, "No mirror"
