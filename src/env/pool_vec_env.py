@@ -72,7 +72,6 @@ class PoolVecEnv:
             if r is None:
                 self._reset_live_env(i)
                 results[i] = self.live_envs[i].step(actions[i])
-        print(results)
         obs, rews, dones, infos = zip(*results)
         for i, done in enumerate(dones):
             if done:
