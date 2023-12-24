@@ -276,6 +276,7 @@ class Harness(object):
         self.kill_subprocesses()
         for kb in self.keyboards:
             kb.cleanup()
+        self.display.close()
         for k, v in list(window_owners.items()):
             if v is self:
                 del window_owners[k]
