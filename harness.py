@@ -40,14 +40,14 @@ def handle_error(*args):
 
 # Caller has to unpack the property return value.
 # For "_NET_WM_PID" property, it's an array of ints. For other types I'm not sure.
-def query_window_property(display, window, property_name, property_type):
+def query_window_property(display, window, property_name, property_type) -> list[int]:
     property_name_atom = display.get_atom(property_name)
     try:
         result = window.get_full_property(property_name_atom, property_type)
         if result:
-            return result.value
+            return list(result.value)
     except Xlib.error.BadWindow:
-        return -1
+        return [-1]
 
 
 # A no-op error handler.
