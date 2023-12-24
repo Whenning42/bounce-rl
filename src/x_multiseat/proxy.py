@@ -338,6 +338,16 @@ class EventReplyParser:
         self.anc_data = []
 
 
+def cleanup_anc_data(anc_data):
+    for cmsg in anc_data:
+        if cmsg[0] != socket.SOL_SOCKET or cmsg[1] != socket.SCM_RIGHTS:
+            continue
+        fd_bytes = cmsg[2]
+        for i in range(0, len(fd_bytes), 4):
+            fd = struct.unpack("i", fd_bytes[i : i + 4])[0]
+            os.close(fd)
+
+
 class XServerToClientStream:
     def __init__(self, socket, request_codes: dict):
         self.offset = 0
@@ -347,6 +357,7 @@ class XServerToClientStream:
 
     def sendmsg(self, buffers, anc_data):
         self.socket.sendmsg(buffers, anc_data)
+        cleanup_anc_data(anc_data)
         return
 
         self.byte_stream.consume_anc(anc_data)
@@ -394,6 +405,7 @@ class XClientToServerStream:
                 f"Processing anc_data, data len: {sum([len(b) for b in buffers])}"
             )
             self.socket.sendmsg(buffers, anc_data)
+            cleanup_anc_data(anc_data)
             return
 
         for data in buffers:
