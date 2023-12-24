@@ -70,8 +70,12 @@ class PoolVecEnv:
         # Reset failed environments.
         for i, r in enumerate(results):
             if r is None:
-                self._reset_live_env(i)
-                results[i] = self.live_envs[i].step(actions[i])
+                new_result = None
+                while new_result is None:
+                    self._reset_live_env(i)
+                    new_result = self.live_envs[i].step(actions[i])
+                results[i] = new_result
+
         obs, rews, dones, infos = zip(*results)
         for i, done in enumerate(dones):
             if done:
