@@ -26,6 +26,10 @@ Display* open_display(char* display_name) {
     return XOpenDisplay(display_name);
 }
 
+void close_display(Display* display) {
+    XCloseDisplay(display);
+}
+
 void make_cursor(Display* display, char* cursor_name) {
     XIAddMasterInfo add;
     add.type = XIAddMaster;
