@@ -68,6 +68,7 @@ void CleanupImageCapture(capture_t capture_h) {
     XDestroyImage(capture->image);
     shmdt(capture->shminfo.shmaddr);
     shmctl(capture->shminfo.shmid, IPC_RMID, 0);
+    XCloseDisplay(capture->display);
     free(capture);
 }
 
