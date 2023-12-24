@@ -367,9 +367,6 @@ class XServerToClientStream:
         # TODO: Implement filtering.
         return message
 
-    def close(self):
-        self.byte_stream.socket.close()
-
     def get_socket(self):
         return self.byte_stream.socket
 
@@ -401,9 +398,6 @@ class XClientToServerStream:
 
         for data in buffers:
             self.consume(data)
-
-    def close(self):
-        self.socket.close()
 
     def get_socket(self):
         return self.socket
@@ -438,7 +432,9 @@ class Proxy:
     def run(self):
         global first_stream
         while True:
-            read, _, _ = select.select(self.sockets, [], [])
+            read, wait, exceptions = select.select(self.sockets, [], self.sockets)
+            if len(exceptions) > 0:
+                logging.debug("Found %s exception state sockets.", len(exceptions))
             for rs in read:
                 if rs is self.client_socket:
                     # Create sockets for the client connection and display connection.
@@ -451,6 +447,8 @@ class Proxy:
                         socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1
                     )
                     display_connection.connect(_display_path(self.server_display))
+                    print("Open socket:", client_connection)
+                    print("Open socket:", display_connection)
 
                     self.sockets.append(client_connection)
                     self.sockets.append(display_connection)
@@ -466,7 +464,7 @@ class Proxy:
                         first_stream = self.mirrors[display_connection]
                     self.client_connections.add(client_connection)
                     self.display_connections.add(display_connection)
-                    break
+                    continue
                 else:
                     mirror_socket = self.mirrors.get(rs, None)
                     if mirror_socket is None:
@@ -477,7 +475,7 @@ class Proxy:
                     except ConnectionResetError:
                         logging.info("ConnectionReset cleanup")
                         self.cleanup_from_client(mirror_socket, rs)
-                        break
+                        continue
 
                     # assert (flags & socket.MSG_TRUNC == 0) and (
                     #     flags & socket.MSG_CTRUNC == 0
@@ -490,26 +488,34 @@ class Proxy:
                     if len(recv_data) == 0:
                         logging.info("Connection closed cleanup")
                         self.cleanup_from_client(mirror_socket, rs)
-                        break
+                        continue
 
                     try:
                         mirror_socket.sendmsg([recv_data], anc_data)
                     except BrokenPipeError:
                         logging.info("Client connection broken")
                         self.cleanup_from_server(mirror_socket, rs)
-                        break
+                        continue
 
     def cleanup_from_client(self, mirror_socket, rs):
+        print("Close socket:", rs)
+        print("Close socket:", mirror_socket.get_socket())
+        rs.shutdown(socket.SHUT_RDWR)
+        mirror_socket.get_socket().shutdown(socket.SHUT_RDWR)
         rs.close()
-        mirror_socket.close()
+        mirror_socket.get_socket().close()
         self.sockets.remove(rs)
         self.sockets.remove(mirror_socket.get_socket())
         self.mirrors.pop(rs, None)
         self.mirrors.pop(mirror_socket, None)
 
     def cleanup_from_server(self, mirror_socket, rs):
+        print("Close socket:", rs)
+        print("Close socket:", mirror_socket.get_socket())
+        rs.shutdown(socket.SHUT_RDWR)
+        mirror_socket.get_socket().shutdown(socket.SHUT_RDWR)
         rs.close()
-        mirror_socket.close()
+        mirror_socket.get_socket().close()
         self.sockets.remove(rs)
         self.sockets.remove(mirror_socket.get_socket())
         self.mirrors.pop(rs, None)
