@@ -296,7 +296,7 @@ class NoitaEnv(gym.core.Env):
         while not self.harness.ready:
             self.harness.tick()
             time.sleep(1)
-            if (datetime.datetime.now() - init_watch_dog).total_seconds() > 25:
+            if (datetime.datetime.now() - init_watch_dog).total_seconds() > 45:
                 print("Harness init timed out.")
                 return False
         return True
