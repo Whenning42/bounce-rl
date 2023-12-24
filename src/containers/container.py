@@ -79,11 +79,11 @@ def launch_process_container(
     env["PID_OFFSET"] = str(pid_offset)
     cmd = (
         shlex.split(
-            f"unshare -U --map-user={os.getuid()} --map-group={os.getgid()} --mount-proc --fork --pid"
+            f"unshare -U --map-user={os.getuid()} --map-group={os.getgid()} --mount-proc --fork --pid --kill-child"
         )
         + cmd
     )
     p = subprocess.Popen(cmd, cwd=directory, env=env)
     cmd_pid = get_child_pid(p.pid)
     pidns = get_pid_ns(cmd_pid)
-    return cmd_pid, PIDMapper(pidns)
+    return p.pid, cmd_pid, PIDMapper(pidns)
