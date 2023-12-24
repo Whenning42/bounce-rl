@@ -459,8 +459,6 @@ class Proxy:
                         socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1
                     )
                     display_connection.connect(_display_path(self.server_display))
-                    print("Open socket:", client_connection)
-                    print("Open socket:", display_connection)
 
                     self.sockets.append(client_connection)
                     self.sockets.append(display_connection)
