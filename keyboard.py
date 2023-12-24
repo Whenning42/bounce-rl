@@ -80,8 +80,11 @@ class Keyboard(object):
         self.held_keys: set[str] = set()
         self.held_mouse_buttons: set[MouseButton] = set()
 
-        run_failsafe = threading.Thread(target=self._run_failsafe, args=(), kwargs={})
-        run_failsafe.start()
+        self.should_run_failsafe = True
+        self.failsafe_thread = threading.Thread(
+            target=self._run_failsafe, args=(), kwargs={}
+        )
+        self.failsafe_thread.start()
 
     # Allows the user to press ctrl-shift-9 to kill the program.
     def _run_failsafe(self) -> None:
@@ -107,7 +110,7 @@ class Keyboard(object):
         root = self.py_xlib_display.screen().root
         root.xinput_select_events(event_masks)
 
-        while True:
+        while self.should_run_failsafe:
             event = self.py_xlib_display.next_event()
             if event.type == self.py_xlib_display.extension_event.GenericEvent:
                 if (
@@ -241,4 +244,5 @@ class Keyboard(object):
 
     def cleanup(self):
         self.lib_mpx_input.close_display(self.display)
-
+        self.should_run_failsafe = False
+        self.failsafe_thread.join()
