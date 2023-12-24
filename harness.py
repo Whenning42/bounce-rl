@@ -65,6 +65,9 @@ class Harness(object):
         y_pos: int = 0,
         environment: dict = None,
     ):
+        logging.debug("Starting harness instance: %s", instance)
+
+
         self.app_config = app_config
         self.run_config = run_config
         self.instance = instance
@@ -111,7 +114,7 @@ class Harness(object):
         logging.debug("kill subprocess")
         for pid in self.subprocess_pids:
             logging.debug("Killing subprocess: %s", pid)
-            os.kill(pid, signal.SIGTERM)
+            os.kill(pid, signal.SIGKILL)
 
     def window_closed(self, window_id):
         global window_owners
@@ -148,11 +151,11 @@ class Harness(object):
         directory = directory_template.substitute(i=self.instance)
         if directory == "":
             directory = None
-        pid, pid_mapper = container.launch_process_container(
-            split_command, directory, env, pid_offset=50 * self.instance
+        unshare_pid, cmd_pid, pid_mapper = container.launch_process_container(
+            split_command, directory, env, pid_offset=1000 * self.instance
         )
-        logging.debug("Started subprocess: %s", id)
-        self.subprocess_pids.append(pid)
+        logging.debug("Started subprocess: %s", unshare_pid)
+        self.subprocess_pids.append(unshare_pid)
         self.pid_mapper = pid_mapper
 
     # Return True if the window's process is a descendant any of the child_pids.
@@ -168,13 +171,19 @@ class Harness(object):
         logging.debug("Got window pid: %s", window_pid)
         # The _NET_WM_PID will be a pid in the container namespace. We need to map it
         # back to the host pid namespace.
-        window_pid = self.pid_mapper.get(window_pid)
-        window_ps = psutil.Process(window_pid)
+        host_pid = self.pid_mapper.get(window_pid)
+        window_ps = psutil.Process(host_pid)
+
+        is_owned = False
+        # is_owned = self.instance * 1000 + 8 == window_pid
         while window_ps is not None:
             if window_ps.pid in child_pids:
-                return True
+                is_owned = True
+                break
             window_ps = window_ps.parent()
-        return False
+
+        logging.debug("Is owned query: instance: %s, window: %s, window_pid: %s, mapped_pid: %s, is_owned: %s", self.instance, window.id, window_pid, host_pid, is_owned)
+        return is_owned
 
     def get_all_windows_with_name(name, parent, matches):
         try:
@@ -208,10 +217,14 @@ class Harness(object):
                 self.app_config["window_title"],
             )
 
+        owned_ids = [w.id for w in owned_windows]
         for w in owned_windows:
             if w not in self.windows:
-                # Make sure we haven't opened too many instances
-                assert None in self.windows
+                if None not in self.windows:
+                    logging.error(
+                        "Harness %s found too many seemingly owned windows: %s", self.instance, owned_ids
+                    )
+                    break
 
                 loc = self.windows.index(None)
                 x = int(
