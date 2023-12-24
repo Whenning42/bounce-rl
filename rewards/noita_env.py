@@ -234,6 +234,7 @@ class NoitaEnv(gym.core.Env):
                 lib_mpx.delete_cursor(
                     display, lib_mpx_input.cursor_name(i).encode("utf-8")
                 )
+            lib_mpx.close_display(display)
 
         atexit.register(cleanup_cursors)
         signal.signal(signal.SIGINT, proxy_proc.kill)
