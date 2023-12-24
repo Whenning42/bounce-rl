@@ -284,6 +284,7 @@ class NoitaEnv(gym.core.Env):
         self.state = NoitaState.UNKNOWN
         harness_init = self._wait_for_harness_init()
         if not harness_init:
+            self.harness.cleanup()
             del self.harness
             return False
         self._env_init(skip_startup=skip_startup)
