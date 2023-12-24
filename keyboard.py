@@ -240,4 +240,5 @@ class Keyboard(object):
         self.held_mouse_buttons = mouse_buttons
 
     def cleanup(self):
-        pass
+        self.lib_mpx_input.close_display(self.display)
+
