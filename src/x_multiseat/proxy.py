@@ -498,8 +498,6 @@ class Proxy:
                         continue
 
     def cleanup_from_client(self, mirror_socket, rs):
-        print("Close socket:", rs)
-        print("Close socket:", mirror_socket.get_socket())
         rs.shutdown(socket.SHUT_RDWR)
         mirror_socket.get_socket().shutdown(socket.SHUT_RDWR)
         rs.close()
@@ -510,8 +508,6 @@ class Proxy:
         self.mirrors.pop(mirror_socket, None)
 
     def cleanup_from_server(self, mirror_socket, rs):
-        print("Close socket:", rs)
-        print("Close socket:", mirror_socket.get_socket())
         rs.shutdown(socket.SHUT_RDWR)
         mirror_socket.get_socket().shutdown(socket.SHUT_RDWR)
         rs.close()
