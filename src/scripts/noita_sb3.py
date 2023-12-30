@@ -30,6 +30,10 @@ def PPO(out_dir, env, seed=0, n_steps=2048, ent_coef=0.01):
         seed=seed,
         n_steps=n_steps,
         ent_coef=ent_coef,
+        n_epochs=4,
+        target_kl=.03,
+        learning_rate=4e-5,
+        batch_size=128
     )
 
 
