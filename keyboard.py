@@ -111,17 +111,20 @@ class Keyboard(object):
         root.xinput_select_events(event_masks)
 
         while self.should_run_failsafe:
-            event = self.py_xlib_display.next_event()
-            if event.type == self.py_xlib_display.extension_event.GenericEvent:
-                if (
-                    event.data["detail"]
-                    == self.py_xlib_display.keysym_to_keycode(keysym_for_key_name("9"))
-                    and event.data["mods"]["effective_mods"] & Xlib.X.ShiftMask
-                    and event.data["mods"]["effective_mods"] & Xlib.X.ControlMask
-                ):
-                    print("Exiting due to failsafe keypress")
-                    _thread.interrupt_main()
-                    return
+            p = self.py_xlib_display.pending_events()
+            for i in range(p):
+                event = self.py_xlib_display.next_event()
+                if event.type == self.py_xlib_display.extension_event.GenericEvent:
+                    if (
+                        event.data["detail"]
+                        == self.py_xlib_display.keysym_to_keycode(keysym_for_key_name("9"))
+                        and event.data["mods"]["effective_mods"] & Xlib.X.ShiftMask
+                        and event.data["mods"]["effective_mods"] & Xlib.X.ControlMask
+                    ):
+                        print("Exiting due to failsafe keypress")
+                        _thread.interrupt_main()
+                        return
+            time.sleep(.5)
 
     def _mask_keymap(keymap):
         keymap[0] = 0  # reserved
