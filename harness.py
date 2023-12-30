@@ -275,6 +275,8 @@ class Harness(object):
         atexit.unregister(self.kill_subprocesses)
         self.kill_subprocesses()
         for kb in self.keyboards:
+            if kb is None:
+                continue
             kb.cleanup()
         self.display.close()
         for k, v in list(window_owners.items()):
