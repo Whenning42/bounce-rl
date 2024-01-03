@@ -12,6 +12,7 @@
 # and then coping the long hex string printed and running
 #   $ xauth add :1 . $HEX_STRING
 
+import argparse
 import atexit
 import logging
 import os
@@ -19,6 +20,7 @@ import select
 import signal
 import socket
 import struct
+import sys
 from collections.abc import Iterable
 
 logging.basicConfig(level=logging.WARNING)
@@ -419,9 +421,25 @@ def _display_path(display_num):
     return "/tmp/.X11-unix/X" + str(display_num)
 
 
+def parse_display(display_spec: str) -> int:
+    split_spec = display_spec.split(":")
+    if len(split_spec) == 2:
+        host = split_spec[0]
+    else:
+        host = ""
+    display = split_spec[-1]
+    assert host == "", "We don't support remote proxies"
+
+    display_split = display.split(".")
+    display_num = display_split[0]
+    return int(display_num)
+
+
 class Proxy:
-    def __init__(self, client_display_num=1, server_display_num=0):
+    def __init__(self, client_display_num: int, server_display: str):
+        print(f"Hosting proxy on {client_display_num}")
         self.client_display = client_display_num
+        server_display_num = parse_display(server_display)
         self.server_display = server_display_num
 
         self.client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -433,8 +451,8 @@ class Proxy:
         signal.signal(signal.SIGHUP, lambda signum, frame: os.remove(x_conn_path))
         self.client_socket.listen(200)
 
-        self.client_connections = set()
-        self.display_connections = set()
+        self.client_connections: set[socket.socket] = set()
+        self.display_connections: set[socket.socket] = set()
 
         self.sockets = [self.client_socket]
         self.mirrors = {}
@@ -540,5 +558,23 @@ class Proxy:
                 pass
 
 
-proxy = Proxy()
-proxy.run()
+if __name__ == "__main__":
+    print("Proxy was given argv:", sys.argv, flush=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--proxy_display",
+        type=int,
+        required=True,
+        help="The X11 display the proxy will serve traffic for.",
+    )
+    parser.add_argument(
+        "--real_display",
+        type=str,
+        required=True,
+        help="The X11 display the proxy is backed by.",
+    )
+    args = parser.parse_args()
+
+    print(f"Proxying display: {args.proxy_display} to {args.real_display}", flush=True)
+    proxy = Proxy(args.proxy_display, args.real_display)
+    proxy.run()

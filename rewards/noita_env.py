@@ -216,7 +216,7 @@ class NoitaEnv(gym.core.Env):
     def pre_init(cls, num_envs: int = 1):
         """Should be called before any NoitaEnv instances are created.
 
-        Starts the x proxy."""
+        Sets up the MPX cursors"""
 
         if cls.singleton_init:
             raise RuntimeError("NoitaEnv.pre_init has already been called.")
@@ -226,9 +226,6 @@ class NoitaEnv(gym.core.Env):
         for i in range(num_envs):
             lib_mpx.make_cursor(display, lib_mpx_input.cursor_name(i).encode("utf-8"))
 
-        proxy_proc = subprocess.Popen(["python", "src/x_multiseat/proxy.py"])
-        atexit.register(proxy_proc.kill)
-
         def cleanup_cursors():
             for i in range(num_envs):
                 lib_mpx.delete_cursor(
@@ -237,9 +234,6 @@ class NoitaEnv(gym.core.Env):
             lib_mpx.close_display(display)
 
         atexit.register(cleanup_cursors)
-        signal.signal(signal.SIGINT, proxy_proc.kill)
-        signal.signal(signal.SIGTERM, proxy_proc.kill)
-        signal.signal(signal.SIGHUP, proxy_proc.kill)
         cls.singleton_init = True
 
     def _reset_env(self, skip_startup: bool = False):

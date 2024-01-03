@@ -131,16 +131,22 @@ class Harness(object):
         assert False
 
     def open_new_window(self):
+        logging.debug("Opening window.")
         env = os.environ.copy()
+        host_x_display = env.get("DISPLAY", ":0.0")
         env.update(self.environment)
+        use_x_proxy = self.app_config.get("use_x_proxy", False)
 
         if not self.app_config.get("disable_time_control", False):
             env["LD_PRELOAD"] = "libtime_control.so"
         if sys.prefix != sys.base_prefix:
             # Drop the virtualenv path for child process
             env["PATH"] = ":".join(env["PATH"].split(":")[1:])
-        if self.app_config.get("use_x_proxy", False):
-            env["DISPLAY"] = ":1"
+        if use_x_proxy:
+            x_id = 10 + self.instance
+            env["DISPLAY"] = f":{x_id}"
+            subprocess.run(shlex.split(f"rm -f /tmp/.X11-unix/X{x_id}"))
+
         # Only necessary for lutris envs, but is harmless in other envs
         env["LUTRIS_SKIP_INIT"] = "1"
         if self.instance is not None:
@@ -151,10 +157,22 @@ class Harness(object):
         directory = directory_template.substitute(i=self.instance)
         if directory == "":
             directory = None
-        unshare_pid, cmd_pid, pid_mapper = container.launch_process_container(
-            split_command, directory, env, pid_offset=1000 * self.instance
+
+        logging.debug("Start proxy: %s, %s", x_id, host_x_display)
+        commands = self.app_config["command"]
+        if use_x_proxy:
+            commands = (
+                f"python src/x_multiseat/proxy.py --proxy_display {x_id} --real_display {host_x_display} & "
+                + "sleep 3 && "
+                + commands
+            )
+        unshare_pid, init_pid, pid_mapper = container.launch_process_container(
+            commands,
+            directory,
+            env,
+            pid_offset=1000 * self.instance,
         )
-        logging.debug("Started subprocess: %s", unshare_pid)
+        logging.debug("Started unshare subprocess: %s", unshare_pid)
         self.subprocess_pids.append(unshare_pid)
         self.pid_mapper = pid_mapper
 
