@@ -1,7 +1,7 @@
 import os
 import shlex
 import subprocess
-from typing import Optional
+from typing import Dict, Optional
 
 
 def _run_cmd(cmd: str, stderr_devnull=False) -> str:
@@ -32,7 +32,7 @@ def get_pid_ns(pid: int) -> int:
 class PIDMapper:
     def __init__(self, pidns: int):
         self.pidns = pidns
-        self._pid_map = {}
+        self._pid_map: Dict[int, int] = {}
 
     def _refresh(self):
         self._pid_map = {}

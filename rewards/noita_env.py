@@ -30,7 +30,7 @@ from harness import Harness
 from src.keyboard import lib_mpx_input
 from src.util import GrowingCircularFIFOArray, LinearInterpolator
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 
 
 @dataclass
@@ -359,8 +359,8 @@ class NoitaEnv(gym.core.Env):
     def step(
         self, action: tuple[Iterable, Iterable]
     ) -> Optional[tuple[np.ndarray, float, bool, dict]]:
-        '''Returns None if the environment is unable to be stepped. In this case
-        the environment should be reset.'''''
+        """Returns None if the environment is unable to be stepped. In this case
+        the environment should be reset.""" ""
         self.ep_step += 1
         self.env_step += 1
 
@@ -385,7 +385,7 @@ class NoitaEnv(gym.core.Env):
         self.harness.keyboards[0].set_held_mouse_buttons(held_mouse_buttons)
         # There are 9 inputs, so they're likely normalized w/ std 1/root(9).
         # We scale the outputs back here.
-        continuous_action = [c*3 for c in continuous_action]
+        continuous_action = [c * 3 for c in continuous_action]
         # Rescale to 0-1
         continuous_action = [(c + 1) / 2 for c in continuous_action]
         mouse_pos = (
@@ -402,7 +402,9 @@ class NoitaEnv(gym.core.Env):
         for i in range(retries):
             src.time_writer.SetSpeedup(self.run_config["run_rate"], str(self.instance))
             time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
-            src.time_writer.SetSpeedup(self.run_config["pause_rate"], str(self.instance))
+            src.time_writer.SetSpeedup(
+                self.run_config["pause_rate"], str(self.instance)
+            )
             info = self.noita_info.on_tick()
             if info["tick"] != init_info["tick"]:
                 break

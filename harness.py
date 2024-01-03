@@ -8,6 +8,7 @@ import string
 import subprocess
 import sys
 import time
+from typing import Optional
 
 import numpy as np
 import psutil
@@ -22,7 +23,7 @@ import keyboard
 import src.containers.container as container
 import util
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(message)s')
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 
 
 REOPEN_CLOSED_WINDOWS = False
@@ -63,10 +64,9 @@ class Harness(object):
         instance=0,
         x_pos: int = 0,
         y_pos: int = 0,
-        environment: dict = None,
+        environment: Optional[dict] = None,
     ):
         logging.debug("Starting harness instance: %s", instance)
-
 
         self.app_config = app_config
         self.run_config = run_config
@@ -182,7 +182,14 @@ class Harness(object):
                 break
             window_ps = window_ps.parent()
 
-        logging.debug("Is owned query: instance: %s, window: %s, window_pid: %s, mapped_pid: %s, is_owned: %s", self.instance, window.id, window_pid, host_pid, is_owned)
+        logging.debug(
+            "Is owned query: instance: %s, window: %s, window_pid: %s, mapped_pid: %s, is_owned: %s",
+            self.instance,
+            window.id,
+            window_pid,
+            host_pid,
+            is_owned,
+        )
         return is_owned
 
     def get_all_windows_with_name(name, parent, matches):
@@ -222,7 +229,9 @@ class Harness(object):
             if w not in self.windows:
                 if None not in self.windows:
                     logging.error(
-                        "Harness %s found too many seemingly owned windows: %s", self.instance, owned_ids
+                        "Harness %s found too many seemingly owned windows: %s",
+                        self.instance,
+                        owned_ids,
                     )
                     break
 
