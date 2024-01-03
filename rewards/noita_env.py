@@ -398,7 +398,7 @@ class NoitaEnv(gym.core.Env):
         # TODO: Move time control into harness
         self.harness.tick()
         init_info = self.noita_info.current_info()
-        retries = 3
+        retries = 20
         for i in range(retries):
             src.time_writer.SetSpeedup(self.run_config["run_rate"], str(self.instance))
             time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
@@ -409,7 +409,10 @@ class NoitaEnv(gym.core.Env):
             if info["tick"] != init_info["tick"]:
                 break
             if i == retries - 1:
-                logging.warning("NoitaEnv: Failed to step the environment.")
+                logging.warning(
+                    "NoitaEnv: Failed to step the environment on instance: %s.",
+                    self.instance,
+                )
                 return None
         pixels = self.harness.get_screen()
 
