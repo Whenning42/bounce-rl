@@ -33,8 +33,12 @@ export SteamGameId="lutris-game"
 export WINE_LARGE_ADDRESS_AWARE="1"
 export TERM="xterm"
 
+function log {                                                                                                                                                
+    echo $(date --rfc-3339=seconds) RUN_NOITA: $@                                                                                                                        
+}                                                                                                                                                             
 
-echo "Running offset: $PID_OFFSET"
+log "Running on display: $DISPLAY"
+log "Running offset: $PID_OFFSET"
 for i in $(seq 1 $PID_OFFSET); do
     touch "/tmp/noop.txt"
 done
@@ -44,7 +48,7 @@ done
 if [[ "$WINEPREFIX" == "$MAIN_SAVE" ]]; then
     :
 else
-    echo "Setting up prefix: $WINEPREFIX"
+    log "Setting up prefix: $WINEPREFIX"
     rm -rf $WINEPREFIX
     mkdir -p $WINEPREFIX
     cp -r $MAIN_SAVE/* $WINEPREFIX
@@ -61,4 +65,6 @@ cd /home/william/.steam/steam/steamapps/common/Noita
 '/home/william/.local/share/Steam/steamapps/common/Proton 8.0/dist/bin/wine' /home/william/.steam/steam/steamapps/common/Noita/noita.exe &
 trap "kill $(jobs -p)" EXIT
 wait
+
+log "Exiting from run_noita.sh"
 
