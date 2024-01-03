@@ -17,7 +17,7 @@ Logged files are:
 
 math.randomseed(os.time())
 PIPE_DIR = os.getenv("ENV_PREFIX")
-STATS_EVERY_N_FRAMES = 15
+STATS_EVERY_N_FRAMES = 2
 print(" ======== Piping output to: " .. PIPE_DIR .. " ========")
 
 function GetPlayer()
