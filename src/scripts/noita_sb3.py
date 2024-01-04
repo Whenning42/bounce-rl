@@ -62,7 +62,7 @@ def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8, num_envs=4):
 
     callback_nsteps = 30000
     eval_callback = stable_baselines3.common.callbacks.EvalCallback(
-        eval_env,
+        env,
         eval_freq=callback_nsteps,
         log_path=out_dir,
         n_eval_episodes=3,
