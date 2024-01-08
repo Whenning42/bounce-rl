@@ -10,6 +10,7 @@ import datetime
 import logging
 import os
 import pathlib
+import pickle
 import signal
 import subprocess
 import time
@@ -20,6 +21,7 @@ from typing import Any, Callable, Iterable, Optional
 import gym
 import numpy as np
 import PIL.Image
+import turbojpeg
 
 import configs.app_configs as app_configs
 import keyboard
@@ -31,6 +33,7 @@ from src.keyboard import lib_mpx_input
 from src.util import GrowingCircularFIFOArray, LinearInterpolator
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
+jpeg = turbojpeg.TurboJPEG()
 
 
 @dataclass
@@ -120,6 +123,7 @@ class NoitaEnv(gym.core.Env):
         x_pos: int = 0,
         y_pos: int = 0,
         instance: int = 0,
+        log_pixels: bool = False,
     ):
         # In a multiprocessing setup, pre_init has been called, but not in process.
         # if not self.singleton_init:
@@ -136,6 +140,7 @@ class NoitaEnv(gym.core.Env):
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.instance = instance
+        self.log_pixels = log_pixels
         self.run_config: dict[str, Any] = NoitaEnv._run_config()
         self.app_config = app_configs.LoadAppConfig(self.run_config["app"])
         self.environment = {
@@ -435,6 +440,8 @@ class NoitaEnv(gym.core.Env):
         # Save actions
         np.save(f"{self.step_dir}/action_{self.ep_step}.npy", orig_action)
 
+        self._log_step(action, step_val)
+
         # return pixels, reward, terminated, truncated, info
         return (
             step_val.pixels,
@@ -455,6 +462,40 @@ class NoitaEnv(gym.core.Env):
 
     def run_info(self):
         return {"episode_step": self.ep_step, "environment_step": self.env_step}
+
+    def _current_step_dir(self) -> str:
+        chunk = self.env_step // 10000
+        chunk_dir = f"{self.out_dir}/step_chunk_{chunk}"
+        pathlib.Path(chunk_dir).mkdir(parents=True, exist_ok=True)
+        return chunk_dir
+
+    def _log_step(self, action: np.ndarray, step_val: StepVal):
+        step_dir = self._current_step_dir()
+
+        pixels_filename = step_dir + f"/{self.env_step}_pixels.jpg"
+        action_filename = step_dir + f"/{self.env_step}_action.npy"
+        reward_filename = step_dir + f"/{self.env_step}_reward.npy"
+        info_filename = step_dir + f"/{self.env_step}_info.pkl"
+        step_filename = step_dir + f"/{self.env_step}_step.pkl"
+
+        np.save(reward_filename, np.array([step_val.reward]))
+        np.save(action_filename, action)
+        step_info = {
+            "ep_step": self.ep_step,
+            "ep_num": self.ep_num,
+            "env_step": self.env_step,
+            "terminated": step_val.terminated,
+            "truncated": step_val.truncated,
+        }
+        # fmt: off
+        with open(info_filename, "wb") as info_file, \
+             open(step_filename, "wb") as step_file:
+             # fmt: on
+            pickle.dump(step_val.info, info_file)
+            pickle.dump(step_info, step_file)
+        if self.log_pixels:
+            with open(pixels_filename, "wb") as pixels_file:
+                pixels_file.write(jpeg.encode(step_val.pixels, quality=92))
 
     def pause(self):
         self.harness.keyboards[0].key_sequence(["Escape"])
