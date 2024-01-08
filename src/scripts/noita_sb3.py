@@ -3,9 +3,11 @@
 # The repo's at: https://github.com/Whenning42/stable-baselines3
 # and tuple action space support is added as of commit 4fedd69.
 
+import argparse
 import itertools
 import os
 import pathlib
+import sys
 import time
 
 import gin
@@ -16,19 +18,24 @@ from stable_baselines3.common.vec_env import VecFrameStack
 import rewards.noita_env
 from src.env.pool_vec_env import PoolVecEnv
 
+parser = argparse.ArgumentParser(description="Train a PPO agent on Noita.")
+parser.add_argument("--out_dir", type=str, required=True)
+parser.add_argument("--exp_name", type=str, required=True)
+
 discrete = False
 
 
 @gin.configurable
-def PPO(out_dir, env, seed=0, n_steps=2048, ent_coef=0.01):
+def PPO(tensorboard_out_dir, env, seed=0, n_steps=2048, ent_coef=0.01):
     return stable_baselines3.PPO(
         "CnnPolicy",
         env,
         verbose=1,
         device="cuda:0",
-        tensorboard_log=os.path.join(out_dir, "tensorboard_out"),
+        tensorboard_log=tensorboard_out_dir,
         seed=seed,
         n_steps=n_steps,
+        normalize_values=True,
         ent_coef=ent_coef,
         n_epochs=4,
         target_kl=0.03,
@@ -38,17 +45,24 @@ def PPO(out_dir, env, seed=0, n_steps=2048, ent_coef=0.01):
 
 
 @gin.configurable
-def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8, num_envs=4):
-    out_dir = os.path.join(out_dir, str(seed))
-    pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
-
+def run(
+    env_out_dir,
+    tensorboard_out_dir,
+    checkpoint_out_dir,
+    logs_out_dir,
+    n_steps=2048,
+    seed=0,
+    timesteps=1e6,
+    n_stack=4,
+    num_envs=4,
+):
     # Step duration is set to 0.125 in NoitaEnv.
     rewards.noita_env.NoitaEnv.pre_init(num_envs=num_envs)
     env_fns = []
     for i in range(num_envs):
-        env_out = out_dir + f"/env_{i}"
+        env_out = env_out_dir + f"/env_{i}"
         env_fns.append(
-            lambda i=i: rewards.noita_env.NoitaEnv(
+            lambda i=i, env_out=env_out: rewards.noita_env.NoitaEnv(
                 out_dir=env_out, skip_startup=True, x_pos=i, instance=i
             )
         )
@@ -64,16 +78,16 @@ def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8, num_envs=4):
     eval_callback = stable_baselines3.common.callbacks.EvalCallback(
         env,
         eval_freq=callback_nsteps,
-        log_path=out_dir,
+        log_path=logs_out_dir,
         n_eval_episodes=3,
         deterministic=False,
     )
     checkpoint_callback = stable_baselines3.common.callbacks.CheckpointCallback(
-        save_freq=callback_nsteps, save_path=out_dir
+        save_freq=callback_nsteps, save_path=checkpoint_out_dir
     )
 
     # Instantiate the agent.
-    model = PPO(out_dir, env)
+    model = PPO(tensorboard_out_dir, env, n_steps=n_steps, seed=seed)
 
     print("Ready to train with operative config: ", gin.operative_config_str())
     # Frame stack breaks check_env?
@@ -89,13 +103,21 @@ def run(out_dir="out/run/", seed=0, timesteps=1e6, n_stack=8, num_envs=4):
 
 # Move config into a gin file if it grows too big. See sb3_aor.py for an example.
 if __name__ == "__main__":
-    for seed, n_steps in itertools.product((0,), (1000,)):
-        gin.bind_parameter(
-            "run.out_dir",
-            f"disk/out/noita_sb3_ppo_no_reg_par/n_steps_{n_steps}_seed_{seed}",
-        )
-        gin.bind_parameter("run.seed", seed)
-        gin.bind_parameter("PPO.seed", seed)
-        gin.bind_parameter("PPO.n_steps", n_steps)
+    args = parser.parse_args()
+    # Output folder structure:
+    #  out/exp_name/
+    #  out/exp_name/step_data
+    #  out/tensorboard/exp_name
+    #  out/exp_name/checkpoints
+    #  out/exp_name/logs
 
-        run(n_stack=4)
+    exp_dir = os.path.join(args.out_dir, args.exp_name)
+    pathlib.Path(exp_dir).mkdir(parents=True, exist_ok=False)
+    tensorboard_dir = os.path.join(args.out_dir, "tensorboard", args.exp_name)
+    pathlib.Path(tensorboard_dir).mkdir(parents=True, exist_ok=False)
+    checkpoint_dir = os.path.join(exp_dir, "checkpoints")
+    pathlib.Path(checkpoint_dir).mkdir()
+    log_dir = os.path.join(exp_dir, "logs")
+    pathlib.Path(log_dir).mkdir()
+
+    run(exp_dir, tensorboard_dir, checkpoint_dir, log_dir, n_steps=1000)
