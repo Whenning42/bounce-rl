@@ -115,7 +115,7 @@ class NoitaEnv(gym.core.Env):
         pause_rate: float = 0.001,
         env_conf: Optional[dict] = None,
         # Defaults to TerminateOnOverworld and TerminateOnSparseReward
-        step_wrappers: list[Optional[Callable[StepVal, StepVal]]] = None,
+        step_wrappers: list[Optional[Callable[[StepVal], StepVal]]] = None,
         skip_startup: bool = False,
         x_pos: int = 0,
         y_pos: int = 0,
