@@ -1,0 +1,1 @@
+sudo docker run -v /home/william:/home/william -v /tmp/.X11-unix/X0:/tmp/.X11-unix/X0 -it --net=host --privileged --runtime=nvidia -e NVIDIA_DRIVER_CAPABILITIES=all --gpus=all --env="DISPLAY" --volume="$HOME/.Xauthority:/root/.Xauthority:rw" -v /etc/machine-id:/etc/machine-id --shm-size=1g ubuntu_gui
