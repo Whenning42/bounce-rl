@@ -27,4 +27,7 @@ def make_lib_mpx_input():
         void xflush(Display* display);
     """
     )
-    return mpx_input_ffi.dlopen("lib_mpx_input.so"), mpx_input_ffi
+    return (
+        mpx_input_ffi.dlopen("bounce_rl/build/bounce_rl/core/keyboard/libmpx_input.so"),
+        mpx_input_ffi,
+    )

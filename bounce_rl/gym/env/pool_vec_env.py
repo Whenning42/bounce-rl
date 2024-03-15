@@ -14,7 +14,7 @@ import gym
 import numpy as np
 from stable_baselines3.common.vec_env.base_vec_env import VecEnvObs
 
-from src.env.subproc_env import SubprocEnv
+from bounce_rl.gym.env.subproc_env import SubprocEnv
 
 
 class PoolVecEnv:

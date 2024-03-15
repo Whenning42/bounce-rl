@@ -21,6 +21,7 @@ rl-env/*
 rl-venv/*
 models/*
 disk/*
+bounce_rl/build/*
 
 # Minecraft files
 logs/*

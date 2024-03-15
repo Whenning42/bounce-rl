@@ -1,5 +1,8 @@
-import numpy as np
+import json
 from typing import Any
+
+import numpy as np
+
 
 class LinearInterpolator:
     def __init__(self, x_0, x_1, y_0, y_1, extrapolate=False):
@@ -15,18 +18,20 @@ class LinearInterpolator:
             x_p = np.clip(x_p, 0, 1)
         return self.y_0 + x_p * (self.y_1 - self.y_0)
 
+
 class GrowingCircularFIFOArray:
     """A circular array that can grow upon looping. The caller requests the desired
     array size with each push. The requested sizes must monotonically increase."""
+
     def __init__(self, max_size: int, dtype: type = np.float32):
         self.i = 0
-        self.max_requested_size = -float('inf')
+        self.max_requested_size = -float("inf")
 
         self.mask = np.full((max_size,), False)
         self.array = np.empty(max_size)
 
-    def __len__() -> int:
-        return np.sum(self.mask) 
+    def __len__(self) -> int:
+        return np.sum(self.mask)
 
     def get_array(self) -> np.ndarray:
         return self.array[self.mask]
@@ -40,3 +45,27 @@ class GrowingCircularFIFOArray:
         self.mask[self.i] = True
         self.i += 1
         self.max_requested_size = requested_size
+
+
+def LoadJSON(filename):
+    with open(filename) as f:
+        loaded = json.load(f)
+    return loaded
+
+
+import time
+from contextlib import contextmanager
+
+
+@contextmanager
+def TimeBlock(name):
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        interval = time.perf_counter() - start
+        print(f"Block {name} took {interval * 1000:.2f} milliseconds")
+
+
+def npBGRAtoRGB(array):
+    return np.flip(array[:, :, :3], axis=2).copy()

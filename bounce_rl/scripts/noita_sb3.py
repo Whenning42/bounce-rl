@@ -15,8 +15,8 @@ import stable_baselines3
 import stable_baselines3.common.env_checker
 from stable_baselines3.common.vec_env import VecFrameStack
 
-import rewards.noita_env
-from src.env.pool_vec_env import PoolVecEnv
+from bounce_rl.environments.noita import noita_env
+from bounce_rl.gym.env.pool_vec_env import PoolVecEnv
 
 parser = argparse.ArgumentParser(description="Train a PPO agent on Noita.")
 parser.add_argument("--out_dir", type=str, required=True)
@@ -57,12 +57,12 @@ def run(
     num_envs=4,
 ):
     # Step duration is set to 0.125 in NoitaEnv.
-    rewards.noita_env.NoitaEnv.pre_init(num_envs=num_envs)
+    noita_env.NoitaEnv.pre_init(num_envs=num_envs)
     env_fns = []
     for i in range(num_envs):
         env_out = env_out_dir + f"/env_{i}"
         env_fns.append(
-            lambda i=i, env_out=env_out: rewards.noita_env.NoitaEnv(
+            lambda i=i, env_out=env_out: noita_env.NoitaEnv(
                 out_dir=env_out, skip_startup=True, x_pos=i, instance=i
             )
         )

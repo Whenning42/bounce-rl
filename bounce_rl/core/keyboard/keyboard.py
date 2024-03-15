@@ -21,7 +21,7 @@ import Xlib.XK
 import Xlib.xobject
 from Xlib.ext import xinput
 
-from src.keyboard import lib_mpx_input
+from bounce_rl.core.keyboard import lib_mpx_input
 
 
 def keysym_for_key_name(key_name):
@@ -117,14 +117,16 @@ class Keyboard(object):
                 if event.type == self.py_xlib_display.extension_event.GenericEvent:
                     if (
                         event.data["detail"]
-                        == self.py_xlib_display.keysym_to_keycode(keysym_for_key_name("9"))
+                        == self.py_xlib_display.keysym_to_keycode(
+                            keysym_for_key_name("9")
+                        )
                         and event.data["mods"]["effective_mods"] & Xlib.X.ShiftMask
                         and event.data["mods"]["effective_mods"] & Xlib.X.ControlMask
                     ):
                         print("Exiting due to failsafe keypress")
                         _thread.interrupt_main()
                         return
-            time.sleep(.5)
+            time.sleep(0.5)
 
     def _mask_keymap(keymap):
         keymap[0] = 0  # reserved

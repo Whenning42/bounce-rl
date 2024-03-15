@@ -55,7 +55,7 @@ else
 fi
 
 rm -rf $WINEPREFIX/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save0*
-cp mods/noita/golden_config.xml \
+cp bounce_rl/environments/noita/mod/golden_config.xml \
   $WINEPREFIX/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save_shared/config.xml
 
 # Working Directory

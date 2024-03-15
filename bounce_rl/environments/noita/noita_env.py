@@ -20,17 +20,15 @@ from typing import Any, Callable, Iterable, Optional
 
 import gym
 import numpy as np
-import PIL.Image
 import turbojpeg
 
-import configs.app_configs as app_configs
-import keyboard
-import rewards.noita_info
-import rewards.noita_reward
-import src.time_writer
-from harness import Harness
-from src.keyboard import lib_mpx_input
-from src.util import GrowingCircularFIFOArray, LinearInterpolator
+import bounce_rl.configs.app_configs as app_configs
+from bounce_rl.core.harness import Harness
+from bounce_rl.core.keyboard import keyboard
+from bounce_rl.core.keyboard.keyboard import lib_mpx_input
+from bounce_rl.core.time_control import time_writer
+from bounce_rl.environments.noita import noita_info, noita_reward
+from bounce_rl.utilities.util import GrowingCircularFIFOArray, LinearInterpolator
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 jpeg = turbojpeg.TurboJPEG()
@@ -147,10 +145,8 @@ class NoitaEnv(gym.core.Env):
             "WINEPREFIX": f"/tmp/env_dirs_{self.instance}/wine",
             "ENV_PREFIX": f"/tmp/env_dirs_{self.instance}",
         }
-        self.noita_info = rewards.noita_info.NoitaInfo(
-            pipe_dir=self.environment["ENV_PREFIX"]
-        )
-        self.reward_callback = rewards.noita_reward.NoitaReward()
+        self.noita_info = noita_info.NoitaInfo(pipe_dir=self.environment["ENV_PREFIX"])
+        self.reward_callback = noita_reward.NoitaReward()
 
         if step_wrappers is None:
             step_wrappers = [TerminateOnOverworld(), TerminateOnSparseReward()]
@@ -243,7 +239,7 @@ class NoitaEnv(gym.core.Env):
 
     def _reset_env(self, skip_startup: bool = False):
         # Raises a runtime error if the environment fails to start.
-        src.time_writer.SetSpeedup(1, str(self.instance))
+        time_writer.SetSpeedup(1, str(self.instance))
         for i in range(3):
             did_reset = self._try_reset_env(skip_startup=skip_startup)
             if did_reset:
@@ -311,6 +307,8 @@ class NoitaEnv(gym.core.Env):
         time.sleep(2.5)
         # Start the game
         menu_keys = (
+            # Dismiss changelog
+            "Return",
             # Enter mod settings
             "Down",
             "Down",
@@ -397,11 +395,9 @@ class NoitaEnv(gym.core.Env):
         init_info = self.noita_info.current_info()
         retries = 20
         for i in range(retries):
-            src.time_writer.SetSpeedup(self.run_config["run_rate"], str(self.instance))
+            time_writer.SetSpeedup(self.run_config["run_rate"], str(self.instance))
             time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
-            src.time_writer.SetSpeedup(
-                self.run_config["pause_rate"], str(self.instance)
-            )
+            time_writer.SetSpeedup(self.run_config["pause_rate"], str(self.instance))
             info = self.noita_info.on_tick()
             if info["tick"] != init_info["tick"]:
                 break

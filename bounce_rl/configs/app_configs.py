@@ -106,7 +106,7 @@ app_configs = [
         #  lag spikes in an instance won't/can't affect another instance.
         "disable_time_control": False,
         "directory": "",
-        "command": "./configs/run_noita.sh",
+        "command": "./bounce_rl/configs/run_noita.sh",
         "window_title": "Noita.*",
         "keyboard_config": {
             "sequence_keydown_time": 0.08,

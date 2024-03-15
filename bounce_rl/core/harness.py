@@ -17,11 +17,10 @@ import Xlib.X
 import Xlib.XK
 from Xlib import Xatom, display
 
-import fps_helper
-import image_capture
-import keyboard
-import src.containers.container as container
-import util
+from bounce_rl.core.containers import container
+from bounce_rl.core.image_capture import image_capture
+from bounce_rl.core.keyboard import keyboard
+from bounce_rl.utilities import fps_helper, util
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -162,10 +161,12 @@ class Harness(object):
         commands = self.app_config["command"]
         if use_x_proxy:
             commands = (
-                f"python src/x_multiseat/proxy.py --proxy_display {x_id} --real_display {host_x_display} & "
+                f"python bounce_rl/x_multiseat/proxy.py --proxy_display {x_id} --real_display {host_x_display} & "
                 + "sleep 3 && "
                 + commands
             )
+
+        # TODO: Catch launch errors.
         unshare_pid, init_pid, pid_mapper = container.launch_process_container(
             commands,
             directory,
