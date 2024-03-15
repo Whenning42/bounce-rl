@@ -21,6 +21,21 @@ class NoitaReward:
         self.positions = {}
         self.last_info = None
 
+        """
+        TODO: Consider adding exploration state to the environment's state to make
+              the environment's state more observable. This could be done with an
+              overlay over the game's pixels. Below are some params for calculating
+              the grid.
+
+                SCREEN_WIDTH_COORD = 440
+                SCREEN_HEIGHT_COORD = 248
+                SCREEN_WIDTH_PIX = 640
+                SCREEN_HEIGHT_PIX = 360
+
+                x_orig = info['x'] - SCREEN_WIDTH_COORD / 2
+                y_orig = info['y'] + 
+        """
+
     def update(self, info: dict[str, Any]):
         block_x, block_y = info['x'] // self.BLOCK_SIZE, info['y'] // self.BLOCK_SIZE
         if self.last_info is None:
