@@ -330,11 +330,6 @@ class Harness(object):
         assert self.full_window_capture is not None
         return util.npBGRAtoRGB(self.full_window_capture())
 
-    def _disable_user_input(self):
-        if self.window is not None:
-            self.window.change_attributes(event_mask=Xlib.X.FocusChangeMask)
-            self.display.flush()
-
     # Takes a ROI of format ("x", "y", "w", "h") and returns a function that can
     # be called to capture a np array of the pixels in that region.
     # TODO: Add support for running from multiple instances.
