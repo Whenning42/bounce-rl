@@ -96,20 +96,19 @@ class Harness(object):
         self.root_window.change_attributes(event_mask=Xlib.X.SubstructureNotifyMask)
         self.display.flush()
 
-        self.subprocess_pids = []
+        self.subprocess_pids: list[int] = []
         self.pid_mapper = None
-        atexit.register(self.kill_subprocesses)
-
-        for i in range(window_count):
-            self.open_new_window()
+        atexit.register(self._kill_subprocesses)
 
         self.windows = [None for _ in range(window_count)]
         self.keyboards = [None for _ in range(window_count)]
-        self.captures = []
-        self.full_window_capture = None
+        self.full_window_capture: Optional[image_capture.ImageCapture] = None
         self.ready = False
 
-    def kill_subprocesses(self):
+        for i in range(window_count):
+            self._open_new_window()
+
+    def _kill_subprocesses(self):
         logging.debug("kill subprocess")
         for pid in self.subprocess_pids:
             logging.debug("Killing subprocess: %s", pid)
@@ -124,12 +123,12 @@ class Harness(object):
                 self.windows[i] = -1
                 self.keyboards[i] = None
                 if REOPEN_CLOSED_WINDOWS:
-                    self.open_new_window()
+                    self._open_new_window()
                 return
         # Make sure that window_closed is called on a window with a connection
         assert False
 
-    def open_new_window(self):
+    def _open_new_window(self):
         logging.debug("Opening window.")
         env = os.environ.copy()
         host_x_display = env.get("DISPLAY", ":0.0")
@@ -178,7 +177,7 @@ class Harness(object):
         self.pid_mapper = pid_mapper
 
     # Return True if the window's process is a descendant any of the child_pids.
-    def is_owned(self, window, child_pids):
+    def _is_owned(self, window, child_pids):
         # Note: Requires the application to set _NET_WM_PID annotations on the window.
         window_pid_result = query_window_property(
             self.display, window, "_NET_WM_PID", Xatom.CARDINAL
@@ -211,7 +210,7 @@ class Harness(object):
         )
         return is_owned
 
-    def get_all_windows_with_name(name, parent, matches):
+    def _get_all_windows_with_name(name, parent, matches):
         try:
             for child in parent.query_tree().children:
                 wm_name = child.get_wm_name()
@@ -220,22 +219,22 @@ class Harness(object):
                         wm_name = wm_name.decode("utf-8")
                 if wm_name is not None and re.match(name, wm_name):
                     matches.append(child)
-                matches = Harness.get_all_windows_with_name(name, child, matches)
+                matches = Harness._get_all_windows_with_name(name, child, matches)
             return matches
         except:
             return matches
 
-    def connect_to_windows(self):
+    def _connect_to_windows(self):
         time.sleep(1)
         global window_owners
-        open_windows = Harness.get_all_windows_with_name(
+        open_windows = Harness._get_all_windows_with_name(
             self.app_config["window_title"], self.root_window, []
         )
         if self.app_config.get("process_mode", "") == "separate":
             owned_windows = open_windows
         else:
             owned_windows = [
-                w for w in open_windows if self.is_owned(w, self.subprocess_pids)
+                w for w in open_windows if self._is_owned(w, self.subprocess_pids)
             ]
         if len(owned_windows) == 0:
             logging.debug(
@@ -290,7 +289,7 @@ class Harness(object):
                 self.display.flush()
 
                 self.display.flush()
-                self.full_window_capture = self.add_capture(
+                self.full_window_capture = self._add_capture(
                     (0, 0, self.run_config["x_res"], self.run_config["y_res"])
                 )
                 window_owners[w.id] = self
@@ -300,8 +299,8 @@ class Harness(object):
 
     def cleanup(self):
         global window_owners
-        atexit.unregister(self.kill_subprocesses)
-        self.kill_subprocesses()
+        atexit.unregister(self._kill_subprocesses)
+        self._kill_subprocesses()
         for kb in self.keyboards:
             if kb is None:
                 continue
@@ -315,7 +314,7 @@ class Harness(object):
         self.fps_helper()
 
         if None in self.windows:
-            self.connect_to_windows()
+            self._connect_to_windows()
 
         self.tick_start = time.time()
 
@@ -332,47 +331,22 @@ class Harness(object):
         return True
 
     def get_screen(self, instance=0) -> np.array:
+        assert self.full_window_capture is not None
         return util.npBGRAtoRGB(self.full_window_capture())
-
-    def _focus_windows(self):
-        for w in self.windows:
-            if w is None:
-                continue
-            for detail in [Xlib.X.NotifyAncestor, Xlib.X.NotifyVirtual]:
-                e = Xlib.protocol.event.FocusIn(
-                    display=self.display,
-                    window=w,
-                    detail=detail,
-                    mode=Xlib.X.NotifyNormal,
-                )
-                self.display.send_event(w, e)
-                w.change_attributes(event_mask=Xlib.X.FocusChangeMask)
-        self.display.flush()
 
     def _disable_user_input(self):
         for w in range(len(self.windows)):
             self.windows[w].change_attributes(event_mask=Xlib.X.FocusChangeMask)
             self.display.flush()
 
-    def perform_actions(self, keymap):
-        self._focus_windows()
-        # self._disable_user_input()
-        # for w in self.windows:
-        #    self.capture.FocusAndIgnoreAllEvents(w.id)
-        for keyboard in self.keyboards:
-            if keyboard is None:
-                continue
-            keyboard.set_keymap(keymap)
-
     # Takes a ROI of format ("x", "y", "w", "h") and returns a function that can
     # be called to capture a np array of the pixels in that region.
     # TODO: Add support for running from multiple instances.
-    def add_capture(self, region):
+    def _add_capture(self, region):
         INSTANCE = 0
         region = [round(c * self.run_config["scale"]) for c in region]
         x, y, w, h = region
         capture = image_capture.ImageCapture(x, y, w, h)
-        self.captures.append(capture)
         # Use a default argument to force the lambda not to capture a reference to self.
         return lambda id=self.windows[INSTANCE].id: capture.get_image(id)
 
