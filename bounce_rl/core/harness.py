@@ -8,7 +8,7 @@ import string
 import subprocess
 import sys
 import time
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import psutil
@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(mes
 
 REOPEN_CLOSED_WINDOWS = False
 
-window_owners = {}
+window_owners: dict[int, Any] = {}
 
 
 def handle_error(*args):
@@ -46,6 +46,8 @@ def query_window_property(display, window, property_name, property_type) -> list
         result = window.get_full_property(property_name_atom, property_type)
         if result:
             return list(result.value)
+        else:
+            return []
     except Xlib.error.BadWindow:
         return [-1]
 
@@ -96,39 +98,36 @@ class Harness(object):
         self.root_window.change_attributes(event_mask=Xlib.X.SubstructureNotifyMask)
         self.display.flush()
 
-        self.subprocess_pids: list[int] = []
+        self.subprocess_pid = -1
         self.pid_mapper = None
-        atexit.register(self._kill_subprocesses)
+        atexit.register(self._kill_subprocess)
 
-        self.windows = [None for _ in range(window_count)]
-        self.keyboards = [None for _ in range(window_count)]
-        self.full_window_capture: Optional[image_capture.ImageCapture] = None
+        self.window = None
+        self.keyboard = None
+        self.full_window_capture = None
         self.ready = False
 
-        for i in range(window_count):
-            self._open_new_window()
+        self._launch_app()
 
-    def _kill_subprocesses(self):
+    def _kill_subprocess(self):
         logging.debug("kill subprocess")
-        for pid in self.subprocess_pids:
-            logging.debug("Killing subprocess: %s", pid)
-            os.kill(pid, signal.SIGKILL)
+        if self.subprocess_pid != -1:
+            logging.debug("Killing subprocess: %s", self.subprocess_pid)
+            os.kill(self.subprocess_pid, signal.SIGKILL)
 
     def window_closed(self, window_id):
         global window_owners
         del window_owners[window_id]
 
-        for i in range(len(self.windows)):
-            if self.windows[i].id == window_id:
-                self.windows[i] = -1
-                self.keyboards[i] = None
-                if REOPEN_CLOSED_WINDOWS:
-                    self._open_new_window()
-                return
-        # Make sure that window_closed is called on a window with a connection
+        if self.window.id == window_id:
+            self.window = None
+            self.keyboard = None
+            if REOPEN_CLOSED_WINDOWS:
+                self._launch_app()
+            return
         assert False
 
-    def _open_new_window(self):
+    def _launch_app(self):
         logging.debug("Opening window.")
         env = os.environ.copy()
         host_x_display = env.get("DISPLAY", ":0.0")
@@ -173,7 +172,7 @@ class Harness(object):
             pid_offset=1000 * self.instance,
         )
         logging.debug("Started unshare subprocess: %s", unshare_pid)
-        self.subprocess_pids.append(unshare_pid)
+        self.subprocess_pid = unshare_pid
         self.pid_mapper = pid_mapper
 
     # Return True if the window's process is a descendant any of the child_pids.
@@ -224,7 +223,7 @@ class Harness(object):
         except:
             return matches
 
-    def _connect_to_windows(self):
+    def _connect_to_window(self):
         time.sleep(1)
         global window_owners
         open_windows = Harness._get_all_windows_with_name(
@@ -234,7 +233,7 @@ class Harness(object):
             owned_windows = open_windows
         else:
             owned_windows = [
-                w for w in open_windows if self._is_owned(w, self.subprocess_pids)
+                w for w in open_windows if self._is_owned(w, [self.subprocess_pid])
             ]
         if len(owned_windows) == 0:
             logging.debug(
@@ -244,8 +243,8 @@ class Harness(object):
 
         owned_ids = [w.id for w in owned_windows]
         for w in owned_windows:
-            if w not in self.windows:
-                if None not in self.windows:
+            if w != self.window:
+                if self.window is not None:
                     logging.error(
                         "Harness %s found too many seemingly owned windows: %s",
                         self.instance,
@@ -253,7 +252,6 @@ class Harness(object):
                     )
                     break
 
-                loc = self.windows.index(None)
                 x = int(
                     self.run_config["scale"] * self.run_config["x_res"] * self.x_pos
                 )
@@ -271,8 +269,8 @@ class Harness(object):
                 )
                 self.display.sync()
 
-                self.windows[loc] = w
-                self.keyboards[loc] = keyboard.Keyboard(
+                self.window = w
+                self.keyboard = keyboard.Keyboard(
                     self.display,
                     w,
                     x,
@@ -283,7 +281,7 @@ class Harness(object):
                 # Noita environment can't have mouse over a menu item at launch.
                 # The enviroment would like to configure this mouse move at launch,
                 # but isn't given a callback that runs at the right time.
-                self.keyboards[loc].move_mouse(5, 5)
+                self.keyboard.move_mouse(5, 5)
                 self.display.flush()
                 time.sleep(0.5)
                 self.display.flush()
@@ -294,17 +292,15 @@ class Harness(object):
                 )
                 window_owners[w.id] = self
 
-        if None not in self.windows:
+        if self.window is not None:
             self.ready = True
 
     def cleanup(self):
         global window_owners
-        atexit.unregister(self._kill_subprocesses)
-        self._kill_subprocesses()
-        for kb in self.keyboards:
-            if kb is None:
-                continue
-            kb.cleanup()
+        atexit.unregister(self._kill_subprocess)
+        self._kill_subprocess()
+        if self.keyboard is not None:
+            self.keyboard.cleanup()
         self.display.close()
         for k, v in list(window_owners.items()):
             if v is self:
@@ -313,19 +309,19 @@ class Harness(object):
     def tick(self):
         self.fps_helper()
 
-        if None in self.windows:
-            self._connect_to_windows()
+        if self.window is None:
+            self._connect_to_window()
 
         self.tick_start = time.time()
 
-        # Run on_tick only if we're connected to all windows.
-        if None not in self.windows:
+        # Run on_tick only if we're connected to a window.
+        if self.window is not None:
             callbacks = self.run_config.get("on_tick")
             if callbacks is not None:
                 for callback in callbacks:
                     callback.on_tick()
 
-        if self.windows.count(-1) == len(self.windows):
+        if self.window is None:
             logging.debug("All windows closed. Exiting.")
             return False
         return True
@@ -335,25 +331,24 @@ class Harness(object):
         return util.npBGRAtoRGB(self.full_window_capture())
 
     def _disable_user_input(self):
-        for w in range(len(self.windows)):
-            self.windows[w].change_attributes(event_mask=Xlib.X.FocusChangeMask)
+        if self.window is not None:
+            self.window.change_attributes(event_mask=Xlib.X.FocusChangeMask)
             self.display.flush()
 
     # Takes a ROI of format ("x", "y", "w", "h") and returns a function that can
     # be called to capture a np array of the pixels in that region.
     # TODO: Add support for running from multiple instances.
     def _add_capture(self, region):
-        INSTANCE = 0
         region = [round(c * self.run_config["scale"]) for c in region]
         x, y, w, h = region
         capture = image_capture.ImageCapture(x, y, w, h)
         # Use a default argument to force the lambda not to capture a reference to self.
-        return lambda id=self.windows[INSTANCE].id: capture.get_image(id)
+        return lambda id=self.window.id: capture.get_image(id)
 
     def pause(self):
-        pgid = os.getpgid(self.subprocess_pids[0])
+        pgid = os.getpgid(self.subprocess_pid)
         os.killpg(pgid, signal.SIGSTOP)
 
     def resume(self):
-        pgid = os.getpgid(self.subprocess_pids[0])
+        pgid = os.getpgid(self.subprocess_pid)
         os.killpg(pgid, signal.SIGCONT)

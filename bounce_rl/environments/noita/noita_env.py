@@ -261,7 +261,7 @@ class NoitaEnv(gym.core.Env):
             # Release keys before we delete the old harness instance.
             # Important because the new harness won't know which keys
             # were held.
-            self.harness.keyboards[0].set_held_keys(set())
+            self.harness.keyboard.set_held_keys(set())
             time.sleep(0.1)
             self.harness.cleanup()
             # os.system("killall noita.exe")
@@ -328,8 +328,8 @@ class NoitaEnv(gym.core.Env):
             "Return",
             *self._select_mode_macro(),
         )
-        self.harness.keyboards[0].move_mouse(10, 10)
-        self.harness.keyboards[0].key_sequence(menu_keys)
+        self.harness.keyboard.move_mouse(10, 10)
+        self.harness.keyboard.key_sequence(menu_keys)
 
         time.sleep(8)
         """
@@ -337,7 +337,7 @@ class NoitaEnv(gym.core.Env):
         time.sleep(10)
         run_sequence = ((7.2, ("D",)), (1.0, ("W", "D")), (6.5, ("D",)))
         for t, keys in run_sequence + ((0, ()),):
-            self.harness.keyboards[0].set_held_keys(keys)
+            self.harness.keyboard.set_held_keys(keys)
             time.sleep(t)
         """
 
@@ -376,8 +376,8 @@ class NoitaEnv(gym.core.Env):
                 held_mouse_buttons.add(s[i])
 
         # Apply inputs
-        self.harness.keyboards[0].set_held_keys(held_keys)
-        self.harness.keyboards[0].set_held_mouse_buttons(held_mouse_buttons)
+        self.harness.keyboard.set_held_keys(held_keys)
+        self.harness.keyboard.set_held_mouse_buttons(held_mouse_buttons)
         # There are 9 inputs, so they're likely normalized w/ std 1/root(9).
         # We scale the outputs back here.
         continuous_action = [c * 3 for c in continuous_action]
@@ -387,7 +387,7 @@ class NoitaEnv(gym.core.Env):
             continuous_action[0] * self.run_config["x_res"],
             continuous_action[1] * self.run_config["y_res"],
         )
-        self.harness.keyboards[0].move_mouse(*mouse_pos)
+        self.harness.keyboard.move_mouse(*mouse_pos)
 
         # Step the harness
         # TODO: Move time control into harness
@@ -494,9 +494,9 @@ class NoitaEnv(gym.core.Env):
                 pixels_file.write(jpeg.encode(step_val.pixels, quality=92))
 
     def pause(self):
-        self.harness.keyboards[0].key_sequence(["Escape"])
+        self.harness.keyboard.key_sequence(["Escape"])
         # self.harness.pause()
 
     def resume(self):
-        self.harness.keyboards[0].key_sequence(["Escape"])
+        self.harness.keyboard.key_sequence(["Escape"])
         # self.harness.resume()
