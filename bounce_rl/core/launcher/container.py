@@ -68,15 +68,12 @@ class PIDMapper:
 
 
 def launch_process_container(
-    cmds: str, directory: str, env: dict[str, str], pid_offset=0
+    cmds: str, directory: str, env: dict[str, str]
 ) -> tuple[int, int, PIDMapper]:
     """Starts the given commands in a new pid namespace.
 
     When the returned process exits or is killed, all programs in the
     namespace will be killed."""
-    # Note: This just sets and env variable requesting a PID offset from clients.
-    # This should be fixed to apply the offset before handing over control.
-    env["PID_OFFSET"] = str(pid_offset)
     cmd = shlex.split(
         f"unshare -U --map-user={os.getuid()} --map-group={os.getgid()} --mount-proc --fork --pid --kill-child"
     ) + ["bash", "-c", cmds]

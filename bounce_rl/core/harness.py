@@ -1,4 +1,5 @@
 import atexit
+import json
 import logging
 import os
 import re
@@ -8,18 +9,18 @@ import string
 import subprocess
 import sys
 import time
+import xmlrpc.client
 from typing import Any, Optional
 
 import numpy as np
-import psutil
 import Xlib.protocol
 import Xlib.X
 import Xlib.XK
 from Xlib import Xatom, display
 
-from bounce_rl.core.containers import container
 from bounce_rl.core.image_capture import image_capture
 from bounce_rl.core.keyboard import keyboard
+from bounce_rl.core.launcher import container
 from bounce_rl.utilities import fps_helper, util
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
@@ -33,7 +34,7 @@ window_owners: dict[int, Any] = {}
 def handle_error(*args):
     window_id = args[0].resource_id.id
     if window_id in window_owners:
-        window_owners[window_id].window_closed(window_id)
+        window_owners[window_id].on_window_closed(window_id)
     else:
         logging.debug("Orphan window closed: %s", window_id)
 
@@ -55,6 +56,24 @@ def query_window_property(display, window, property_name, property_type) -> list
 # A no-op error handler.
 def suppress_error(*args):
     pass
+
+
+def base_app_env(
+    instance: int, base_env: dict[str, str], app_config: dict
+) -> dict[str, str]:
+    env = base_env.copy()
+
+    if not app_config.get("disable_time_control", False):
+        env["LD_PRELOAD"] = "libtime_control.so"
+        env["TIME_CHANNEL"] = str(instance)
+
+    # Drop the virtualenv path for child process
+    if sys.prefix != sys.base_prefix:
+        env["PATH"] = ":".join(env["PATH"].split(":")[1:])
+
+    # Only necessary for lutris envs, but is harmless in other envs
+    env["LUTRIS_SKIP_INIT"] = "1"
+    return env
 
 
 class Harness(object):
@@ -85,220 +104,145 @@ class Harness(object):
             throttle_fps=self.run_config.get("max_tick_rate")
         )
 
-        window_count = 1
-        self.window_title = self.app_config["window_title"]
-        self.tick_start = time.time()
         self.display = display.Display()
         self.display.set_error_handler(handle_error)  # Python XLib handler
         image_capture.ImageCapture.set_error_handler(
-            suppress_error
-        )  # Screen capture library has no need to throw errors
+            suppress_error  # Screen capture library has no need to throw errors
+        )
 
         self.root_window = self.display.screen().root
         self.root_window.change_attributes(event_mask=Xlib.X.SubstructureNotifyMask)
         self.display.flush()
 
-        self.subprocess_pid = -1
-        self.pid_mapper = None
-        atexit.register(self._kill_subprocess)
-
         self.window = None
         self.keyboard = None
         self.full_window_capture = None
         self.ready = False
+        self.proxy_subproc: Optional[Any] = None
+        self.launcher = xmlrpc.client.ServerProxy(
+            "http://localhost:8000/", allow_none=True
+        )
 
+        atexit.register(self._kill_subprocesses)
         self._launch_app()
 
-    def _kill_subprocess(self):
-        logging.debug("kill subprocess")
-        if self.subprocess_pid != -1:
-            logging.debug("Killing subprocess: %s", self.subprocess_pid)
-            os.kill(self.subprocess_pid, signal.SIGKILL)
+    def _kill_subprocesses(self):
+        self.launcher.kill_instance(self.instance)
+        if self.proxy_subproc is not None:
+            self.proxy_subproc.kill()
+            self.proxy_subproc = None
 
-    def window_closed(self, window_id):
-        global window_owners
-        del window_owners[window_id]
+    def _launch_x_proxy(self) -> int:
+        host_x_display = os.environ.get("DISPLAY", ":0.0")
+        proxy_x_display = 10 + self.instance
 
-        if self.window.id == window_id:
-            self.window = None
-            self.keyboard = None
-            if REOPEN_CLOSED_WINDOWS:
-                self._launch_app()
-            return
-        assert False
+        subprocess.run(shlex.split(f"rm -f /tmp/.X11-unix/X{proxy_x_display}"))
+        self.proxy_subproc = subprocess.Popen(
+            [
+                "python",
+                "bounce_rl/x_multiseat/proxy.py",
+                "--proxy_display",
+                f"{proxy_x_display}",
+                "--real_display",
+                host_x_display,
+            ]
+        )
+        time.sleep(0.1)
+        return proxy_x_display
 
     def _launch_app(self):
         logging.debug("Opening window.")
+
         env = os.environ.copy()
-        host_x_display = env.get("DISPLAY", ":0.0")
         env.update(self.environment)
-        use_x_proxy = self.app_config.get("use_x_proxy", False)
+        env = base_app_env(self.instance, env, self.app_config)
+        env["PID_OFFSET"] = str(1000 * self.instance)
 
-        if not self.app_config.get("disable_time_control", False):
-            env["LD_PRELOAD"] = "libtime_control.so"
-        if sys.prefix != sys.base_prefix:
-            # Drop the virtualenv path for child process
-            env["PATH"] = ":".join(env["PATH"].split(":")[1:])
-        if use_x_proxy:
-            x_id = 10 + self.instance
-            env["DISPLAY"] = f":{x_id}"
-            subprocess.run(shlex.split(f"rm -f /tmp/.X11-unix/X{x_id}"))
-
-        # Only necessary for lutris envs, but is harmless in other envs
-        env["LUTRIS_SKIP_INIT"] = "1"
-        if self.instance is not None:
-            env["TIME_CHANNEL"] = str(self.instance)
-
-        split_command = shlex.split(self.app_config["command"])
         directory_template = string.Template(self.app_config["directory"])
         directory = directory_template.substitute(i=self.instance)
         if directory == "":
             directory = None
 
-        logging.debug("Start proxy: %s, %s", x_id, host_x_display)
-        commands = self.app_config["command"]
-        if use_x_proxy:
-            commands = (
-                f"python bounce_rl/x_multiseat/proxy.py --proxy_display {x_id} --real_display {host_x_display} & "
-                + "sleep 3 && "
-                + commands
-            )
+        if self.app_config.get("use_x_proxy", False):
+            proxy_display = self._launch_x_proxy()
+            env["DISPLAY"] = f":{proxy_display}"
 
-        # TODO: Catch launch errors.
-        unshare_pid, init_pid, pid_mapper = container.launch_process_container(
-            commands,
-            directory,
-            env,
-            pid_offset=1000 * self.instance,
-        )
-        logging.debug("Started unshare subprocess: %s", unshare_pid)
-        self.subprocess_pid = unshare_pid
-        self.pid_mapper = pid_mapper
-
-    # Return True if the window's process is a descendant any of the child_pids.
-    def _is_owned(self, window, child_pids):
-        # Note: Requires the application to set _NET_WM_PID annotations on the window.
-        window_pid_result = query_window_property(
-            self.display, window, "_NET_WM_PID", Xatom.CARDINAL
-        )
-        assert (
-            window_pid_result is not None
-        ), "Harness requires the running window manager to implement _NET_WM_PID annotations."
-        window_pid = window_pid_result[0]
-        logging.debug("Got window pid: %s", window_pid)
-        # The _NET_WM_PID will be a pid in the container namespace. We need to map it
-        # back to the host pid namespace.
-        host_pid = self.pid_mapper.get(window_pid)
-        window_ps = psutil.Process(host_pid)
-
-        is_owned = False
-        # is_owned = self.instance * 1000 + 8 == window_pid
-        while window_ps is not None:
-            if window_ps.pid in child_pids:
-                is_owned = True
-                break
-            window_ps = window_ps.parent()
-
-        logging.debug(
-            "Is owned query: instance: %s, window: %s, window_pid: %s, mapped_pid: %s, is_owned: %s",
+        windows = self.launcher.launch_app(
             self.instance,
-            window.id,
-            window_pid,
-            host_pid,
-            is_owned,
+            self.app_config["command"],
+            directory,
+            json.dumps(env),
+            self.app_config["window_title"],
         )
-        return is_owned
 
-    def _get_all_windows_with_name(name, parent, matches):
-        try:
-            for child in parent.query_tree().children:
-                wm_name = child.get_wm_name()
-                if wm_name is not None:
-                    if isinstance(wm_name, bytes):
-                        wm_name = wm_name.decode("utf-8")
-                if wm_name is not None and re.match(name, wm_name):
-                    matches.append(child)
-                matches = Harness._get_all_windows_with_name(name, child, matches)
-            return matches
-        except:
-            return matches
-
-    def _connect_to_window(self):
-        time.sleep(1)
-        global window_owners
-        open_windows = Harness._get_all_windows_with_name(
-            self.app_config["window_title"], self.root_window, []
-        )
-        if self.app_config.get("process_mode", "") == "separate":
-            owned_windows = open_windows
-        else:
-            owned_windows = [
-                w for w in open_windows if self._is_owned(w, [self.subprocess_pid])
-            ]
-        if len(owned_windows) == 0:
-            logging.debug(
-                "Harness looking for window with title: %s",
-                self.app_config["window_title"],
+        if len(windows) == 0:
+            logging.fatal(
+                "Unable to find launched window for instance: %d (timed out)",
+                self.instance,
             )
+            assert False
+        if len(windows) >= 2:
+            logging.fatal(
+                "Unable to find launched window for instance: %d (too many windows)",
+                self.instance,
+            )
+            assert False
 
-        owned_ids = [w.id for w in owned_windows]
-        for w in owned_windows:
-            if w != self.window:
-                if self.window is not None:
-                    logging.error(
-                        "Harness %s found too many seemingly owned windows: %s",
-                        self.instance,
-                        owned_ids,
-                    )
-                    break
+        self._attach(windows[0])
 
-                x = int(
-                    self.run_config["scale"] * self.run_config["x_res"] * self.x_pos
-                )
-                y = int(
-                    self.run_config["scale"] * self.run_config["y_res"] * self.y_pos
-                )
-                # Note: Configure has to happen before keyboard, since keyboard
-                # clicks on the window's expected absolute position to focus
-                # the window.
-                w.configure(
-                    x=x,
-                    y=y,
-                    width=int(self.run_config["scale"] * self.run_config["x_res"]),
-                    height=int(self.run_config["scale"] * self.run_config["y_res"]),
-                )
-                self.display.sync()
+    def _attach(self, window_id):
+        window = self.display.create_resource_object("window", window_id)
+        x = int(self.run_config["scale"] * self.run_config["x_res"] * self.x_pos)
+        y = int(self.run_config["scale"] * self.run_config["y_res"] * self.y_pos)
 
-                self.window = w
-                self.keyboard = keyboard.Keyboard(
-                    self.display,
-                    w,
-                    x,
-                    y,
-                    self.app_config.get("keyboard_config", {}),
-                    instance=self.instance,
-                )
-                # Noita environment can't have mouse over a menu item at launch.
-                # The enviroment would like to configure this mouse move at launch,
-                # but isn't given a callback that runs at the right time.
-                self.keyboard.move_mouse(5, 5)
-                self.display.flush()
-                time.sleep(0.5)
-                self.display.flush()
+        # Note: Configure has to happen before keyboard, since keyboard
+        # clicks on the window's expected absolute position to focus
+        # the window.
+        window.configure(
+            x=x,
+            y=y,
+            width=int(self.run_config["scale"] * self.run_config["x_res"]),
+            height=int(self.run_config["scale"] * self.run_config["y_res"]),
+        )
+        self.display.sync()
 
-                self.display.flush()
-                self.full_window_capture = self._add_capture(
-                    (0, 0, self.run_config["x_res"], self.run_config["y_res"])
-                )
-                window_owners[w.id] = self
+        self.window = window
+        self.keyboard = keyboard.Keyboard(
+            self.display,
+            window,
+            x,
+            y,
+            self.app_config.get("keyboard_config", {}),
+            instance=self.instance,
+        )
+        # Noita environment can't have mouse over a menu item at launch.
+        # The enviroment would like to configure this mouse move at launch,
+        # but isn't given a callback that runs at the right time.
+        self.keyboard.move_mouse(5, 5)
+        self.display.flush()
+        time.sleep(0.5)
+        self.display.flush()
 
-        if self.window is not None:
-            self.ready = True
+        self.full_window_capture = self._add_capture(
+            (0, 0, self.run_config["x_res"], self.run_config["y_res"])
+        )
+        window_owners[window.id] = self
+        self.ready = True
+
+    # Takes a ROI of format ("x", "y", "w", "h") and returns a function that can
+    # be called to capture a np array of the pixels in that region.
+    def _add_capture(self, region):
+        region = [round(c * self.run_config["scale"]) for c in region]
+        x, y, w, h = region
+        capture = image_capture.ImageCapture(x, y, w, h)
+        # Use a default argument to force the lambda not to capture a reference to self.
+        return lambda id=self.window.id: capture.get_image(id)
 
     def cleanup(self):
+        """Kills the child app and releases all resources held by this Harness."""
         global window_owners
-        atexit.unregister(self._kill_subprocess)
-        self._kill_subprocess()
+        atexit.unregister(self._kill_subprocesses)
+        self._kill_subprocesses()
         if self.keyboard is not None:
             self.keyboard.cleanup()
         self.display.close()
@@ -307,19 +251,13 @@ class Harness(object):
                 del window_owners[k]
 
     def tick(self):
+        """Run the Harness event loop, returns False if the attached window is closed."""
         self.fps_helper()
 
-        if self.window is None:
-            self._connect_to_window()
-
-        self.tick_start = time.time()
-
-        # Run on_tick only if we're connected to a window.
+        # Run on_tick if we're connected to a window.
         if self.window is not None:
-            callbacks = self.run_config.get("on_tick")
-            if callbacks is not None:
-                for callback in callbacks:
-                    callback.on_tick()
+            for callback in self.run_config.get("on_tick", []):
+                callback.on_tick()
 
         if self.window is None:
             logging.debug("All windows closed. Exiting.")
@@ -330,16 +268,6 @@ class Harness(object):
         assert self.full_window_capture is not None
         return util.npBGRAtoRGB(self.full_window_capture())
 
-    # Takes a ROI of format ("x", "y", "w", "h") and returns a function that can
-    # be called to capture a np array of the pixels in that region.
-    # TODO: Add support for running from multiple instances.
-    def _add_capture(self, region):
-        region = [round(c * self.run_config["scale"]) for c in region]
-        x, y, w, h = region
-        capture = image_capture.ImageCapture(x, y, w, h)
-        # Use a default argument to force the lambda not to capture a reference to self.
-        return lambda id=self.window.id: capture.get_image(id)
-
     def pause(self):
         pgid = os.getpgid(self.subprocess_pid)
         os.killpg(pgid, signal.SIGSTOP)
@@ -347,3 +275,15 @@ class Harness(object):
     def resume(self):
         pgid = os.getpgid(self.subprocess_pid)
         os.killpg(pgid, signal.SIGCONT)
+
+    def on_window_closed(self, window_id):
+        global window_owners
+        del window_owners[window_id]
+
+        if self.window.id == window_id:
+            self.window = None
+            self.keyboard = None
+            if REOPEN_CLOSED_WINDOWS:
+                self._launch_app()
+            return
+        assert False
