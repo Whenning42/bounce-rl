@@ -57,8 +57,6 @@ char *CaptureImage(const capture_t capture_h, Window window) {
 
   clock_t start = clock();
   XShmGetImage(capture->display, window, capture->image, capture->x, capture->y, AllPlanes);
-  double duration = ((double)(clock() - start)) / CLOCKS_PER_SEC;
-
   return capture->image->data;
 }
 
