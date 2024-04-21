@@ -14,7 +14,8 @@ ENV PYTHON_VERSION=39
 ENV PATH="/opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin:${PATH}"
 RUN hash -r
 
-# Install XTest and multilib
+# Install system dependencies:
+# - XTest + multilib for c/c++ builds
 RUN apt-get update && apt-get install -y libxtst-dev \
       gcc-multilib \
       g++-multilib
@@ -25,6 +26,11 @@ USER user
 RUN mkdir /home/user/bounce_rl
 WORKDIR /home/user/bounce_rl
 ENV PATH="/home/user/.local/bin:${PATH}"
+
+# Install pipx and poetry
+RUN python3 -m pip install --user pipx
+RUN python3 -m pipx ensurepath --force
+RUN pipx install poetry==1.8
 
 # Install python requirements
 COPY requirements.txt /home/user/bounce_rl/requirements.txt

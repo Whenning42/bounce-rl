@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "BounceRL"
+version = "0.0.2"
+description = "bounce rl"
+authors = ["William Henning <wchenningwchenning@gmail.com>"]
+readme = "README.md"
+packages = [
+    { include = "bounce_rl", from = "."},
+]
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+numpy = "^1.26.4"
+
+[build-system]
+requires = [
+    "poetry-core>=1.2.1",
+    "setuptools",
+    "numpy",
+    "cython",
+]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.build]
+script = "build.py"
+generate-setup-file = true
