@@ -109,10 +109,10 @@ void load_dlsyms() {}
 }
 
 PFN_TYPEDEF(time);
-// gettimeofday's decltype has a no_except that throws a warning
-// when we use PFN_TYPEDEF.
+// gettimeofday and clock_gettime decltypes have no_excepts that throws
+// warnings when we use PFN_TYPEDEF.
 typedef int (*PFN_gettimeofday)(timeval*, void*);
-PFN_TYPEDEF(clock_gettime);
+typedef int (*PFN_clock_gettime)(clockid_t, timespec*);
 PFN_TYPEDEF(clock);
 PFN_TYPEDEF(nanosleep);
 PFN_TYPEDEF(usleep);
@@ -120,14 +120,14 @@ PFN_TYPEDEF(sleep);
 PFN_TYPEDEF(clock_nanosleep);
 
 // Global
-std::atomic<PFN_time> real_time = nullptr;
-std::atomic<PFN_gettimeofday> real_gettimeofday = nullptr;
-std::atomic<PFN_clock_gettime> real_clock_gettime = nullptr;
-std::atomic<PFN_clock> real_clock = nullptr;
-std::atomic<PFN_nanosleep> real_nanosleep = nullptr;
-std::atomic<PFN_usleep> real_usleep = nullptr;
-std::atomic<PFN_sleep> real_sleep = nullptr;
-std::atomic<PFN_clock_nanosleep> real_clock_nanosleep = nullptr;
+std::atomic<PFN_time> real_time(nullptr);
+std::atomic<PFN_gettimeofday> real_gettimeofday(nullptr);
+std::atomic<PFN_clock_gettime> real_clock_gettime(nullptr);
+std::atomic<PFN_clock> real_clock(nullptr);
+std::atomic<PFN_nanosleep> real_nanosleep(nullptr);
+std::atomic<PFN_usleep> real_usleep(nullptr);
+std::atomic<PFN_sleep> real_sleep(nullptr);
+std::atomic<PFN_clock_nanosleep> real_clock_nanosleep(nullptr);
 
 // Statically initialize our global pointers.
 class InitPFNs {
@@ -319,8 +319,7 @@ T do_fake_time_fn(int clk_id) {
   int orig_errno = errno;
 
   static ClockState clocks[2] = {init_clock(), init_clock()};
-  static std::atomic<uint64_t> read_clock_id = 0;
-  static std::atomic<int> clock_tag;
+  static std::atomic<uint64_t> read_clock_id(0);
 
   // Non-blocking thread safe clock updates:
   //   Each thread tries to update the clock on entry, then reads the current time
@@ -332,8 +331,8 @@ T do_fake_time_fn(int clk_id) {
   //   while another thread's updating the time settings, which is rare.
 
   // Critical write section.
-  static std::atomic<bool> write_lock = false;
-  static std::atomic<uint64_t> write_clock_id = 1;
+  static std::atomic<bool> write_lock(false);
+  static std::atomic<uint64_t> write_clock_id(1);
   bool was_locked = write_lock.exchange(true);
   if (!was_locked) {
     float new_speed;
@@ -366,17 +365,17 @@ T do_fake_time_fn(int clk_id) {
   return val;
 }
 
-timespec fake_time(int clk_id) {
-  auto get_time = [](int clk_id, const ClockState* clock_state) {
+timespec get_time (int clk_id, const ClockState* clock_state) {
     return fake_time_impl(clk_id, clock_state);
-  };
+};
+timespec fake_time(int clk_id) {
   return do_fake_time_fn<timespec, get_time>(clk_id);
 }
 
+float get_speedup(int clk_id, const ClockState* clock_state) {
+  return clock_state->speedup;
+}
 float current_speedup(int clk_id) {
-  auto get_speedup = [](int clk_id, const ClockState* clock_state) {
-    return clock_state->speedup;
-  };
   return do_fake_time_fn<float, get_speedup>(clk_id);
 }
 }  // namespace
