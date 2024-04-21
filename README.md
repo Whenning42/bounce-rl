@@ -32,6 +32,13 @@ to control the target app's rate of time progression, accelerating the app to fa
 than realtime while stepping the environment and slowing it to near paused when waiting
 for the next step.
 
+## Limitations
+
+BounceRL does come with a couple notable limitations.
+
+1. It requires an X11 desktop session
+2. Target application windows cover your desktop with unmoveable windows while running
+
 ## System Diagram
 
 ![System diagram for BounceRL](system_diagram.png)
