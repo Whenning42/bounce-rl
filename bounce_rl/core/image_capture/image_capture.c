@@ -51,11 +51,8 @@ capture_t SetupImageCapture(int x, int y, int width, int height) {
   return capture;
 }
 
-#include <time.h>
 char *CaptureImage(const capture_t capture_h, Window window) {
   const struct ImageCapture* capture = capture_h;
-
-  clock_t start = clock();
   XShmGetImage(capture->display, window, capture->image, capture->x, capture->y, AllPlanes);
   return capture->image->data;
 }
@@ -73,7 +70,6 @@ void CleanupImageCapture(capture_t capture_h) {
 int (*global_mim)(Display*, XErrorEvent*, void*) = NULL;
 void* global_py_handler = NULL;
 
-#include <stdio.h>
 int _call_global_handler(Display* display, XErrorEvent* error) {
     return global_mim(display, error, global_py_handler);
 }
