@@ -6,9 +6,10 @@ pwd
 meson setup ../build
 cd ../build
 meson compile
-mkdir lib
-find . -name "*.so" ! -path "./lib/*" | xargs -I '{}' cp {} lib/;
+mkdir libs
+find . -name "*.so" ! -path "./lib/*" | xargs -I '{}' cp {} libs;
 cd ../bounce_rl
+mv ../build/libs ./
 
 # Build python wheel
 poetry build
