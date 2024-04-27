@@ -36,7 +36,7 @@ RUN pipx install poetry==1.8
 COPY requirements.txt /home/user/bounce_rl/requirements.txt
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 ENV PIP_ROOT_USER_ACTION=ignore
-RUN pip install wheel meson ninja
+RUN pip install wheel meson ninja twine
 RUN pip install -r requirements.txt
 
 # Copy over the repo

@@ -13,3 +13,6 @@ mv ../build/libs ./
 
 # Build python wheel
 poetry build
+
+# Upload the wheel
+twine upload --repository testpypi dist/*.whl
