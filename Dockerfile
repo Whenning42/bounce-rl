@@ -9,8 +9,8 @@ RUN echo "deb [trusted=yes] http://archive.debian.org/debian/ stretch main non-f
 RUN echo "deb-src [trusted=yes] http://archive.debian.org/debian/ stretch main non-free contrib" >> /etc/apt/sources.list
 RUN echo "deb [trusted=yes] http://archive.debian.org/debian-security/ stretch/updates main non-free contrib" >> /etc/apt/sources.list
 
-# Default to python 3.9
-ENV PYTHON_VERSION=39
+# Default to python 3.10
+ENV PYTHON_VERSION=310
 ENV PATH="/opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin:${PATH}"
 RUN hash -r
 
