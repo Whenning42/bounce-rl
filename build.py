@@ -10,7 +10,7 @@ def build(setup_kwargs):
         ext_modules=cythonize(
             [
                 Extension(
-                    "image_capture",
+                    "bounce_rl.core.image_capture.image_capture",
                     ["bounce_rl/core/image_capture/image_capture.pyx"],
                     libraries=["image_capture"],
                     library_dirs=["build/core/image_capture/"],
