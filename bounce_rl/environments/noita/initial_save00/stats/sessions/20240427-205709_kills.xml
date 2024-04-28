@@ -1,0 +1,8 @@
+<Stats deaths="1" kills="0" player_kills="0" player_projectile_count="0" >
+  <death_map>
+    <E key="shotgunner_weak | $damage_melee" value="1" >
+    </E>
+  </death_map>
+  <kill_map>
+  </kill_map>
+</Stats>

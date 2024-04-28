@@ -57,6 +57,9 @@ fi
 rm -rf $WINEPREFIX/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save0*
 cp bounce_rl/environments/noita/mod/golden_config.xml \
   $WINEPREFIX/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save_shared/config.xml
+# Copy a minimal save file into the environment to disable the intro screen.
+cp -r bounce_rl/environments/noita/initial_save00 \
+      $WINEPREFIX/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save00
 
 # Working Directory
 cd /home/william/.steam/steam/steamapps/common/Noita
