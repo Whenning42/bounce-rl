@@ -21,6 +21,7 @@ from Xlib import Xatom, display
 from bounce_rl.core.image_capture import image_capture
 from bounce_rl.core.keyboard import keyboard
 from bounce_rl.core.launcher import container
+from bounce_rl.core.launcher.launcher import Launcher
 from bounce_rl.utilities import fps_helper, util
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
@@ -119,9 +120,7 @@ class Harness(object):
         self.full_window_capture = None
         self.ready = False
         self.proxy_subproc: Optional[Any] = None
-        self.launcher = xmlrpc.client.ServerProxy(
-            "http://localhost:8000/", allow_none=True
-        )
+        self.launcher = Launcher()
 
         atexit.register(self._kill_subprocesses)
         self._launch_app()

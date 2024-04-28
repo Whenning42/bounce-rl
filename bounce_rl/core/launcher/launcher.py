@@ -12,7 +12,7 @@ from bounce_rl.core.launcher import container, x_search
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 
 
-class LauncherServer(ThreadingMixIn, SimpleXMLRPCServer):
+class Launcher:
     def _find_windows(
         self,
         window_title: str,
@@ -48,9 +48,3 @@ class LauncherServer(ThreadingMixIn, SimpleXMLRPCServer):
 
     def kill_instance(self, instance: int) -> None:
         pass
-
-
-server = LauncherServer(("localhost", 8000), allow_none=True)
-server.register_function(server.launch_app)  # type: ignore
-server.register_function(server.kill_instance)  # type: ignore
-server.serve_forever()
