@@ -32,6 +32,6 @@ cdef class ImageCapture:
     def set_error_handler(on_error_py):
         image_capture.SetErrorHandler(error_caller, <void*>on_error_py)
 
-cdef int error_caller(Display* display, XErrorEvent* error, void* on_error_py):
+cdef int error_caller(Display* display, XErrorEvent* error, void* on_error_py) noexcept:
     (<object>on_error_py)()
     return 0
