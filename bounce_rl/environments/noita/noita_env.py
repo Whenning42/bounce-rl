@@ -411,7 +411,9 @@ class NoitaEnv(gym.core.Env):
         np.save(f"{self.step_dir}/step_{self.ep_step}.npy", save_val)
 
         # Save actions
-        np.save(f"{self.step_dir}/action_{self.ep_step}.npy", orig_action)
+        action_path = f"{self.step_dir}/action_{self.ep_step}.pkl"
+        with open(action_path, "wb") as f:
+            pickle.dump(orig_action, f)
 
         self._log_step(action, step_val)
 
@@ -447,12 +449,13 @@ class NoitaEnv(gym.core.Env):
 
         pixels_filename = step_dir + f"/{self.env_step}_pixels.jpg"
         action_filename = step_dir + f"/{self.env_step}_action.npy"
-        reward_filename = step_dir + f"/{self.env_step}_reward.npy"
+        reward_filename = step_dir + f"/{self.env_step}_reward.pkl"
         info_filename = step_dir + f"/{self.env_step}_info.pkl"
         step_filename = step_dir + f"/{self.env_step}_step.pkl"
 
         np.save(reward_filename, np.array([step_val.reward]))
-        np.save(action_filename, action)
+        with open(action_filename, "wb") as f:
+            pickle.dump(action, f)
         step_info = {
             "ep_step": self.ep_step,
             "ep_num": self.ep_num,
