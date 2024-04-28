@@ -28,6 +28,6 @@ def make_lib_mpx_input():
     """
     )
     return (
-        mpx_input_ffi.dlopen("bounce_rl/build/bounce_rl/core/keyboard/libmpx_input.so"),
+        mpx_input_ffi.dlopen("bounce_rl/libs/bounce_rl/core/keyboard/libmpx_input.so"),
         mpx_input_ffi,
     )
