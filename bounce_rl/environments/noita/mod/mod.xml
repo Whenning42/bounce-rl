@@ -6,6 +6,5 @@
 	ui_newgame_description="Noita RL Mod"
 	ui_newgame_gfx_banner_bg="mods/nightmare/files/menu_banner_background.png"
 	ui_newgame_gfx_banner_fg="mods/nightmare/files/menu_banner_overlay.png"
-	is_game_mode="1"
 > 
 </Mod>

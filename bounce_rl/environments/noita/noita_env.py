@@ -294,39 +294,16 @@ class NoitaEnv(gym.core.Env):
                 return False
         return True
 
-    def _select_mode_macro(self) -> list[str]:
-        return [
-            "Down",
-            "Down",
-            "Down",
-            "Down",
-            "Return",
-        ]
-
     def _run_init_sequence(self):
         time.sleep(2.5)
         # Start the game
         menu_keys = (
             # Dismiss changelog
             "Return",
-            # Enter mod settings
-            "Down",
-            "Down",
+            # Start a new game
             "Down",
             "Return",
-            # Hide modding warning (only shows up on a fresh install)
-            # "Left",
-            # "Return",
-            # Enable unsafe
-            "Right",
-            "Up",
             "Return",
-            "Left",
-            "Return",
-            # Open new game menu
-            "Escape",
-            "Return",
-            *self._select_mode_macro(),
         )
         self.harness.keyboard.move_mouse(10, 10)
         self.harness.keyboard.key_sequence(menu_keys)
