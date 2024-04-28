@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "BounceRL"
-version = "0.0.2"
-description = "bounce rl"
+version = "0.0.5"
+description = "Bounce RL"
 authors = ["William Henning <wchenningwchenning@gmail.com>"]
 readme = "README.md"
 packages = [
@@ -11,6 +11,11 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.9"
 numpy = "^1.26.4"
+gym = "0.23.1"
+cffi = "^1.16.0"
+pyturbojpeg = "^1.7.3"
+psutil = "^5.9.8"
+python-xlib = "^0.33"
 
 [build-system]
 requires = [
