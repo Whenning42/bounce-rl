@@ -1,18 +1,16 @@
 #!/bin/bash
 
 # Build c/c++ libs
-cd bounce_rl
-pwd
-meson setup ../build
-cd ../build
+meson setup meson_build
+cd meson_build
 meson compile
-mkdir libs
-find . -name "*.so" ! -path "./lib/*" | xargs -I '{}' cp {} libs;
-cd ../bounce_rl
-mv ../build/libs ./
+cd ..
 
-# Build python wheel
+# Copy the c/c++ libraries into the python package
+cd meson_build
+mkdir ../bounce_rl/libs
+find . -name "*.so" | xargs -I '{}' cp --parents {} ../bounce_rl/libs
+cd ..
+
+# Build python package
 poetry build
-
-# Upload the wheel
-twine upload --repository testpypi dist/*.whl

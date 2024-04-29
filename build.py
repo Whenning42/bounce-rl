@@ -13,11 +13,11 @@ def build(setup_kwargs):
                     "bounce_rl.core.image_capture.image_capture",
                     ["bounce_rl/core/image_capture/image_capture.pyx"],
                     libraries=["image_capture"],
-                    library_dirs=["build/core/image_capture/"],
+                    library_dirs=["meson_build/bounce_rl/core/image_capture/"],
                     include_dirs=[numpy.get_include()],
                 )
             ],
-            build_dir="build",
+            build_dir="cython_build",
         ),
-        options={"build": {"build_lib": "build/lib"}},
+        options={"build": {"build_lib": "bounce_rl/libs"}},
     )
