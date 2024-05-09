@@ -2,25 +2,22 @@ import atexit
 import json
 import logging
 import os
-import re
 import shlex
 import signal
 import string
 import subprocess
 import sys
 import time
-import xmlrpc.client
 from typing import Any, Optional
 
 import numpy as np
 import Xlib.protocol
 import Xlib.X
 import Xlib.XK
-from Xlib import Xatom, display
+from Xlib import display
 
 from bounce_rl.core.image_capture import image_capture
 from bounce_rl.core.keyboard import keyboard
-from bounce_rl.core.launcher import container
 from bounce_rl.core.launcher.launcher import Launcher
 from bounce_rl.utilities import fps_helper, util
 
