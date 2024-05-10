@@ -1,4 +1,8 @@
+import os
+
 from cffi import FFI
+
+from bounce_rl.utilities.paths import project_root
 
 
 def cursor_name(instance: int):
@@ -27,7 +31,10 @@ def make_lib_mpx_input():
         void xflush(Display* display);
     """
     )
+    libmpx_path = os.path.join(
+        project_root(), "bounce_rl/core/keyboard/libmpx_input.so"
+    )
     return (
-        mpx_input_ffi.dlopen("bounce_rl/libs/bounce_rl/core/keyboard/libmpx_input.so"),
+        mpx_input_ffi.dlopen(libmpx_path),
         mpx_input_ffi,
     )

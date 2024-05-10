@@ -102,11 +102,11 @@ app_configs = [
         #
         # Performance notes:
         #  Noita seems to run at a max 1.25x realtime (75fps) under time acceleration before being CPU bound (app is substaintially single threaded?)
-        #  however, the app runs well side-by-side hitting 60fps x 2 without substaintial lag spikes. Futhermore, if the app is largely single threaded,
+        #  however, the app runs well side-by-side hitting 60fps x 2 without substantial lag spikes. Futhermore, if the app is largely single threaded,
         #  lag spikes in an instance won't/can't affect another instance.
         "disable_time_control": False,
-        "directory": "",
         "command": "./bounce_rl/configs/run_noita.sh",
+        "directory": "$PROJECT_ROOT",
         "window_title": "Noita.*",
         "keyboard_config": {
             "sequence_keydown_time": 0.08,

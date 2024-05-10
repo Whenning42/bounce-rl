@@ -20,6 +20,7 @@ from bounce_rl.core.image_capture import image_capture
 from bounce_rl.core.keyboard import keyboard
 from bounce_rl.core.launcher.launcher import Launcher
 from bounce_rl.utilities import fps_helper, util
+from bounce_rl.utilities.paths import project_root
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -57,12 +58,20 @@ def suppress_error(*args):
 
 
 def base_app_env(
-    instance: int, base_env: dict[str, str], app_config: dict
+    instance: int,
+    base_env: dict[str, str],
+    app_config: dict,
+    project_root_dir: str,
 ) -> dict[str, str]:
     env = base_env.copy()
-
     if not app_config.get("disable_time_control", False):
-        env["LD_PRELOAD"] = "libtime_control.so"
+        # NOTE: ld.so only seems to correctly load the multiarch libraries
+        # when we use absolute paths and LD_PRELOAD w/o LD_LIBRARY_PATH.
+        extra_ld_preloads = [
+            project_root_dir + "/bounce_rl/libs/libtime_control32.so",
+            project_root_dir + "/bounce_rl/libs/libtime_control64.so",
+        ]
+        env["LD_PRELOAD"] = ":".join([env.get("LD_PRELOAD", ""), *extra_ld_preloads])
         env["TIME_CHANNEL"] = str(instance)
 
     # Drop the virtualenv path for child process
@@ -136,7 +145,7 @@ class Harness(object):
         self.proxy_subproc = subprocess.Popen(
             [
                 "python",
-                "bounce_rl/x_multiseat/proxy.py",
+                f"{project_root()}/bounce_rl/x_multiseat/proxy.py",
                 "--proxy_display",
                 f"{proxy_x_display}",
                 "--real_display",
@@ -151,11 +160,15 @@ class Harness(object):
 
         env = os.environ.copy()
         env.update(self.environment)
-        env = base_app_env(self.instance, env, self.app_config)
+        env = base_app_env(
+            self.instance, env, self.app_config, project_root_dir=project_root()
+        )
         env["PID_OFFSET"] = str(1000 * self.instance)
 
-        directory_template = string.Template(self.app_config["directory"])
-        directory = directory_template.substitute(i=self.instance)
+        directory_template = string.Template(self.app_config.get("directory", ""))
+        directory = directory_template.substitute(
+            i=self.instance, PROJECT_ROOT=project_root()
+        )
         if directory == "":
             directory = None
 
@@ -247,7 +260,7 @@ class Harness(object):
                 del window_owners[k]
 
     def tick(self):
-        """Run the Harness event loop, returns False if the attached window is closed."""
+        """Run the Harness event loop, return False if the attached window is closed."""
         self.fps_helper()
 
         # Run on_tick if we're connected to a window.

@@ -15,9 +15,10 @@ def build(setup_kwargs):
                     libraries=["image_capture"],
                     library_dirs=["meson_build/bounce_rl/core/image_capture/"],
                     include_dirs=[numpy.get_include()],
+                    runtime_library_dirs=["$ORIGIN"],
                 )
             ],
             build_dir="cython_build",
         ),
-        options={"build": {"build_lib": "bounce_rl/libs"}},
+        options={"build": {"build_lib": ""}},
     )
