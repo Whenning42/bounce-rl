@@ -37,28 +37,41 @@ end
 
 function LogStats()
     local player = GetPlayer()
-    if player == nil then print("Nil player") return end
 
-    -- Get Health
-    local damage_comp = EntityGetFirstComponent(player, "DamageModelComponent")
-    if damage_comp == nil then print("Nil damage") return end
-    local hp = 25 * ComponentGetValue(damage_comp, "hp")
-    local max_hp = 25 * ComponentGetValue(damage_comp, "max_hp")
-
-    -- Get Biome
+    -- Get position and biome
     local x, y = GetPlayerOrCameraPos()
     local biome = BiomeMapGetName(x, y)
 
-    -- Get Gold
-    local wallet = EntityGetFirstComponent(player, "WalletComponent")
-    if wallet == nil then print("Nil wallet") return end
-    local gold = ComponentGetValue(wallet, "money") + ComponentGetValue(wallet, "money_spent")
-
+    -- Get tick
     local tick_id = GameGetFrameNum()
+
+    local hp = 0
+    local max_hp = 0
+    local gold = 0
+    local polymorphed = 0
+
+    -- Get player stats
+    if player == nil then
+        polymorphed = 1
+    else
+        -- Get HP
+        local damage_comp = EntityGetFirstComponent(player, "DamageModelComponent")
+        if damage_comp ~= nil then
+            hp = 25 * ComponentGetValue(damage_comp, "hp")
+            max_hp = 25 * ComponentGetValue(damage_comp, "max_hp")
+        end
+
+        -- Get gold
+        local wallet = EntityGetFirstComponent(player, "WalletComponent")
+        if wallet ~= nil then 
+            gold = ComponentGetValue(wallet, "money") + ComponentGetValue(wallet, "money_spent")
+        end
+    end
 
     -- Write to file
     local file = io.open(PIPE_DIR .. "/noita_stats.tsv", "a")
-    file:write(string.format("%s\t%d\t%d\t%d\t%d\t%d\t%d\n", biome, hp, max_hp, gold, x, y, tick_id))
+    -- Keep in sync with noita_info.py.
+    file:write(string.format("%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", biome, hp, max_hp, gold, x, y, tick_id, polymorphed))
     file:close()
 end
 
@@ -74,6 +87,12 @@ function OnPlayerDied(player)
     -- Log player death signal. The Gym env will recieve the signal and end the run.
     local file = io.open(PIPE_DIR .. "/noita_notifications.txt", "a")
     file:write("died\n")
+    file:close()
+end
+
+function LogStr(str)
+    local file = io.open(PIPE_DIR .. "/noita_mod_log.txt", "a")
+    file:write(str .. "\n")
     file:close()
 end
 
