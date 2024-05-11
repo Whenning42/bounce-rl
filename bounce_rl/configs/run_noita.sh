@@ -39,7 +39,7 @@ cp -f bounce_rl/environments/noita/mod/golden_config.xml \
 # Copy a minimal save file into the environment to disable the intro screen.
 cp -r bounce_rl/environments/noita/initial_save00 \
       $WINEPREFIX/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save00
-ln -s $(pwd)/bounce_rl/environments/noita/mod $HOME/.steam/steam/steamapps/common/Noita/mods/rl_mod
+ln -fs $(pwd)/bounce_rl/environments/noita/mod $HOME/.steam/steam/steamapps/common/Noita/mods/rl_mod
 
 
 log "Running on display: $DISPLAY"
