@@ -21,6 +21,9 @@ rl-venv/*
 models/*
 disk/*
 bounce_rl/build/*
+docker_out/
+None/
+bounce_rl/environments/noita/mod/files/magic_numbers.xml
 
 # Minecraft files
 logs/*

@@ -109,11 +109,8 @@ class NoitaEnv(gym.core.Env):
 
     def __init__(
         self,
+        seed: Optional[int] = None,
         out_dir: Optional[str] = None,
-        # We're not yet launching noita with time control LD_PRELOAD. Once we do,
-        # we can set run_rate and pause_rate to 4 and 0.25 respectively.
-        run_rate: float = 1,
-        pause_rate: float = 0.001,
         env_conf: Optional[dict] = None,
         # Defaults to TerminateOnOverworld and TerminateOnSparseReward
         step_wrappers: list[Optional[Callable[[StepVal], StepVal]]] = None,
@@ -128,6 +125,11 @@ class NoitaEnv(gym.core.Env):
         #     raise RuntimeError(
         #         "NoitaEnv.pre_init must be called before any NoitaEnv instances are created."
         #     )
+
+        if not seed:
+            seed = random.getrandbits(32)
+            print("Noita env using random seed: ", seed)
+        self.seed = seed
 
         self.out_dir = out_dir
         self.run_rate = run_rate
@@ -266,6 +268,8 @@ class NoitaEnv(gym.core.Env):
             self.harness.cleanup()
             # os.system("killall noita.exe")
             time.sleep(1)
+
+        self._set_up_magic_numbers(self.seed)
         self.harness = Harness(
             self.app_config,
             self.run_config,
@@ -428,7 +432,8 @@ class NoitaEnv(gym.core.Env):
     # SB3 doesn't handle info returned in reset method.
     # def reset(self, *, seed: Any = None, options: Any = None) -> tuple[gym.core.ObsType, dict]:
     def reset(self, *, seed: Any = None, options: Any = None) -> gym.core.ObsType:
-        """Seed isn't yet implemented. Options are ignored."""
+        """Options are ignored."""
+        self.seed = seed
         self._reset_env()
         pixels = self.harness.get_screen()
         info = self.noita_info.on_tick()
@@ -480,3 +485,20 @@ class NoitaEnv(gym.core.Env):
     def resume(self):
         self.harness.keyboard.key_sequence(["Escape"])
         # self.harness.resume()
+
+    def _set_up_magic_numbers(self, seed):
+        copy_comm = (
+            (
+                "cp -f bounce_rl/environments/noita/mod/files/magic_numbers_template.xml "
+                "bounce_rl/environments/noita/mod/files/magic_numbers.xml"
+            ),
+        )
+        print("Running:", copy_comm)
+        subprocess.Popen(
+            copy_comm,
+            shell=True,
+        )
+        subprocess.Popen(
+            f'sed -i s/SEED_HERE/\\"{seed}\\"/g bounce_rl/environments/noita/mod/files/magic_numbers.xml',
+            shell=True,
+        )

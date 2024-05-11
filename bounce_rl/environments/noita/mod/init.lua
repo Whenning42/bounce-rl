@@ -81,3 +81,5 @@ local file = io.open(PIPE_DIR .. "/noita_stats.tsv", "a")
 -- The noita mod assumes every line is a values line.
 -- file:write("biome, hp, max_hp, gold, x, y\n")
 file:close()
+
+ModMagicNumbersFileAdd( "mods/rl_mod/files/magic_numbers.xml" )
