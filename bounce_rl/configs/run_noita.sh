@@ -43,8 +43,5 @@ done
 cd $HOME/.steam/steam/steamapps/common/Noita
 
 # Command
-$HOME/.local/share/Steam/steamapps/common/SteamLinuxRuntime_sniper/run-in-sniper -- "$HOME/.local/share/Steam/steamapps/common/Proton 8.0/proton" run $HOME/.steam/steam/steamapps/common/Noita/noita.exe &
-trap "kill $(jobs -p)" EXIT
+$HOME/.local/share/Steam/steamapps/common/SteamLinuxRuntime_sniper/_v2-entry-point --verb=waitforexitandrun -- "$HOME/.local/share/Steam/steamapps/common/Proton 8.0/proton" run $HOME/.steam/steam/steamapps/common/Noita/noita.exe &
 wait
-
-log "Exiting from run_noita.sh"
