@@ -1,14 +1,15 @@
+import atexit
 import os
-
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 
-# Note: We can consider other for message passing the from mod to this file. Options include:
-# 1. Files
-# 2. Named pipes
-# 3. Shared memory
-# 4. Sockets
+# Note: We can consider other for message passing the from mod to this file.
+# Options include:
+#  - Files
+#  - Named pipes
+#  - Shared memory
+#  - Sockets
 class FileTail:
     def __init__(self, path: str, mode: str = "r", initial_line: Optional[str] = None):
         self.path = path
@@ -57,6 +58,8 @@ class NoitaInfo:
         self.notification_file = os.path.join(pipe_dir, "noita_notifications.txt")
         self.notification_tail = FileTail(self.notification_file, "a+")
 
+        atexit.register(self.cleanup)
+
         # Clear any existing notifications.
         self.on_tick()
         self.is_alive = True
@@ -68,9 +71,9 @@ class NoitaInfo:
         # Update info
         new_vals_line, new_data = self.info_tail.get()
         self.is_alive = new_data or self.is_alive
-        new_vals = new_vals_line.split('\t')
+        new_vals = new_vals_line.split("\t")
         for k, v in zip(self.info.keys(), new_vals):
-            if k != 'biome':
+            if k != "biome":
                 v = int(v)
             self.info[k] = v
 
@@ -82,3 +85,11 @@ class NoitaInfo:
 
         self.info["is_alive"] = self.is_alive
         return self.info.copy()
+
+    def cleanup(self) -> None:
+        if self.info_tail is not None:
+            self.info_tail.file.close()
+            self.info_tail = None
+        if self.notification_tail is not None:
+            self.notification_tail.file.close()
+            self.notification_tail = None
