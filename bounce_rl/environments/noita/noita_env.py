@@ -116,7 +116,6 @@ class NoitaEnv(gym.core.Env):
         x_pos: int = 0,
         y_pos: int = 0,
         instance: int = 0,
-        log_pixels: bool = False,
         run_config: Optional[dict[str, Any]] = None,
     ):
         # The caller must call pre_init for this environment, however,
@@ -142,7 +141,6 @@ class NoitaEnv(gym.core.Env):
         self.x_pos = x_pos
         self.y_pos = y_pos
         self.instance = instance
-        self.log_pixels = log_pixels
         self.app_config = app_configs.LoadAppConfig(self.run_config["app"])
         self.environment = {
             "ENV_PREFIX": f"/tmp/env_dirs_{self.instance}",
@@ -455,7 +453,7 @@ class NoitaEnv(gym.core.Env):
         self.seed = seed
         self._reset_env()
         pixels = self.harness.get_screen()
-        info = self.noita_info.on_tick()
+        _ = self.noita_info.on_tick()
         # return pixels, info
         return pixels
 
@@ -490,10 +488,11 @@ class NoitaEnv(gym.core.Env):
         # fmt: off
         with open(info_filename, "wb") as info_file, \
              open(step_filename, "wb") as step_file:
-             # fmt: on
+            # fmt: on
             pickle.dump(step_val.info, info_file)
             pickle.dump(step_info, step_file)
-        if self.log_pixels:
+        if self.run_config["pixels_every_n_episodes"] > 0 and \
+           self.ep_num % self.run_config["pixels_every_n_episodes"] == 0:
             with open(pixels_filename, "wb") as pixels_file:
                 pixels_file.write(simplejpeg.encode_jpeg(step_val.pixels, quality=92))
 
@@ -503,11 +502,9 @@ class NoitaEnv(gym.core.Env):
 
     def pause(self):
         self.harness.keyboard.key_sequence(["Escape"])
-        # self.harness.pause()
 
     def resume(self):
         self.harness.keyboard.key_sequence(["Escape"])
-        # self.harness.resume()
 
     def _set_up_magic_numbers(self, seed):
         copy_comm = (
