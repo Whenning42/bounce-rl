@@ -1,20 +1,19 @@
 Project:
-- AoR
-  - GameHarness + Pixels + Easy Env
-    - DrQv2
-    - TODO: Document results
-- Noita
-  - GameHarness + Pixels + Harder Env
-    - SB3 + tuple env + image regularization
-        ✓ Update SB3 to support tuple action space
-          - Add unit test
-        - Write SB3 Noita train script
-        - Run unregularized train experiment
-          - Default LR, 1e6 steps, PPO (lower sample efficiency than SAC, but more robust)
-        - Update SB3 w/ image regularization
-- Factorio
+- Noita Env release
+  - Env improvements
+    ✓ Set up a regression test
+    - P2: Make exploration state observable
+  - ✓: Switch to simplejpeg
+  - ✓: Build wheels for python 3.8-3.11
+  - P0: Test on clean ubuntu machine
+  - P1: Code complete
+  - P2: Marketing approach?
+    - P0: Pitch
+      - P0: Blurbs and graphics
+    - P2: Factorio support?
+    - P3: Baseline agent?
+  - P2: Improve output file formats to reduce filesystem overhead
 
-Experiment Log:
 
 Noita SB3 PPO Exp 1 (no image regularization)
 Path: out/noita_sb3_ppo_no_reg/

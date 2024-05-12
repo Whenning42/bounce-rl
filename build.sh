@@ -29,4 +29,8 @@ cp bounce_rl/core/time_control/libtime_control32.so ../bounce_rl/libs/libtime_co
 cd ..
 
 # Build python package
-poetry build
+for PYTHON_VERSION in 38 39 310 311; do
+    poetry env use "/opt/python/cp${PYTHON_VERSION}-cp${PYTHON_VERSION}/bin/python"
+    poetry build
+done
+
