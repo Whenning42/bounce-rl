@@ -149,12 +149,6 @@ class NoitaEnv(gym.core.Env):
             step_wrappers = [TerminateOnOverworld(), TerminateOnSparseReward()]
         self.step_wrappers = step_wrappers
 
-        # TODO: Add mouse velocity as a feature.
-        # TODO: Add inventory (I) as an input.
-        self.input_space = NoitaEnv._input_space()
-        self.action_space = NoitaEnv.action_space()
-        self.observation_space = NoitaEnv.observation_space()
-
         self.ep_step = 0
         self.ep_num = 0
         self.env_step = 0
@@ -180,7 +174,7 @@ class NoitaEnv(gym.core.Env):
         }
 
     @staticmethod
-    def observation_space(
+    def _observation_space(
         run_config: Optional[dict[str, Any]] = None
     ) -> gym.spaces.Box:
         if run_config is None:
@@ -193,24 +187,36 @@ class NoitaEnv(gym.core.Env):
             dtype=np.uint8,
         )
 
-    @staticmethod
-    def _input_space() -> list[tuple[str, ...]]:
-        # TODO: Add mouse velocity as a feature.
-        # TODO: Add inventory (I) as an input.
-        return [
-            ("W", "S"),
-            ("A", "D"),
-            ("F",),
-            ("E",),
-            # Noita blows themself up too often if you give them the bomb at the outset.
-            # ("1", "2", "3", "4"),
-            ("1", "3", "4"),
-            ("5", "6", "7", "8"),
-            (keyboard.MouseButton.LEFT, keyboard.MouseButton.RIGHT),
-        ]
+    @property
+    def observation_space(self):
+        return NoitaEnv._observation_space()
 
     @staticmethod
-    def action_space() -> gym.spaces.Tuple:
+    def _input_space():
+        return [
+            (None, "W", "S"),
+            (None, "A", "D"),
+            (
+                None,
+                "F",
+            ),
+            (
+                None,
+                "E",
+            ),
+            # Noita blows themself up too often if you give them the bomb at the outset.
+            # ("1", "2", "3", "4"),
+            (None, "1", "3", "4"),
+            (None, "5", "6", "7", "8"),
+            (None, keyboard.MouseButton.LEFT, keyboard.MouseButton.RIGHT),
+        ]
+
+    @property
+    def input_space(self):
+        return NoitaEnv._input_space()
+
+    @staticmethod
+    def _action_space() -> gym.spaces.Tuple:
         discrete_lens = [len(x) for x in NoitaEnv._input_space()]
         return gym.spaces.Tuple(
             (
@@ -218,6 +224,10 @@ class NoitaEnv(gym.core.Env):
                 gym.spaces.Box(low=-1, high=1, shape=(2,)),
             )
         )
+
+    @property
+    def action_space(self):
+        return NoitaEnv._action_space()
 
     @classmethod
     def pre_init(cls, num_envs: int = 1):
