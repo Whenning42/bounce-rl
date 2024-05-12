@@ -68,8 +68,11 @@ class TerminateOnSparseReward:
         self,
         history_len: Optional[LinearInterpolator] = None,
         max_size: Optional[int] = None,
+        log: bool = False,
     ):
         self.termination_penalty = 10
+        self.log = log
+
         if max_size is None:
             max_size = 5 * 60 * 4
         self.max_size = max_size
@@ -78,6 +81,7 @@ class TerminateOnSparseReward:
                 x_0=0, x_1=1000000, y_0=1.5 * 60 * 4, y_1=5 * 60 * 4, extrapolate=False
             )
         self.history_len = history_len
+        self.reset()
 
     def __call__(self, step: StepVal) -> StepVal:
         self.reward_history.push(
@@ -87,7 +91,10 @@ class TerminateOnSparseReward:
         if np.sum(reward_history != 0) == 0:
             step.reward -= self.termination_penalty
             step.terminated = True
-            print(f"Terminated an episode due to sparse reward at step {step.ep_step}.")
+            if self.log:
+                print(
+                    f"Terminated episode due to sparse reward at step {step.ep_step}."
+                )
         return step
 
     def reset(self):
@@ -145,7 +152,7 @@ class NoitaEnv(gym.core.Env):
         self.reward_callback = noita_reward.NoitaReward()
 
         if step_wrappers is None:
-            step_wrappers = [TerminateOnOverworld(), TerminateOnSparseReward()]
+            step_wrappers = [TerminateOnOverworld(), TerminateOnSparseReward(log=True)]
         self.step_wrappers = step_wrappers
 
         self.ep_step = 0
