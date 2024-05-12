@@ -12,7 +12,7 @@ from typing import Any, Callable, Iterable, Optional
 
 import gym
 import numpy as np
-import turbojpeg
+import simplejpeg
 
 import bounce_rl.configs.app_configs as app_configs
 from bounce_rl.core.harness import Harness
@@ -23,7 +23,6 @@ from bounce_rl.environments.noita import noita_info, noita_reward
 from bounce_rl.utilities.util import GrowingCircularFIFOArray, LinearInterpolator
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
-jpeg = turbojpeg.TurboJPEG()
 
 
 @dataclass
@@ -496,7 +495,7 @@ class NoitaEnv(gym.core.Env):
             pickle.dump(step_info, step_file)
         if self.log_pixels:
             with open(pixels_filename, "wb") as pixels_file:
-                pixels_file.write(jpeg.encode(step_val.pixels, quality=92))
+                pixels_file.write(simplejpeg.encode_jpeg(step_val.pixels, quality=92))
 
     def close(self):
         self.harness.cleanup()

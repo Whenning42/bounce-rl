@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "BounceRL"
-version = "0.0.5"
+version = "0.0.25"
 description = "Bounce RL"
 authors = ["William Henning <wchenningwchenning@gmail.com>"]
 readme = "README.md"
@@ -13,7 +13,7 @@ python = ">=3.9"
 numpy = "^1.26.4"
 gym = "0.23.1"
 cffi = "^1.16.0"
-pyturbojpeg = "^1.7.3"
+simplejpeg = "^1.7.0"
 psutil = "^5.9.8"
 python-xlib = "^0.33"
 
