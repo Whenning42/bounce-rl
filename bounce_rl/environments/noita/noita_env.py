@@ -482,6 +482,10 @@ class NoitaEnv(gym.core.Env):
             with open(pixels_filename, "wb") as pixels_file:
                 pixels_file.write(jpeg.encode(step_val.pixels, quality=92))
 
+    def close(self):
+        self.harness.cleanup()
+        del self.harness
+
     def pause(self):
         self.harness.keyboard.key_sequence(["Escape"])
         # self.harness.pause()
