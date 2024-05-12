@@ -13,9 +13,12 @@ def _run_cmd(cmd: str, stderr_devnull=False) -> str:
     return out.decode().strip()
 
 
-def get_child_pid(unshare_pid: int) -> Optional[int]:
-    pids = _run_cmd(f"ps -A -o ppid,pid | grep '^\s*{unshare_pid}'").split("\n")
-    for line in pids:
+def get_child_pid(parent_pid: int) -> Optional[int]:
+    pids = _run_cmd(rf"ps -A -o ppid,pid | grep '^\s*{parent_pid}'")
+    if not pids:
+        return None
+
+    for line in pids.split("\n"):
         child_pid = line.strip().split()[1]
         return int(child_pid)
     return None
@@ -68,19 +71,31 @@ class PIDMapper:
 
 
 def launch_process_container(
-    cmds: str, directory: str, env: dict[str, str]
+    cmd: str, directory: str, env: dict[str, str]
 ) -> tuple[int, int, PIDMapper]:
     """Starts the given commands in a new pid namespace.
 
     When the returned process exits or is killed, all programs in the
     namespace will be killed."""
-    cmd = shlex.split(
-        f"unshare -U --map-user={os.getuid()} --map-group={os.getgid()} --mount-proc --fork --pid --kill-child"
-    ) + ["bash", "-c", cmds]
-    print("Parsed popen command: ", cmd, flush=True)
-    p = subprocess.Popen(cmd, cwd=directory, env=env)
-    cmd_pid = get_child_pid(p.pid)
+
+    launch_cmd = shlex.split(
+        f"unshare -U --map-user={os.getuid()} --map-group={os.getgid()} --mount-proc "
+        "--fork --pid --kill-child "
+        f"{cmd}"
+    )
+    print("Parsed popen command: ", launch_cmd, flush=True)
+    p = subprocess.Popen(launch_cmd, cwd=directory, env=env, stderr=subprocess.PIPE)
+    _ = subprocess.Popen(
+        shlex.split('grep -v "libtime_control.*wrong ELF class"'),
+        stdin=p.stderr,
+        stderr=subprocess.STDOUT,
+    )
+    unshare_pid = p.pid
+    cmd_pid = get_child_pid(unshare_pid)
+
+    print("Root pid:", p.pid, "unshare_pid:", unshare_pid, "cmd_pid:", cmd_pid)
+
     if cmd_pid is None:
         return -1, -1, PIDMapper(-1)
     pidns = get_pid_ns(cmd_pid)
-    return p.pid, cmd_pid, PIDMapper(pidns)
+    return unshare_pid, cmd_pid, PIDMapper(pidns)
