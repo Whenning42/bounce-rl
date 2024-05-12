@@ -3,10 +3,7 @@
 import os
 import time
 from enum import Enum
-from typing import Any, Iterable, Optional
-
-import gym
-import numpy as np
+from typing import Any, Dict, Iterable, Optional, Tuple
 
 import configs.app_configs as app_configs
 import keyboard
@@ -43,7 +40,7 @@ class MockEnv(gym.core.Env):
             "step_duration": 0.25,
             "pixels_every_n_episodes": 1,
         }
-        self.run_config: dict[str, Any] = run_config
+        self.run_config: Dict[str, Any] = run_config
         self.app_config = app_configs.LoadAppConfig(run_config["app"])
 
         self.ep_step = 0
@@ -76,8 +73,10 @@ class MockEnv(gym.core.Env):
         pass
 
     # SB3 expects `done` instead of `terminated` and `truncated`.
-    # def step(self, action: tuple[Iterable, Iterable]) -> tuple[np.ndarray, float, bool, bool, dict]:
-    def step(self, action: tuple[Iterable, Iterable]) -> tuple[np.ndarray, float, bool, dict]:
+    # def step(self, action: Tuple[Iterable, Iterable]) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(
+        self, action: Tuple[Iterable, Iterable]
+    ) -> Tuple[np.ndarray, float, bool, dict]:
         self.ep_step += 1
         self.env_step += 1
 
@@ -91,7 +90,7 @@ class MockEnv(gym.core.Env):
         return pixels, reward, done, info 
 
     # SB3 doesn't handle info returned in reset method.
-    # def reset(self, *, seed: Any = None, options: Any = None) -> tuple[gym.core.ObsType, dict]:
+    # def reset(self, *, seed: Any = None, options: Any = None) -> Tuple[gym.core.ObsType, dict]:
     def reset(self, *, seed: Any = None, options: Any = None) -> gym.core.ObsType:
         """Seed isn't yet implemented. Options are ignored."""
         pixels = torch.zeros((self.run_config["y_res"], self.run_config["x_res"], 3), dtype=torch.uint8)

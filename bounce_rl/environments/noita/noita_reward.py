@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict
 
 
 class NoitaReward:
@@ -40,7 +40,7 @@ class NoitaReward:
                 y_orig = info['y'] + 
         """
 
-    def update(self, info: dict[str, Any]):
+    def update(self, info: Dict[str, Any]):
         block_x, block_y = info["x"] // self.BLOCK_SIZE, info["y"] // self.BLOCK_SIZE
         if self.last_info is None:
             self.positions[(block_x, block_y)] = 1

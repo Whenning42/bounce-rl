@@ -8,7 +8,7 @@ import string
 import subprocess
 import sys
 import time
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import Xlib.protocol
@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(mes
 
 REOPEN_CLOSED_WINDOWS = False
 
-window_owners: dict[int, Any] = {}
+window_owners: Dict[int, Any] = {}
 
 
 def handle_error(*args):
@@ -40,7 +40,7 @@ def handle_error(*args):
 
 # Caller has to unpack the property return value.
 # For "_NET_WM_PID" property, it's an array of ints. For other types I'm not sure.
-def query_window_property(display, window, property_name, property_type) -> list[int]:
+def query_window_property(display, window, property_name, property_type) -> List[int]:
     property_name_atom = display.get_atom(property_name)
     try:
         result = window.get_full_property(property_name_atom, property_type)
@@ -59,10 +59,10 @@ def suppress_error(*args):
 
 def base_app_env(
     instance: int,
-    base_env: dict[str, str],
+    base_env: Dict[str, str],
     app_config: dict,
     project_root_dir: str,
-) -> dict[str, str]:
+) -> Dict[str, str]:
     env = base_env.copy()
     if not app_config.get("disable_time_control", False):
         # NOTE: ld.so only seems to correctly load the multiarch libraries

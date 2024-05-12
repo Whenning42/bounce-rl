@@ -2,7 +2,7 @@ import json
 import logging
 import time
 from socketserver import ThreadingMixIn
-from typing import Any
+from typing import Any, List
 from xmlrpc.server import SimpleXMLRPCRequestHandler, SimpleXMLRPCServer
 
 import Xlib.display
@@ -18,8 +18,8 @@ class Launcher:
         window_title: str,
         pid_mapper: container.PIDMapper,
         root_pid: int,
-    ) -> list[int]:
-        windows: list[Any] = []
+    ) -> List[int]:
+        windows: List[Any] = []
         lookup = x_search.WindowLookup(Xlib.display.Display(), pid_mapper, root_pid)
         windows = lookup.get_owned_windows_with_name(window_title)
         return [w.id for w in windows]
@@ -29,9 +29,9 @@ class Launcher:
         instance: int,
         command: str,
         directory: str,
-        env_str: str,  # A json encoded dict[str, str]
+        env_str: str,  # A json encoded Dict[str, str]
         window_title: str,
-    ) -> list[int]:
+    ) -> List[int]:
         env = json.loads(env_str)
         # TODO: Catch launch errors.
         unshare_pid, init_pid, pid_mapper = container.launch_process_container(

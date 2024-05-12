@@ -6,6 +6,7 @@
 import logging
 import re
 import time
+from typing import List
 
 import psutil
 import Xlib
@@ -20,7 +21,7 @@ def query_window_property(
     window: Window,
     property_name: str,
     property_type,
-) -> list[int]:
+) -> List[int]:
     property_name_atom = display.get_atom(property_name)
     try:
         result = window.get_full_property(property_name_atom, property_type)
@@ -86,8 +87,8 @@ class WindowLookup:
         # )
         return is_owned
 
-    def get_owned_windows_with_name(self, name: str) -> list[Window]:
-        windows: list[Window] = []
+    def get_owned_windows_with_name(self, name: str) -> List[Window]:
+        windows: List[Window] = []
         while len(windows) == 0:
             time.sleep(0.5)
             logging.debug("Looking for windows with name: %s", name)

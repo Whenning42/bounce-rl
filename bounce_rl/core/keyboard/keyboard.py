@@ -11,7 +11,7 @@ import subprocess
 import threading
 import time
 from enum import Enum
-from typing import Union
+from typing import Set, Union
 
 import numpy as np
 import Xlib.display
@@ -77,8 +77,8 @@ class Keyboard(object):
 
         self.sequence_keydown_time = keyboard_config.get("sequence_keydown_time", 0.25)
 
-        self.held_keys: set[str] = set()
-        self.held_mouse_buttons: set[MouseButton] = set()
+        self.held_keys: Set[str] = set()
+        self.held_mouse_buttons: Set[MouseButton] = set()
 
         self.should_run_failsafe = True
         self.failsafe_thread = threading.Thread(
@@ -211,7 +211,7 @@ class Keyboard(object):
     def _release_key(self, key_name, modifier=0):
         self._change_key(key_name, Keyboard.RELEASE, modifier)
 
-    def key_sequence(self, keys: set[str]):
+    def key_sequence(self, keys: Set[str]):
         for key in keys:
             time.sleep(0.1)
             self.press_key(key)
@@ -238,7 +238,7 @@ class Keyboard(object):
     def set_mouse_button(self, button: MouseButton, direction: int) -> None:
         self.lib_mpx_input.button_event(self.display, button.value, direction)
 
-    def set_held_mouse_buttons(self, mouse_buttons: set[MouseButton]):
+    def set_held_mouse_buttons(self, mouse_buttons: Set[MouseButton]):
         # Implements re-press mouse mode.
         for button in self.held_mouse_buttons:
             self.set_mouse_button(button, Keyboard.RELEASE)

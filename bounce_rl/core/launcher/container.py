@@ -1,7 +1,7 @@
 import os
 import shlex
 import subprocess
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 
 def _run_cmd(cmd: str, stderr_devnull=False) -> str:
@@ -71,8 +71,8 @@ class PIDMapper:
 
 
 def launch_process_container(
-    cmd: str, directory: str, env: dict[str, str]
-) -> tuple[int, int, PIDMapper]:
+    cmd: str, directory: str, env: Dict[str, str]
+) -> Tuple[int, int, PIDMapper]:
     """Starts the given commands in a new pid namespace.
 
     When the returned process exits or is killed, all programs in the

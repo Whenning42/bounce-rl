@@ -8,7 +8,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import gym
 import numpy as np
@@ -112,12 +112,12 @@ class NoitaEnv(gym.core.Env):
         out_dir: Optional[str] = None,
         env_conf: Optional[dict] = None,
         # Defaults to TerminateOnOverworld and TerminateOnSparseReward
-        step_wrappers: list[Optional[Callable[[StepVal], StepVal]]] = None,
+        step_wrappers: List[Optional[Callable[[StepVal], StepVal]]] = None,
         skip_startup: bool = False,
         x_pos: int = 0,
         y_pos: int = 0,
         instance: int = 0,
-        run_config: Optional[dict[str, Any]] = None,
+        run_config: Optional[Dict[str, Any]] = None,
     ):
         # The caller must call pre_init for this environment, however,
         # we sometime do so out of process, so a simple global flag
@@ -160,7 +160,7 @@ class NoitaEnv(gym.core.Env):
         self._reset_env(skip_startup=skip_startup)
 
     @staticmethod
-    def _default_run_config() -> dict[str, Any]:
+    def _default_run_config() -> Dict[str, Any]:
         return {
             "app": "Noita",
             "x_res": 640,
@@ -179,7 +179,7 @@ class NoitaEnv(gym.core.Env):
 
     @staticmethod
     def _observation_space(
-        run_config: Optional[dict[str, Any]] = None
+        run_config: Optional[Dict[str, Any]] = None
     ) -> gym.spaces.Box:
         if run_config is None:
             run_config = NoitaEnv._default_run_config()
@@ -351,8 +351,8 @@ class NoitaEnv(gym.core.Env):
 
     # SB3 expects `done` instead of `terminated` and `truncated`.
     def step(
-        self, action: tuple[Iterable, Iterable]
-    ) -> Optional[tuple[np.ndarray, float, bool, dict]]:
+        self, action: Tuple[Iterable, Iterable]
+    ) -> Optional[Tuple[np.ndarray, float, bool, dict]]:
         """Returns None if the environment is unable to be stepped. In this case
         the environment should be reset.""" ""
         self.ep_step += 1
@@ -448,7 +448,7 @@ class NoitaEnv(gym.core.Env):
         )
 
     # SB3 doesn't handle info returned in reset method.
-    # def reset(self, *, seed: Any = None, options: Any = None) -> tuple[gym.core.ObsType, dict]:
+    # def reset(self, *, seed: Any = None, options: Any = None) -> Tuple[gym.core.ObsType, dict]:
     def reset(self, *, seed: Any = None, options: Any = None) -> gym.core.ObsType:
         """Options are ignored."""
         self.seed = seed

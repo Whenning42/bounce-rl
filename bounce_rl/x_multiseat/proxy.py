@@ -21,7 +21,7 @@ import signal
 import socket
 import struct
 import sys
-from collections.abc import Iterable
+from typing import Iterable, Set
 
 logging.basicConfig(level=logging.WARNING)
 
@@ -451,8 +451,8 @@ class Proxy:
         signal.signal(signal.SIGHUP, lambda signum, frame: os.remove(x_conn_path))
         self.client_socket.listen(200)
 
-        self.client_connections: set[socket.socket] = set()
-        self.display_connections: set[socket.socket] = set()
+        self.client_connections: Set[socket.socket] = set()
+        self.display_connections: Set[socket.socket] = set()
 
         self.sockets = [self.client_socket]
         self.mirrors = {}

@@ -1,7 +1,7 @@
 import atexit
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 
 # Note: We can consider other for message passing the from mod to this file.
@@ -20,7 +20,7 @@ class FileTail:
             initial_line = ""
         self.line = initial_line
 
-    def get(self) -> tuple[str, bool]:
+    def get(self) -> Tuple[str, bool]:
         """Returns the most recently seen line and whether a new line has been read."""
         is_new = False
         while True:
