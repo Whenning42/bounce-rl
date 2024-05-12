@@ -112,7 +112,6 @@ app_configs = [
             "sequence_keydown_time": 0.08,
             "mode": "FAKE_INPUT",
         },
-        "use_x_proxy": True,
     },
 ]
 

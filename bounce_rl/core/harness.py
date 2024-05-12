@@ -178,7 +178,7 @@ class Harness(object):
         if directory == "":
             directory = None
 
-        if self.app_config.get("use_x_proxy", False):
+        if self.run_config.get("use_x_proxy", False):
             proxy_display = self._launch_x_proxy()
             env["DISPLAY"] = f":{proxy_display}"
 
