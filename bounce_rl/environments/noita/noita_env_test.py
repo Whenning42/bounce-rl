@@ -1,7 +1,10 @@
 import unittest
+
 import numpy as np
-from noita_env import TerminateOnSparseReward, StepVal
-from src.util import LinearInterpolator
+
+from bounce_rl.environments.noita.noita_env import StepVal, TerminateOnSparseReward
+from bounce_rl.utilities.util import LinearInterpolator
+
 
 def other_args():
     return {'pixels': np.zeros((16, 16, 3), dtype=np.uint8),
