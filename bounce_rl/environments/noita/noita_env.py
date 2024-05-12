@@ -172,6 +172,10 @@ class NoitaEnv(gym.core.Env):
             "pause_rate": 0.02,
             "step_duration": 0.166,
             "pixels_every_n_episodes": 1,
+            # There are 9 input actions in the environment, so policies may do
+            # 1/sqrt(9) feature scaling on actions. To compensate, we scale mouse
+            # coordinates here.
+            "scale_mouse_coords": 3,
             "use_x_proxy": True,
         }
 
@@ -359,10 +363,10 @@ class NoitaEnv(gym.core.Env):
         # Apply inputs
         self.harness.keyboard.set_held_keys(held_keys)
         self.harness.keyboard.set_held_mouse_buttons(held_mouse_buttons)
-        # There are 9 inputs, so they're likely normalized w/ std 1/root(9).
-        # We scale the outputs back here.
-        continuous_action = [c * 3 for c in continuous_action]
-        # Rescale to 0-1
+        continuous_action = [
+            c * self.run_config["scale_mouse_coords"] for c in continuous_action
+        ]
+        # Convert mouse coordinates from [-1, 1] to [0, 1].
         continuous_action = [(c + 1) / 2 for c in continuous_action]
         mouse_pos = (
             continuous_action[0] * self.run_config["x_res"],
