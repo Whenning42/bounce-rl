@@ -20,6 +20,7 @@ from bounce_rl.core.keyboard import keyboard
 from bounce_rl.core.keyboard.keyboard import lib_mpx_input
 from bounce_rl.core.time_control import time_writer
 from bounce_rl.environments.noita import noita_info, noita_reward
+from bounce_rl.utilities.paths import project_root
 from bounce_rl.utilities.util import GrowingCircularFIFOArray, LinearInterpolator
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
@@ -509,8 +510,8 @@ class NoitaEnv(gym.core.Env):
     def _set_up_magic_numbers(self, seed):
         copy_comm = (
             (
-                "cp -f bounce_rl/environments/noita/mod/files/magic_numbers_template.xml "
-                "bounce_rl/environments/noita/mod/files/magic_numbers.xml"
+                f"cp -f {project_root()}/bounce_rl/environments/noita/mod/files/magic_numbers_template.xml "
+                f"{project_root()}/bounce_rl/environments/noita/mod/files/magic_numbers.xml"
             ),
         )
         print("Running:", copy_comm)
@@ -519,6 +520,6 @@ class NoitaEnv(gym.core.Env):
             shell=True,
         )
         subprocess.Popen(
-            f'sed -i s/SEED_HERE/\\"{seed}\\"/g bounce_rl/environments/noita/mod/files/magic_numbers.xml',
+            f'sed -i s/SEED_HERE/\\"{seed}\\"/g {project_root()}/bounce_rl/environments/noita/mod/files/magic_numbers.xml',
             shell=True,
         )
