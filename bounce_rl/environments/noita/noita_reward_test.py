@@ -1,6 +1,6 @@
 import unittest
 
-import noita_reward as noita_reward
+from bounce_rl.environments.noita import noita_reward
 
 
 class TestArtOfRallyReward(unittest.TestCase):
