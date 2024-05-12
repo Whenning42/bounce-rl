@@ -1,6 +1,3 @@
-# TODO: Add tests once we've got containerization set up. Use fixed seed + golden image
-# and L1 distance to set up a pass / fail threshold.
-
 import atexit
 import datetime
 import logging
@@ -116,7 +113,9 @@ class NoitaEnv(gym.core.Env):
         log_pixels: bool = False,
         run_config: Optional[dict[str, Any]] = None,
     ):
-        # In a multiprocessing setup, pre_init has been called, but not in process.
+        # The caller must call pre_init for this environment, however,
+        # we sometime do so out of process, so a simple global flag
+        # check doesn't work.
         # if not self.singleton_init:
         #     raise RuntimeError(
         #         "NoitaEnv.pre_init must be called before any NoitaEnv instances are created."
