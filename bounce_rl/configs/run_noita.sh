@@ -21,7 +21,8 @@ cp -f bounce_rl/environments/noita/mod/golden_config.xml \
   $PROTON_ROOT/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save_shared/config.xml
 cp -r bounce_rl/environments/noita/initial_save00 \
       $PROTON_ROOT/drive_c/users/steamuser/AppData/LocalLow/Nolla_Games_Noita/save00
-ln -fs $(pwd)/bounce_rl/environments/noita/mod $HOME/.steam/steam/steamapps/common/Noita/mods/rl_mod
+rm -rf $HOME/.steam/steam/steamapps/common/Noita/mods/rl_mod
+ln -s $(pwd)/bounce_rl/environments/noita/mod $HOME/.steam/steam/steamapps/common/Noita/mods/rl_mod
 
 # Set steam environment variables
 export STEAM_COMPAT_DATA_PATH="$RUN_COMPAT_DATA"
