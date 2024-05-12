@@ -1,17 +1,12 @@
-# TODO: Add tests once we've got containerization set up. Use fixed seed + golden image and
-# L1 distance to set up a pass / fail threshold.
-#
-# FIXME: Noita's window doesn't always recieve focus, even when moving the
-# mouse over if with fake input. Maybe is related to killing the old noita
-# window. An x11 session per episdode would solve the issue.
+# TODO: Add tests once we've got containerization set up. Use fixed seed + golden image
+# and L1 distance to set up a pass / fail threshold.
 
 import atexit
 import datetime
 import logging
-import os
 import pathlib
 import pickle
-import signal
+import random
 import subprocess
 import time
 from dataclasses import dataclass
@@ -119,6 +114,7 @@ class NoitaEnv(gym.core.Env):
         y_pos: int = 0,
         instance: int = 0,
         log_pixels: bool = False,
+        run_config: Optional[dict[str, Any]] = None,
     ):
         # In a multiprocessing setup, pre_init has been called, but not in process.
         # if not self.singleton_init:
@@ -132,8 +128,9 @@ class NoitaEnv(gym.core.Env):
         self.seed = seed
 
         self.out_dir = out_dir
-        self.run_rate = run_rate
-        self.pause_rate = pause_rate
+        self.run_config = NoitaEnv._default_run_config()
+        if run_config is not None:
+            self.run_config.update(run_config)
         if env_conf is None:
             env_conf = {}
         self.env_conf = env_conf
@@ -141,10 +138,8 @@ class NoitaEnv(gym.core.Env):
         self.y_pos = y_pos
         self.instance = instance
         self.log_pixels = log_pixels
-        self.run_config: dict[str, Any] = NoitaEnv._run_config()
         self.app_config = app_configs.LoadAppConfig(self.run_config["app"])
         self.environment = {
-            "WINEPREFIX": f"/tmp/env_dirs_{self.instance}/wine",
             "ENV_PREFIX": f"/tmp/env_dirs_{self.instance}",
         }
         self.noita_info = noita_info.NoitaInfo(pipe_dir=self.environment["ENV_PREFIX"])
@@ -167,21 +162,26 @@ class NoitaEnv(gym.core.Env):
         self._reset_env(skip_startup=skip_startup)
 
     @staticmethod
-    def _run_config() -> dict[str, Any]:
+    def _default_run_config() -> dict[str, Any]:
         return {
             "app": "Noita",
             "x_res": 640,
             "y_res": 360,
             "scale": 1,
-            "run_rate": 1,
-            "pause_rate": 0.001,
+            "run_rate": 4,
+            "pause_rate": 0.02,
             "step_duration": 0.166,
             "pixels_every_n_episodes": 1,
+            "use_x_proxy": True,
         }
 
     @staticmethod
-    def observation_space() -> gym.spaces.Box:
-        run_config = NoitaEnv._run_config()
+    def observation_space(
+        run_config: Optional[dict[str, Any]] = None
+    ) -> gym.spaces.Box:
+        if run_config is None:
+            run_config = NoitaEnv._default_run_config()
+
         return gym.spaces.Box(
             low=0,
             high=255,
