@@ -5,17 +5,18 @@ import posix
 import struct
 
 FIFO = "/tmp/time_control"
-f = None
+files = {}
 
 
 def SetSpeedup(speedup, channel=""):
-    global f
+    global files
     speedup = float(speedup)
     # Opening the file for reading and writing prevents blocking until a reader opens
     # the file.
-    if f is None:
+    if channel not in files:
         print("Writing time to file: ", FIFO + str(channel))
         f = posix.open(FIFO + str(channel), posix.O_RDWR | posix.O_CREAT)
+        files[channel] = f
     posix.ftruncate(f, 0)
     SEEK_SET = 0
     posix.lseek(f, 0, SEEK_SET)
