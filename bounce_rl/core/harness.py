@@ -207,8 +207,8 @@ class Harness(object):
 
     def _attach(self, window_id):
         window = self.display.create_resource_object("window", window_id)
-        x = int(self.run_config["scale"] * self.run_config["x_res"] * self.x_pos)
-        y = int(self.run_config["scale"] * self.run_config["y_res"] * self.y_pos)
+        x = 100 + int(self.run_config["scale"] * self.run_config["x_res"] * self.x_pos)
+        y = 100 + int(self.run_config["scale"] * self.run_config["y_res"] * self.y_pos)
 
         # Note: Configure has to happen before keyboard, since keyboard
         # clicks on the window's expected absolute position to focus

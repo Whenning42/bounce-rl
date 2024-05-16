@@ -63,14 +63,16 @@ def run(
         env_out = env_out_dir + f"/env_{i}"
         env_fns.append(
             lambda i=i, env_out=env_out: noita_env.NoitaEnv(
-                out_dir=env_out, skip_startup=True, x_pos=i, instance=i
+                out_dir=env_out,
+                skip_startup=True,
+                x_pos=i % 2,
+                y_pos=i // 2,
+                instance=i,
             )
         )
     env = VecFrameStack(
         PoolVecEnv(env_fns, n=num_envs, k=num_envs - 1), n_stack=n_stack
     )
-
-    eval_env = env
     # Makes episode length and mean reward visible in tensorboard logging.
     env = stable_baselines3.common.vec_env.VecMonitor(env)
 
