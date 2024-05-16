@@ -242,6 +242,9 @@ class NoitaEnv(gym.core.Env):
         if cls.singleton_init:
             raise RuntimeError("NoitaEnv.pre_init has already been called.")
 
+        for i in range(num_envs):
+            time_writer.SetSpeedup(1, str(i))
+
         lib_mpx, lib_mpx_ffi = lib_mpx_input.make_lib_mpx_input()
         display = lib_mpx.open_display(b":0")
         for i in range(num_envs):
