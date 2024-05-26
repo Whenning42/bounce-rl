@@ -108,9 +108,6 @@ class ReplyStream:
                     if should_filter:
                         self._replace_last_message(msg_len, b"")
 
-        logging.debug("Initial %d reply bytes", len(self.queued_bytes))
-        logging.debug("Sending out %d reply bytes", self.end)
-        logging.debug("Remaining reply bytes: %d", len(self.queued_bytes) - self.end)
         to_send = memoryview(self.queued_bytes)[: self.end]
         self.socket.sendmsg([to_send], anc_data)
         self.queued_bytes = self.queued_bytes[self.end :]
