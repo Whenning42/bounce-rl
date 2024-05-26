@@ -21,9 +21,9 @@ import signal
 import socket
 import struct
 import sys
-from typing import Iterable, Set
+from typing import Iterable, Set, Tuple
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.DEBUG)
 
 # Global first constructed XMessageStream. This is used by main to get the server
 # timestamp.
@@ -36,6 +36,7 @@ FOCUS_IN = 9
 FOCUS_OUT = 10
 LAST_STANDARD_EVENT = 34
 GENERIC_EVENT_CODE = 35
+QUERY_POINTER = 38
 
 OVERRIDE_REDIRECT = 0x00000200
 
@@ -45,13 +46,14 @@ def pad(n):
 
 
 class RequestParser:
-    def __init__(self, socket: socket.socket, request_codes: dict):
+    def __init__(self, socket: socket.socket, request_codes: dict, conn_id: int):
         self.socket = socket
         self.is_connected = False
         self.queued_bytes = bytearray()
         self.fallback_n = 0
         self.serial = 3
         self.request_codes = request_codes
+        self.conn_id = conn_id
 
     def send(self, n: int):
         self.socket.sendmsg([self.queued_bytes[:n]])
@@ -95,6 +97,7 @@ class RequestParser:
                 f"Queue size: {len(self.queued_bytes)}, request bytes: {request_bytes}"
             )
             if len(self.queued_bytes) < request_bytes:
+                logging.debug("Weird edge case.")
                 self.fallback_n += 1
                 if self.fallback_n > 70:
                     self.queued_bytes = bytearray()
@@ -150,6 +153,9 @@ class RequestParser:
                                     12 + 4 * val_i : 12 + 4 * (val_i + 1)
                                 ] = struct.pack("I", 1)
                             val_i += 1
+            if opcode == QUERY_POINTER:
+                window = struct.unpack("I", self.queued_bytes[4:8])[0]
+                print("Query pointer window: ", hex(window))
 
             logging.debug(f"Requested opcode: {opcode}, serial: {self.serial}?")
             assert request_bytes > 0, "Reached invalidate state"
@@ -159,7 +165,7 @@ class RequestParser:
 
 
 class EventReplyParser:
-    def __init__(self, socket: socket.socket, request_codes: dict):
+    def __init__(self, socket: socket.socket, request_codes: dict, conn_id: int):
         self.message_end = 0
         self.sent_end = 0
         self.messages = []
@@ -174,6 +180,7 @@ class EventReplyParser:
 
         self.focused = None
         self.request_codes = request_codes
+        self.conn_id = conn_id
 
     # Add the given message to the back of the message queue
     def append_message(self, message):
@@ -250,21 +257,36 @@ class EventReplyParser:
             code, sequence_num, reply_length = struct.unpack(
                 "BxHI", self.byte_buffer[self.message_end : self.message_end + 8]
             )
+            logging.debug(
+                "Reply conn %d, serial %d, code %d, extra_length %d, rem: %d",
+                self.conn_id,
+                sequence_num,
+                code,
+                reply_length,
+                len(self.byte_buffer) - self.message_end,
+            )
+
             is_event = code > 1
             is_reply = code == 1
             is_error = code == 0
             if is_reply:
                 opcode = self.request_codes.get(sequence_num, -1)
-                if opcode == 38:
-                    rx, ry, wx, wy = struct.unpack(
-                        "HHHH",
-                        self.byte_buffer[self.message_end + 16 : self.message_end + 24],
+                if opcode == QUERY_POINTER:
+
+                    root, child, rx, ry, wx, wy = struct.unpack(
+                        "iiHHHH",
+                        self.byte_buffer[self.message_end + 8 : self.message_end + 24],
                     )
-                    # print("Cursor position:", rx, ry)
                     # Write a new cursor position.
-                    self.byte_buffer[
-                        self.message_end + 16 : self.message_end + 24
-                    ] = struct.pack("HHHH", 1000, 600, 1000, 600)
+                    tl, tr = rx - wx, ry - wy
+                    x, y = 500, 200
+                    nrx = tl + x
+                    nry = tr + y
+                    nwx = tl + x
+                    nwy = tr + y
+                    self.byte_buffer[self.message_end + 16 : self.message_end + 24] = (
+                        struct.pack("HHHH", nrx, nry, nwx, nwy)
+                    )
             if is_event:
                 # Unset the send_event bit on all events.
                 self.byte_buffer[0] = self.byte_buffer[0] & 0x7F
@@ -351,21 +373,21 @@ def cleanup_anc_data(anc_data):
 
 
 class XServerToClientStream:
-    def __init__(self, socket, request_codes: dict):
+    def __init__(self, socket, request_codes: dict, conn_id: int):
         self.offset = 0
         self.sequence_number = 0
         self.socket = socket
-        self.byte_stream = EventReplyParser(socket, request_codes)
+        self.byte_stream = EventReplyParser(socket, request_codes, conn_id)
 
-    def sendmsg(self, buffers, anc_data):
-        self.socket.sendmsg(buffers, anc_data)
-        cleanup_anc_data(anc_data)
-        return
+    def sendmsg(self, buffers: Iterable[bytearray], anc_data: Tuple):
+        # self.socket.sendmsg(buffers, anc_data)
+        # cleanup_anc_data(anc_data)
+        # return
 
-        self.byte_stream.consume_anc(anc_data)
         # self.byte_stream.socket.sendmsg([], anc_data)
         for data in buffers:
             self.byte_stream.consume(data)
+        self.byte_stream.consume_anc(anc_data)
         for i, message in enumerate(self.byte_stream.messages):
             self.byte_stream.messages[i] = self.process(message)
         self.byte_stream.flush()
@@ -385,10 +407,10 @@ class XServerToClientStream:
 
 
 class XClientToServerStream:
-    def __init__(self, socket, request_codes: dict):
+    def __init__(self, socket, request_codes: dict, conn_id: int):
         self.socket = socket
         self.connection_bytes = bytes()
-        self.parser = RequestParser(socket, request_codes)
+        self.parser = RequestParser(socket, request_codes, conn_id)
 
     def consume(self, data: bytes):
         self.parser.consume(data)
@@ -455,6 +477,7 @@ class Proxy:
         self.display_connections: Set[socket.socket] = set()
 
         self.sockets = [self.client_socket]
+        self.conn_id = 0
         self.mirrors = {}
 
         self.max_p = 0
@@ -483,11 +506,12 @@ class Proxy:
 
                     request_codes = {}
                     self.mirrors[client_connection] = XClientToServerStream(
-                        display_connection, request_codes
+                        display_connection, request_codes, self.conn_id
                     )
                     self.mirrors[display_connection] = XServerToClientStream(
-                        client_connection, request_codes
+                        client_connection, request_codes, self.conn_id
                     )
+                    self.conn_id += 1
                     if first_stream is None:
                         first_stream = self.mirrors[display_connection]
                     self.client_connections.add(client_connection)
