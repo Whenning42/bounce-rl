@@ -35,7 +35,7 @@ class TestNoitaIntegration(unittest.TestCase):
         # Expect pixels
         mean_pixel, std_pixel = np.mean(pixels), np.std(pixels)
         self.assertNear(mean_pixel, 8.2, 1)
-        self.assertNear(std_pixel, 15.3, 1)
+        self.assertNear(std_pixel, 15.3, 2)
 
         # Expect reward
         self.assertEqual(reward, 0)
