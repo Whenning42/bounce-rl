@@ -1,2 +1,2 @@
 xi_repl:
-	gcc -o xi_repl xi_event_test.c -ledit -lX11 -lXi
+	gcc -o xi_test xi_test.c -lX11 -lXi

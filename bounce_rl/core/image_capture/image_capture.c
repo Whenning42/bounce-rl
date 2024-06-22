@@ -3,6 +3,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/XShm.h>
+#include <X11/extensions/Xcomposite.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <sys/shm.h>
@@ -14,13 +15,14 @@ struct ImageCapture {
   Display *display;
   int screen;
   XImage *image;
+  Pixmap src_pixmap;
   XShmSegmentInfo shminfo;
   void* handler;
   int x;
   int y;
 };
 
-capture_t SetupImageCapture(int x, int y, int width, int height) {
+capture_t SetupImageCapture(int x, int y, int width, int height, Window window) {
   struct ImageCapture* capture = malloc(sizeof(struct ImageCapture));
   capture->x = x;
   capture->y = y;
@@ -31,6 +33,9 @@ capture_t SetupImageCapture(int x, int y, int width, int height) {
   XImage *image =
       XShmCreateImage(display, DefaultVisual(display, screen), 24, ZPixmap,
                       NULL, &capture->shminfo, width, height);
+
+  XCompositeRedirectWindow(display, window, CompositeRedirectAutomatic);
+  Pixmap src_pixmap = XCompositeNameWindowPixmap(display, window);
 
   // Creates a new shared memory segment large enough for the image with read
   // write permissions
@@ -47,13 +52,14 @@ capture_t SetupImageCapture(int x, int y, int width, int height) {
   capture->display = display;
   capture->screen = screen;
   capture->image = image;
+  capture->src_pixmap = src_pixmap;
 
   return capture;
 }
 
-char *CaptureImage(const capture_t capture_h, Window window) {
+char *CaptureImage(const capture_t capture_h) {
   const struct ImageCapture* capture = capture_h;
-  XShmGetImage(capture->display, window, capture->image, capture->x, capture->y, AllPlanes);
+  XShmGetImage(capture->display, capture->src_pixmap, capture->image, capture->x, capture->y, AllPlanes);
   return capture->image->data;
 }
 
@@ -61,6 +67,7 @@ void CleanupImageCapture(capture_t capture_h) {
     struct ImageCapture* capture = capture_h;
     assert(XShmDetach(capture->display, &capture->shminfo));
     XDestroyImage(capture->image);
+    XFreePixmap(capture->display, capture->src_pixmap);
     shmdt(capture->shminfo.shmaddr);
     shmctl(capture->shminfo.shmid, IPC_RMID, 0);
     XCloseDisplay(capture->display);

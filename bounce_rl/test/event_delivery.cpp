@@ -5,6 +5,7 @@
 #include <string>
 #include <unistd.h>
 #include <cstring>
+#include <sys/time.h>
 
 #include <X11/Xlib.h>
 #include <X11/extensions/XInput2.h>
@@ -13,18 +14,27 @@
 
 int main(int argc, char **argv)
 {
-    if (argc != 3)
+    if (argc != 3 && argc != 4)
     {
-        std::cerr << "Usage: " << argv[0] << " <window_id> <test_id>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <window_id> (<window_2_id>) <test_id>" << std::endl;
         return 1;
     }
 
-    Display *display = XOpenDisplay(NULL);
+
     Window target_window = std::stoi(argv[1], nullptr, 16);
+    Window target_window_2 = 0;
+    int test_id;
+    if (argc == 3) {
+        test_id = std::stoi(argv[2]);
+    } else if (argc == 4) {
+        target_window_2 = std::stoi(argv[2], nullptr, 16);
+        test_id = std::stoi(argv[3]);
+    }
+
+    Display *display = XOpenDisplay(NULL);
     std::cout << "Target window: " << target_window << std::endl;
     Window root = DefaultRootWindow(display);
 
-    int test_id = std::stoi(argv[2]);
 
     // Core + Send event bit
     if (test_id == 0) // Appears to be WAI!?
@@ -34,68 +44,100 @@ int main(int argc, char **argv)
         XEvent event;
 
         // Set input focus.
-        XSetInputFocus(display, target_window, RevertToParent, CurrentTime);
+        // XSetInputFocus(display, target_window, RevertToParent, CurrentTime);
         XFlush(display);
 
+        if (target_window_2) {
+            // Move the window.
+            XMoveWindow(display, target_window_2, 0, 0);
+        }
 
-        // Send enter notify.
-        memset(&event, 0, sizeof(event));
-        event.type = EnterNotify;
-        event.xcrossing.window = target_window;
-        event.xcrossing.root = root;
-        event.xcrossing.subwindow = None;
-        event.xcrossing.time = CurrentTime;
-        event.xcrossing.x = 100;
-        event.xcrossing.y = 100;
-        event.xcrossing.x_root = 100;
-        event.xcrossing.y_root = 100;
-        event.xcrossing.mode = NotifyNormal;
-        event.xcrossing.detail = NotifyNonlinear;
-        event.xcrossing.same_screen = True;
-        event.xcrossing.focus = True;
-        event.xcrossing.state = 0;
-        XSendEvent(display, target_window, True, EnterWindowMask, &event);
-        XFlush(display);
+        for (int i=0; i<2; ++i) {
+            Window window;
+            if (i == 0) {
+                window = target_window;
+            } else {
+                window = target_window_2;
+            }
+            if (!window) {
+                continue;
+            }
 
-        // Send focus in.
-        memset(&event, 0, sizeof(event));
-        event.type = FocusIn;
-        event.xfocus.window = target_window;
-        event.xfocus.mode = NotifyNormal;
-        event.xfocus.detail = NotifyNonlinear;
-        XSendEvent(display, target_window, True, FocusChangeMask, &event);
-        XFlush(display);
+            // Send enter notify.
+            memset(&event, 0, sizeof(event));
+            event.type = EnterNotify;
+            event.xcrossing.window = window;
+            event.xcrossing.root = root;
+            event.xcrossing.subwindow = None;
+            event.xcrossing.time = CurrentTime;
+            event.xcrossing.x = 100;
+            event.xcrossing.y = 100;
+            event.xcrossing.x_root = 100;
+            event.xcrossing.y_root = 100;
+            event.xcrossing.mode = NotifyNormal;
+            event.xcrossing.detail = NotifyNonlinear;
+            event.xcrossing.same_screen = True;
+            event.xcrossing.focus = True;
+            event.xcrossing.state = 0;
+            XSendEvent(display, window, True, EnterWindowMask, &event);
+            XFlush(display);
 
-        // Send mouse motion notify.
-        memset(&event, 0, sizeof(event));
-        event.type = MotionNotify;
-        event.xmotion.window = target_window;
-        event.xmotion.x = 100;
-        event.xmotion.y = 100;
-        XSendEvent(display, target_window, True, PointerMotionMask, &event);
-        XFlush(display);
-       
-        // Send down key press and release.
-        memset(&event, 0, sizeof(event));
-        event.type = KeyPress;
-        event.xkey.window = target_window;
-        event.xkey.keycode = 116;
-        XSendEvent(display, target_window, True, KeyPressMask, &event);
-        XFlush(display);
-        sleep(.2);
-        memset(&event, 0, sizeof(event));
-        event.type = KeyRelease;
-        event.xkey.window = target_window;
-        event.xkey.keycode = 116;
-        XSendEvent(display, target_window, True, KeyReleaseMask, &event);
-        XFlush(display);
+            // Send focus in.
+            memset(&event, 0, sizeof(event));
+            event.type = FocusIn;
+            event.xfocus.window = window;
+            event.xfocus.mode = NotifyNormal;
+            event.xfocus.detail = NotifyNonlinear;
+            XSendEvent(display, window, True, FocusChangeMask, &event);
+            XFlush(display);
+
+            // Send mouse motion notify.
+            memset(&event, 0, sizeof(event));
+            event.type = MotionNotify;
+            event.xmotion.window = window;
+            event.xmotion.x = 100 + 400 * i;
+            event.xmotion.y = 100;
+            XSendEvent(display, window, True, PointerMotionMask, &event);
+            XFlush(display);
+            std::cout << "Sent mouse on win: " << window << "to x: " << event.xmotion.x << " y: " << event.xmotion.y << std::endl;
+        
+            for (int j=0; j<2; ++j) {
+                struct timeval tv;
+
+                // Send down key press and release.
+                memset(&event, 0, sizeof(event));
+                event.type = KeyPress;
+                event.xkey.root = root;
+                event.xkey.window = target_window;
+                event.xkey.keycode = 116;
+                event.xkey.same_screen = True;
+                gettimeofday(&tv, NULL);
+                event.xkey.time = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+                XSendEvent(display, window, True, KeyPressMask, &event);
+                XFlush(display);
+                usleep(1000 * 50);
+
+                memset(&event, 0, sizeof(event));
+                event.type = KeyRelease;
+                event.xkey.root = root;
+                event.xkey.window = window;
+                event.xkey.keycode = 116;
+                event.xkey.same_screen = True;
+                gettimeofday(&tv, NULL);
+                event.xkey.time = tv.tv_sec * 1000 + tv.tv_usec / 1000;
+                XSendEvent(display, window, True, KeyReleaseMask, &event);
+                XFlush(display);
+                usleep(1000 * 50);
+                std::cout << "Down click on win: " << window << std::endl;
+            }
+        }
 
         sleep(1);
         std::cout << "Finished core event test." << std::endl;
     }
 
     // Core/XI2 + Send event bit
-    if (test_id == 1) {
+    if (test_id == 1) { // Doesn't appear to work
         std::cout << "Running xi2 event test." << std::endl;
         sleep(1);
         int xi_opcode, first_event, error;
@@ -106,7 +148,7 @@ int main(int argc, char **argv)
 
 
         // Set input focus.
-        XSetInputFocus(display, target_window, RevertToParent, CurrentTime);
+        // XSetInputFocus(display, target_window, RevertToParent, CurrentTime);
         XFlush(display);
 
         // Send enter notify.

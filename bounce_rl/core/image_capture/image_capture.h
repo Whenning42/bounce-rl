@@ -5,15 +5,15 @@ typedef void* capture_t;
 typedef int (*OnErrorMIM)(Display*, XErrorEvent*, void*);
 
 // Allocates and initializes an ImageCapture
-capture_t SetupImageCapture(int x, int y, int width, int height);
+capture_t SetupImageCapture(int x, int y, int width, int height, Window window);
 
 // The return pointer's data will be overwritten the next time this function is
 // called
-char *CaptureImage(const capture_t capture, Window window);
+char *CaptureImage(const capture_t capture);
 
 // The return pointer's data will be overwritten the next time this function is
 // called
-char *CaptureRegion(const capture_t capture, Window window,
+char *CaptureRegion(const capture_t capture,
                     int x, int y, int w, int h);
 
 // Cleans up and delete the given ImageCapture

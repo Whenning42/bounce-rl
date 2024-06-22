@@ -139,7 +139,9 @@ class Harness(object):
 
     def _launch_x_proxy(self) -> int:
         host_x_display = os.environ.get("DISPLAY", ":0")
-        proxy_x_display = 10 + self.instance
+        client_side_trace = 10 + self.instance
+        proxy_x_display = 20 + self.instance
+        sever_side_trace = 30 + self.instance
 
         command = (
             f'xauth add :{proxy_x_display} .  "$(xauth list | grep $(hostname) '
@@ -147,15 +149,37 @@ class Harness(object):
         )
         subprocess.run(command, shell=True)
 
+        subprocess.Popen(
+            [
+                "x11trace",
+                "-kw",
+                "--display",
+                f":{host_x_display}",
+                "--fakedisplay",
+                f":{sever_side_trace}",
+            ]
+        )
+
+        subprocess.Popen(
+            [
+                "x11trace",
+                "-kw",
+                "--display",
+                f":{proxy_x_display}",
+                "--fakedisplay",
+                f":{client_side_trace}",
+            ]
+        )
+
         subprocess.run(shlex.split(f"rm -f /tmp/.X11-unix/X{proxy_x_display}"))
         self.proxy_subproc = subprocess.Popen(
             [
                 "python",
-                f"{project_root()}/bounce_rl/x_multiseat/proxy.py",
+                f"{project_root()}/bounce_rl/x_proxy/proxy_main.py",
                 "--proxy_display",
                 f"{proxy_x_display}",
                 "--real_display",
-                host_x_display,
+                sever_side_trace,
             ]
         )
         time.sleep(0.1)
@@ -207,8 +231,8 @@ class Harness(object):
 
     def _attach(self, window_id):
         window = self.display.create_resource_object("window", window_id)
-        x = 100 + int(self.run_config["scale"] * self.run_config["x_res"] * self.x_pos)
-        y = 100 + int(self.run_config["scale"] * self.run_config["y_res"] * self.y_pos)
+        x = 0 + int(self.run_config["scale"] * self.run_config["x_res"] * self.x_pos)
+        y = 0 + int(self.run_config["scale"] * self.run_config["y_res"] * self.y_pos)
 
         # Note: Configure has to happen before keyboard, since keyboard
         # clicks on the window's expected absolute position to focus
@@ -249,9 +273,9 @@ class Harness(object):
     def _add_capture(self, region):
         region = [round(c * self.run_config["scale"]) for c in region]
         x, y, w, h = region
-        capture = image_capture.ImageCapture(x, y, w, h)
+        capture = image_capture.ImageCapture(x, y, w, h, self.window.id)
         # Use a default argument to force the lambda not to capture a reference to self.
-        return lambda id=self.window.id: capture.get_image(id)
+        return capture.get_image
 
     def cleanup(self):
         """Kills the child app and releases all resources held by this Harness."""

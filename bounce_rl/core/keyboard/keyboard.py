@@ -21,7 +21,7 @@ import Xlib.XK
 import Xlib.xobject
 from Xlib.ext import xinput
 
-from bounce_rl.core.keyboard import lib_mpx_input
+from bounce_rl.core.keyboard import lib_mpx_input, send_event_input
 
 
 def keysym_for_key_name(key_name):
@@ -30,9 +30,9 @@ def keysym_for_key_name(key_name):
     return keysym
 
 
-class KeyboardEventMode(Enum):
-    SEND_EVENT = 1
-    FAKE_INPUT = 2
+class EventMode(Enum):
+    FAKE_INPUT = 1
+    SEND_EVENT = 2
 
 
 # Numbers match X11 button numbers.
@@ -69,9 +69,17 @@ class Keyboard(object):
         self.window_w = 640
         self.window_h = 360
         self.py_xlib_display = display
-        self.lib_mpx_input, self.lib_mpx_input_ffi = lib_mpx_input.make_lib_mpx_input()
-        self.display = self.lib_mpx_input.open_display("".encode())
-        self.lib_mpx_input.assign_cursor(
+        self.event_mode = keyboard_config.get("event_mode", EventMode.SEND_EVENT)
+
+        if self.event_mode == EventMode.SEND_EVENT:
+            print("Using SendEvent input back end.")
+            self.input_lib = send_event_input.LibSendEvent(window)
+        else:
+            print("Uising libMPX input back end.")
+            self.input_lib, self.lib_mpx_input_ffi = lib_mpx_input.make_lib_mpx_input()
+
+        self.display = self.input_lib.open_display("".encode())
+        self.input_lib.assign_cursor(
             self.display, self.window.id, lib_mpx_input.cursor_name(instance).encode()
         )
 
@@ -226,17 +234,17 @@ class Keyboard(object):
 
     def _change_key(self, key_name: str, direction: int, modifier=0):
         keycode = self.key_name_to_keycode(self.py_xlib_display, key_name)
-        self.lib_mpx_input.key_event(self.display, keycode, direction)
+        self.input_lib.key_event(self.display, keycode, direction)
 
     def move_mouse(self, x: Union[int, float], y: Union[int, float]) -> None:
         x = min(max(int(x), 1), self.window_w - 1)
         y = min(max(int(y), 1), self.window_h - 1)
         x = x + self.window_x
         y = y + self.window_y
-        self.lib_mpx_input.move_mouse(self.display, x, y)
+        self.input_lib.move_mouse(self.display, x, y)
 
     def set_mouse_button(self, button: MouseButton, direction: int) -> None:
-        self.lib_mpx_input.button_event(self.display, button.value, direction)
+        self.input_lib.button_event(self.display, button.value, direction)
 
     def set_held_mouse_buttons(self, mouse_buttons: Set[MouseButton]):
         # Implements re-press mouse mode.
@@ -248,6 +256,6 @@ class Keyboard(object):
         self.held_mouse_buttons = mouse_buttons
 
     def cleanup(self):
-        self.lib_mpx_input.close_display(self.display)
+        self.input_lib.close_display(self.display)
         self.should_run_failsafe = False
         self.failsafe_thread.join()

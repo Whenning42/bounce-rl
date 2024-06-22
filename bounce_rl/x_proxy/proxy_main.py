@@ -7,9 +7,9 @@ import signal
 import socket
 import sys
 
-from bounce_rl.x_proxy import reply_connection, request_connection
+from bounce_rl.x_proxy import reply_connection, request_connection, server_state
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO)
 
 
 def _display_path(display_num):
@@ -49,6 +49,7 @@ class Proxy:
         self.sockets = [self.client_socket]
         self.conn_id = 0
         self.proxy_connections = {}
+        self.server_state = server_state.ServerState()
 
     def run(self):
         while True:
@@ -68,10 +69,13 @@ class Proxy:
                     self.sockets.append(display_sock)
 
                     requests = request_connection.RequestConnection(
-                        display_sock, self.conn_id
+                        display_sock, self.conn_id, self.server_state
                     )
                     replies = reply_connection.ReplyConnection(
-                        client_sock, requests.request_stream.request_codes, self.conn_id
+                        client_sock,
+                        requests.request_stream.request_codes,
+                        self.conn_id,
+                        self.server_state,
                     )
                     self.conn_id += 1
                     self.proxy_connections[client_sock] = requests

@@ -110,7 +110,7 @@ app_configs = [
         "window_title": "Noita.*",
         "keyboard_config": {
             "sequence_keydown_time": 0.08,
-            "mode": "FAKE_INPUT",
+            "mode": "SEND_EVENT",
         },
     },
 ]

@@ -3,7 +3,7 @@ import socket
 import struct
 from typing import Iterable, Tuple
 
-from bounce_rl.x_proxy import anc_data_util, x_overrides
+from bounce_rl.x_proxy import anc_data_util, server_state
 
 
 def pad(n: int) -> int:
@@ -11,7 +11,12 @@ def pad(n: int) -> int:
 
 
 class RequestStream:
-    def __init__(self, socket: socket.socket, conn_id: int):
+    def __init__(
+        self,
+        socket: socket.socket,
+        conn_id: int,
+        server_state: server_state.ServerState,
+    ):
         self.socket = socket
         self.end = 0
         self.queued_bytes = bytearray()
@@ -19,8 +24,12 @@ class RequestStream:
         self.request_codes = {}
         self.serial = 3
         self.conn_id = conn_id
+        self.server_state = server_state
 
-        self.request_handlers = x_overrides.RequestHandlerTable()
+        # Deferred import to avoid circular dependency.
+        from bounce_rl.x_proxy import x_overrides
+
+        self.request_handlers = x_overrides.request_handler_table()
 
     def _take_from_queue(self, n: int) -> memoryview:
         v = memoryview(self.queued_bytes)[self.end : self.end + n]
@@ -94,7 +103,7 @@ class RequestStream:
             self.request_codes[self.serial] = opcode
             self.serial = (self.serial + 1) % 2**16
             if opcode in self.request_handlers:
-                new_request = self.request_handlers[opcode](request)
+                new_request = self.request_handlers[opcode](request, self)
                 if new_request is not None:
                     logging.debug(
                         "Replacing request message orig len: %d, new len: %d",
@@ -111,9 +120,14 @@ class RequestStream:
 
 
 class RequestConnection:
-    def __init__(self, socket: socket.socket, conn_id: int):
+    def __init__(
+        self,
+        socket: socket.socket,
+        conn_id: int,
+        server_state: server_state.ServerState,
+    ):
         self.socket = socket
-        self.request_stream = RequestStream(socket, conn_id)
+        self.request_stream = RequestStream(socket, conn_id, server_state)
 
     def sendmsg(self, buffers: Iterable[bytearray], anc_data: Tuple):
         buffer = bytearray()

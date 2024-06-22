@@ -3,14 +3,18 @@ import socket
 import struct
 from typing import Iterable, Tuple
 
-from bounce_rl.x_proxy import anc_data_util, x_overrides
+from bounce_rl.x_proxy import anc_data_util, server_state
 
 GENERIC_EVENT_CODE = 35
 
 
 class ReplyStream:
     def __init__(
-        self, socket: socket.socket, request_codes: dict[int, int], conn_id: int
+        self,
+        socket: socket.socket,
+        request_codes: dict[int, int],
+        conn_id: int,
+        server_state: server_state.ServerState,
     ):
         self.socket = socket
         self.end = 0
@@ -18,9 +22,13 @@ class ReplyStream:
         self.connected = False
         self.request_codes = request_codes
         self.conn_id = conn_id
+        self.server_state = server_state
 
-        self.reply_handlers = x_overrides.ReplyHandlerTable()
-        self.event_handlers = x_overrides.EventHandlerTable()
+        # Deferred import to avoid circular dependency.
+        from bounce_rl.x_proxy import x_overrides
+
+        self.reply_handlers = x_overrides.reply_handler_table()
+        self.event_handlers = x_overrides.event_handler_table()
 
     def _take_from_queue(self, n: int) -> memoryview:
         v = memoryview(self.queued_bytes)[self.end : self.end + n]
@@ -64,6 +72,8 @@ class ReplyStream:
             code, detail, sequence_num, extra_length = struct.unpack(
                 "BBHI", self.queued_bytes[self.end : self.end + 8]
             )
+            # Remove SendEvent bit from code.
+            code = code & 0x7F
             is_event = code > 1
             is_reply = code == 1
             is_error = code == 0
@@ -88,25 +98,30 @@ class ReplyStream:
                 opcode = self.request_codes.get(sequence_num, -1)
                 reply = self._take_from_queue(msg_len)
                 if opcode in self.reply_handlers:
-                    new_reply = self.reply_handlers[opcode](reply)
+                    new_reply = self.reply_handlers[opcode](reply, self)
                     if new_reply is not None:
+                        print("FILTERING REPLY", flush=True)
                         self._replace_last_message(msg_len, new_reply)
             elif is_event:
                 if code != GENERIC_EVENT_CODE:
                     extra_length = 0
                 msg_len = 32 + 4 * extra_length
 
-                # Unset the send event bit.
-                self.queued_bytes[0] &= 0x7F
-
                 if self._remaining_bytes() < msg_len:
                     break
 
+                orig_message_offset = self.end
                 event = self._take_from_queue(msg_len)
                 if code in self.event_handlers:
-                    should_filter = self.event_handlers[code](event)
-                    if should_filter:
-                        self._replace_last_message(msg_len, b"")
+                    new_event = self.event_handlers[code](event, self)
+                    # Unset SendEvent bit.
+                    self.queued_bytes[orig_message_offset] &= 0x7F
+                    if new_event is not None:
+                        print("FILTERING EVENT", flush=True)
+                        self._replace_last_message(msg_len, new_event)
+                else:
+                    # Unset SendEvent bit.
+                    self.queued_bytes[orig_message_offset] &= 0x7F
 
         to_send = memoryview(self.queued_bytes)[: self.end]
         self.socket.sendmsg([to_send], anc_data)
@@ -116,10 +131,14 @@ class ReplyStream:
 
 class ReplyConnection:
     def __init__(
-        self, socket: socket.socket, request_codes: dict[int, int], conn_id: int
+        self,
+        socket: socket.socket,
+        request_codes: dict[int, int],
+        conn_id: int,
+        server_state: server_state.ServerState,
     ):
         self.socket = socket
-        self.reply_stream = ReplyStream(socket, request_codes, conn_id)
+        self.reply_stream = ReplyStream(socket, request_codes, conn_id, server_state)
 
     def sendmsg(self, buffers: Iterable[bytearray], anc_data: Tuple):
         buffer = bytearray()

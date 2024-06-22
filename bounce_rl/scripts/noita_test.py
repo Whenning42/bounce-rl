@@ -1,4 +1,5 @@
 import argparse
+import math
 import threading
 import time
 
@@ -15,17 +16,27 @@ def run_env(instance: int):
         seed=args.seed,
     )
 
+    i = 0
     while True:
         if not step:
             time.sleep(10)
             continue
 
-        ret = env.step(env.action_space.sample())
+        a_disc, a_cont = env.action_space.sample()
+        a = i * 8 * (-1) ** instance / 180 * math.pi
+        x, y = 0.3 * math.cos(a), 0.3 * math.sin(a)
+        a_cont = np.array([x, y])
+        ret = env.step((a_disc, a_cont))
+        i += 1
+
         if ret is not None:
             pixels, reward, done, info = ret
             print(
-                f"mean_pixels: {np.mean(pixels)}, r: {reward}, done: {done}, info {info}"
+                f"mean_pixels: {np.mean(pixels)}, r: {reward}, "
+                f"done: {done}, info {info}"
             )
+        else:
+            done = True
         if done:
             env.reset()
 

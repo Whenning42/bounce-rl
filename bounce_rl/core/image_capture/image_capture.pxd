@@ -11,7 +11,7 @@ cdef extern from "image_capture.h":
     ctypedef long long Display;
     ctypedef int (*OnErrorMIM)(Display*, XErrorEvent*, void*)
 
-    capture_t SetupImageCapture(int x, int y, int width, int height)
-    char *CaptureImage(capture_t capture_h, long long window)
+    capture_t SetupImageCapture(int x, int y, int width, int height, long long window)
+    char *CaptureImage(capture_t capture_h)
     void CleanupImageCapture(capture_t capture_h)
     void SetErrorHandler(OnErrorMIM mim, void* on_error_py)

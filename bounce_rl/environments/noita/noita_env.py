@@ -243,21 +243,30 @@ class NoitaEnv(gym.core.Env):
             raise RuntimeError("NoitaEnv.pre_init has already been called.")
 
         for i in range(num_envs):
+            print("Running time writer set speedup on instance:", i)
             time_writer.SetSpeedup(1, str(i))
 
-        lib_mpx, lib_mpx_ffi = lib_mpx_input.make_lib_mpx_input()
-        display = lib_mpx.open_display(b":0")
-        for i in range(num_envs):
-            lib_mpx.make_cursor(display, lib_mpx_input.cursor_name(i).encode("utf-8"))
-
-        def cleanup_cursors():
+        run_config = cls._default_run_config()
+        app_config = app_configs.LoadAppConfig(run_config["app"])
+        keyboard_config = app_config.get("keyboard_config", {}).get(
+            "mode", "FAKE_INPUT"
+        )
+        if keyboard_config == "FAKE_INPUT":
+            lib_mpx, lib_mpx_ffi = lib_mpx_input.make_lib_mpx_input()
+            display = lib_mpx.open_display(b":0")
             for i in range(num_envs):
-                lib_mpx.delete_cursor(
+                lib_mpx.make_cursor(
                     display, lib_mpx_input.cursor_name(i).encode("utf-8")
                 )
-            lib_mpx.close_display(display)
 
-        atexit.register(cleanup_cursors)
+            def cleanup_cursors():
+                for i in range(num_envs):
+                    lib_mpx.delete_cursor(
+                        display, lib_mpx_input.cursor_name(i).encode("utf-8")
+                    )
+                lib_mpx.close_display(display)
+
+            atexit.register(cleanup_cursors)
         cls.singleton_init = True
 
     def _reset_env(self, skip_startup: bool = False):

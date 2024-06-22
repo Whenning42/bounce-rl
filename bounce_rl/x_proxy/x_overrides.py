@@ -2,6 +2,29 @@ import logging
 import struct
 from typing import Callable, Dict, Optional
 
+import Xlib.display
+import Xlib.protocol
+import Xlib.X
+import Xlib.XK
+import Xlib.xobject
+
+from bounce_rl.x_proxy import reply_connection, request_connection
+
+# TODO: Consider filtering non-synthetic input events.
+# We'd likely need to filter out both core and XI events.
+
+# Event codes
+KEY_PRESS = 2
+KEY_RELEASE = 3
+BUTTON_PRESS = 4
+BUTTON_RELEASE = 5
+MOTION_NOTIFY = 6
+ENTER_NOTIFY = 7
+LEAVE_NOTIFY = 8
+FOCUS_IN = 9
+FOCUS_OUT = 10
+GENERIC_EVENT = 35
+
 # Request codes
 CREATE_WINDOW = 1
 CHANGE_WINDOW_ATTRIBUTES = 2
@@ -11,41 +34,53 @@ QUERY_POINTER = 38
 OVERRIDE_REDIRECT = 0x00000200
 
 
-def RequestHandlerTable() -> Dict[int, Callable[[memoryview], Optional[bytes]]]:
+def is_send_event(code: int):
+    return code & 0x80
+
+
+def request_handler_table() -> Dict[
+    int,
+    Callable[
+        [
+            memoryview,
+        ],
+        Optional[bytes],
+    ],
+]:
     return {
-        CREATE_WINDOW: HandleCreateWindowRequest,
-        CHANGE_WINDOW_ATTRIBUTES: HandleChangeWindowAttributesRequest,
-        QUERY_POINTER: HandleQueryPointerRequest,
+        CREATE_WINDOW: handle_create_window_request,
+        CHANGE_WINDOW_ATTRIBUTES: handle_change_window_attributes_request,
+        QUERY_POINTER: handle_query_pointer_request,
     }
 
 
-def ReplyHandlerTable() -> Dict[int, Callable[[memoryview], Optional[bytes]]]:
-    return {QUERY_POINTER: HandleQueryPointerReply}
+def reply_handler_table() -> Dict[
+    int,
+    Callable[[memoryview, request_connection.RequestConnection], Optional[bytes]],
+]:
+    return {QUERY_POINTER: handle_query_pointer_reply}
 
 
-def EventHandlerTable() -> Dict[int, Callable[[memoryview], Optional[bytes]]]:
-    return {}
+def event_handler_table() -> (
+    Dict[int, Callable[[memoryview, reply_connection.ReplyConnection], Optional[bytes]]]
+):
+    return {
+        MOTION_NOTIFY: handle_motion_notify_event,
+        # KEY_PRESS: filter_event,
+        # KEY_RELEASE: filter_event,
+        # BUTTON_PRESS: filter_event,
+        # BUTTON_RELEASE: filter_event,
+        # ENTER_NOTIFY: filter_event,
+        # LEAVE_NOTIFY: filter_event,
+        # FOCUS_IN: filter_event,
+        # FOCUS_OUT: filter_event,
+        # GENERIC_EVENT: filter_event,
+    }
 
 
-def HandleQueryPointerReply(reply: memoryview) -> Optional[bytes]:
-    root, child, rx, ry, wx, wy = struct.unpack(
-        "IIHHHH",
-        reply[8:24],
-    )
-    print("Query pointer real pos:", hex(root), hex(child), rx, ry, wx, wy)
-    # Write a new cursor position.
-    tl, tr = rx - wx, ry - wy
-    x, y = 500, 200
-    nrx = tl + x
-    nry = tr + y
-    nwx = tl + x
-    nwy = tr + y
-    print("Query pointer fake pos:", nrx, nry, nwx, nwy)
-    reply[16:24] = struct.pack("HHHH", nrx, nry, nwx, nwy)
-    return None
-
-
-def HandleCreateWindowRequest(request: memoryview) -> Optional[bytes]:
+def handle_create_window_request(
+    request: memoryview, con: request_connection.RequestConnection
+) -> Optional[bytes]:
     logging.debug("Overriding redirect on created window!")
     # Add the override redirect attribute.
     orig_mask = struct.unpack("I", request[28:32])[0]
@@ -70,7 +105,9 @@ def HandleCreateWindowRequest(request: memoryview) -> Optional[bytes]:
     return built_message
 
 
-def HandleChangeWindowAttributesRequest(request: memoryview) -> Optional[bytes]:
+def handle_change_window_attributes_request(
+    request: memoryview, con: request_connection.RequestConnection
+) -> Optional[bytes]:
     # Add the override redirect attribute.
     update_mask = struct.unpack("I", request[8:12])[0]
     logging.debug(
@@ -88,6 +125,118 @@ def HandleChangeWindowAttributesRequest(request: memoryview) -> Optional[bytes]:
                 val_i += 1
 
 
-def HandleQueryPointerRequest(request: memoryview) -> Optional[bytes]:
+def handle_query_pointer_request(
+    request: memoryview, con: request_connection.RequestConnection
+) -> Optional[bytes]:
     window = struct.unpack("I", request[4:8])[0]
     print("Query pointer window: ", hex(window))
+
+
+def handle_query_pointer_reply(
+    reply: memoryview, con: reply_connection.ReplyConnection
+) -> Optional[bytes]:
+    con.server_state.lock()
+    if con.server_state.pointer_state_init:
+        same_screen = reply[1]
+        root, child, rx, ry, wx, wy = struct.unpack(
+            "IIHHHH",
+            reply[8:24],
+        )
+        # con.server_state.pointer_window = child
+        # rx += 1
+        # ry += 1
+        # wx += 1
+        # wy += 1
+
+        # logging.info(
+        #     "In Query pointer root: %s, child: %s, new pos: %d, %d, %d, %d",
+        #     hex(root),
+        #     hex(child),
+        #     rx,
+        #     ry,
+        #     wx,
+        #     wy,
+        # )
+        # tl_x, tl_y = rx - wx, ry - wy
+        # logging.info("QP selected win tl  %d, %d", tl_x, tl_y)
+        # new_rx, new_ry = (
+        #     con.server_state.pointer_root_x,
+        #     con.server_state.pointer_root_y,
+        # )
+        # new_wx, new_wy = new_rx - tl_x, new_ry - tl_y
+        # logging.info(
+        #     "Out Query pointer root: %s, child: %s, new pos: %d, %d, %d, %d",
+        #     hex(root),
+        #     hex(con.server_state.pointer_window),
+        #     new_rx,
+        #     new_ry,
+        #     new_wx,
+        #     new_wy,
+        # )
+        # print(
+        #     "Writing query pointer reply: ",
+        #     hex(con.server_state.pointer_window),
+        #     new_rx,
+        #     new_ry,
+        #     new_wx,
+        #     new_wy,
+        #     flush=True,
+        # )
+        # d = Xlib.display.Display()
+        # qp_win = d.create_resource_object("window", con.server_state.pointer_window)
+        # print("QP Reply window Geom: ", qp_win.get_geometry(), flush=True)
+        print("QP same-screen? ", same_screen, flush=True)
+        reply[12:24] = struct.pack("Ihhhh", child, rx, ry, wx, wy)
+    con.server_state.unlock()
+    return None
+
+
+def handle_motion_notify_event(
+    event: memoryview, con: reply_connection.ReplyConnection
+) -> Optional[bytes]:
+    (
+        code,
+        detail,
+        sequence_num,
+        time,
+        root_win,
+        event_win,
+        child_win,
+        rx,
+        ry,
+        wx,
+        wy,
+        mask,
+        same_screen,
+    ) = struct.unpack("BBHIIIIhhhhHBx", event[0:32])
+    logging.info("Motion notify handler with code: %d", code)
+
+    if is_send_event(code):
+        logging.info(
+            "Handling send event motion notify. New pointer pos: %d, %d, New ptr win: %s",
+            rx,
+            ry,
+            hex(event_win),
+        )
+        con.server_state.lock()
+        con.server_state.pointer_state_init = True
+        con.server_state.pointer_window = event_win
+        con.server_state.pointer_root_x = rx
+        con.server_state.pointer_root_y = ry
+        con.server_state.unlock()
+
+        d = Xlib.display.Display()
+        event_win = d.create_resource_object("window", event_win)
+        print("Geom: ", event_win.get_geometry(), flush=True)
+
+        return None
+    else:
+        return memoryview(b"")
+
+
+def filter_event(
+    event: memoryview, con: reply_connection.ReplyConnection
+) -> Optional[bytes]:
+    code = struct.unpack("B", event[0:1])[0]
+    logging.info("Filtering event with code: %d", code)
+    return memoryview(b"")
