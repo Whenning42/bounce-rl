@@ -1,7 +1,7 @@
 <Config 
   DEBUG_DONT_LOAD_OTHER_CONFIG="0" 
   application_pause_when_unfocused="1" 
-  application_rendered_cursor="0" 
+  application_rendered_cursor="1" 
   audio_effects_volume="0" 
   audio_fmod="1" 
   audio_music_volume="0.0" 
