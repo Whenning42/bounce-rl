@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "BounceRL"
-version = "0.0.27"
+version = "0.0.41"
 description = "Bounce RL"
 authors = ["William Henning <wchenningwchenning@gmail.com>"]
 readme = "README.md"
