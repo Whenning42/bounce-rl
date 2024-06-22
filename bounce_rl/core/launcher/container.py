@@ -79,9 +79,9 @@ def launch_process_container(
     namespace will be killed."""
 
     launch_cmd = shlex.split(
-        f"unshare -U --map-user={os.getuid()} --map-group={os.getgid()} --mount-proc "
-        "--fork --pid --kill-child "
-        f"{cmd}"
+        f"bwrap --unshare-pid --bind / / "
+        "--proc /proc --dev-bind /dev /dev "
+        f"--unshare-user --uid {os.getuid()} --gid {os.getgid()} {cmd}"
     )
     print("Parsed popen command: ", launch_cmd, flush=True)
     p = subprocess.Popen(launch_cmd, cwd=directory, env=env, stderr=subprocess.PIPE)
