@@ -13,7 +13,9 @@ def SetSpeedup(speedup, channel=""):
     speedup = float(speedup)
     # Opening the file for reading and writing prevents blocking until a reader opens
     # the file.
-    if channel not in files:
+    if channel in files:
+        f = files[channel]
+    else:
         print("Writing time to file: ", FIFO + str(channel))
         f = posix.open(FIFO + str(channel), posix.O_RDWR | posix.O_CREAT)
         files[channel] = f
