@@ -1,9 +1,4 @@
-.. BounceRL documentation master file, created by
-   sphinx-quickstart on Mon Jun 24 17:31:09 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to BounceRL's documentation!
+Welcome to BounceRL's documentation
 ====================================
 
 .. toctree::
@@ -11,10 +6,3 @@ Welcome to BounceRL's documentation!
    :caption: Contents:
 
    my_doc
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

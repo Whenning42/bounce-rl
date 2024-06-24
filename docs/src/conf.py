@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "BounceRL"
-copyright = "2019, William Henning"
+copyright = "2024, William Henning"
 author = "William Henning"
 
 version = "0.1"
