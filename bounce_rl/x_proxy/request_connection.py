@@ -22,7 +22,7 @@ class RequestStream:
         self.queued_bytes = bytearray()
         self.connected = False
         self.request_codes = {}
-        self.serial = 3
+        self.serial = 0
         self.conn_id = conn_id
         self.server_state = server_state
 
@@ -61,7 +61,6 @@ class RequestStream:
         if len(self.queued_bytes) >= n:
             self.end += n
             self.connected = True
-            self.serial += 1
 
     def consume(self, data: bytearray, anc_data: Tuple) -> None:
         logging.debug("Consuming %d request bytes", len(data))
