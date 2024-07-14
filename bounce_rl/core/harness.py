@@ -139,37 +139,13 @@ class Harness(object):
 
     def _launch_x_proxy(self) -> int:
         host_x_display = os.environ.get("DISPLAY", ":0")
-        client_side_trace = 10 + self.instance
-        proxy_x_display = 20 + self.instance
-        sever_side_trace = 30 + self.instance
+        proxy_x_display = 10 + self.instance
 
         command = (
             f'xauth add :{proxy_x_display} .  "$(xauth list | grep $(hostname) '
             f"| grep '{host_x_display}' | awk '{{print $3}}')\""
         )
         subprocess.run(command, shell=True)
-
-        subprocess.Popen(
-            [
-                "x11trace",
-                "-kw",
-                "--display",
-                f":{host_x_display}",
-                "--fakedisplay",
-                f":{sever_side_trace}",
-            ]
-        )
-
-        subprocess.Popen(
-            [
-                "x11trace",
-                "-kw",
-                "--display",
-                f":{proxy_x_display}",
-                "--fakedisplay",
-                f":{client_side_trace}",
-            ]
-        )
 
         subprocess.run(shlex.split(f"rm -f /tmp/.X11-unix/X{proxy_x_display}"))
         self.proxy_subproc = subprocess.Popen(
@@ -179,7 +155,7 @@ class Harness(object):
                 "--proxy_display",
                 f"{proxy_x_display}",
                 "--real_display",
-                sever_side_trace,
+                f"{host_x_display}",
             ]
         )
         time.sleep(0.1)
