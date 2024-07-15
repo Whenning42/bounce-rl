@@ -8,6 +8,7 @@ import string
 import subprocess
 import sys
 import time
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -83,14 +84,25 @@ def base_app_env(
     return env
 
 
+class ViewMode(Enum):
+    NONE = 0
+    MIRROR = 1
+    PIN = 2
+
+
 class Harness(object):
     def __init__(
         self,
         app_config,
         run_config,
         instance=0,
+        # Note, even under sendevent input mode, apps can't handle offscreen mouse
+        # input.
         x_pos: int = 0,
         y_pos: int = 0,
+        x_offset: int = 0,
+        y_offset: int = 0,
+        view_mode: ViewMode = ViewMode.PIN,
         environment: Optional[dict] = None,
     ):
         logging.debug("Starting harness instance: %s", instance)
@@ -98,8 +110,11 @@ class Harness(object):
         self.app_config = app_config
         self.run_config = run_config
         self.instance = instance
-        self.x_pos = x_pos
-        self.y_pos = y_pos
+        self.x_tile = x_pos
+        self.y_tile = y_pos
+        self.x_offset = x_offset
+        self.y_offset = y_offset
+        self.view_mode = view_mode
         if environment is None:
             environment = {}
         self.environment = environment
@@ -128,6 +143,8 @@ class Harness(object):
         self.proxy_subproc: Optional[Any] = None
         self.launcher = Launcher()
 
+        self.monitor_processes = []
+
         atexit.register(self._kill_subprocesses)
         self._launch_app()
 
@@ -136,6 +153,9 @@ class Harness(object):
         if self.proxy_subproc is not None:
             self.proxy_subproc.kill()
             self.proxy_subproc = None
+        for p in self.monitor_processes:
+            p.kill()
+        self.monitor_processes = []
 
     def _launch_x_proxy(self) -> int:
         host_x_display = os.environ.get("DISPLAY", ":0")
@@ -207,8 +227,12 @@ class Harness(object):
 
     def _attach(self, window_id):
         window = self.display.create_resource_object("window", window_id)
-        x = 0 + int(self.run_config["scale"] * self.run_config["x_res"] * self.x_pos)
-        y = 0 + int(self.run_config["scale"] * self.run_config["y_res"] * self.y_pos)
+        x = self.x_offset + int(
+            self.run_config["scale"] * self.run_config["x_res"] * self.x_tile
+        )
+        y = self.y_offset + int(
+            self.run_config["scale"] * self.run_config["y_res"] * self.y_tile
+        )
 
         # Note: Configure has to happen before keyboard, since keyboard
         # clicks on the window's expected absolute position to focus
@@ -241,6 +265,16 @@ class Harness(object):
         self.full_window_capture = self._add_capture(
             (0, 0, self.run_config["x_res"], self.run_config["y_res"])
         )
+
+        if self.view_mode == ViewMode.NONE or self.view_mode == ViewMode.MIRROR:
+            subprocess.run(["./bounce_rl/scripts/lower_window", f"{hex(window_id)}"])
+        if self.view_mode == ViewMode.MIRROR:
+            self.monitor_processes.append(
+                subprocess.Popen(
+                    ["./bounce_rl/scripts/mirror_window", f"{hex(window_id)}"]
+                )
+            )
+
         window_owners[window.id] = self
         self.ready = True
 
