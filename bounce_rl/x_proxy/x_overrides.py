@@ -79,7 +79,7 @@ def event_handler_table() -> (
 
 
 def handle_create_window_request(
-    request: memoryview, con: request_connection.RequestConnection
+    request: memoryview, con: request_connection.RequestConnection, sequence_num: int
 ) -> Optional[bytes]:
     logging.debug("Overriding redirect on created window!")
     # Add the override redirect attribute.
@@ -106,7 +106,7 @@ def handle_create_window_request(
 
 
 def handle_change_window_attributes_request(
-    request: memoryview, con: request_connection.RequestConnection
+    request: memoryview, con: request_connection.RequestConnection, sequence_num: int
 ) -> Optional[bytes]:
     # Add the override redirect attribute.
     update_mask = struct.unpack("I", request[8:12])[0]
@@ -126,7 +126,7 @@ def handle_change_window_attributes_request(
 
 
 def handle_query_pointer_request(
-    request: memoryview, con: request_connection.RequestConnection
+    request: memoryview, con: request_connection.RequestConnection, sequence_num: int
 ) -> Optional[bytes]:
     window = struct.unpack("I", request[4:8])[0]
     print("Query pointer window: ", hex(window))

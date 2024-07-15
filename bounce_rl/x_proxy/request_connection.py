@@ -102,7 +102,7 @@ class RequestStream:
             self.request_codes[self.serial] = opcode
             self.serial = (self.serial + 1) % 2**16
             if opcode in self.request_handlers:
-                new_request = self.request_handlers[opcode](request, self)
+                new_request = self.request_handlers[opcode](request, self, self.serial)
                 if new_request is not None:
                     logging.debug(
                         "Replacing request message orig len: %d, new len: %d",
