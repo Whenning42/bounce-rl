@@ -66,15 +66,17 @@ def event_handler_table() -> (
 ):
     return {
         MOTION_NOTIFY: handle_motion_notify_event,
-        # KEY_PRESS: filter_event,
-        # KEY_RELEASE: filter_event,
-        # BUTTON_PRESS: filter_event,
-        # BUTTON_RELEASE: filter_event,
-        # ENTER_NOTIFY: filter_event,
-        # LEAVE_NOTIFY: filter_event,
-        # FOCUS_IN: filter_event,
-        # FOCUS_OUT: filter_event,
-        # GENERIC_EVENT: filter_event,
+        KEY_PRESS: filter_non_sendevent,
+        KEY_RELEASE: filter_non_sendevent,
+        BUTTON_PRESS: filter_non_sendevent,
+        BUTTON_RELEASE: filter_non_sendevent,
+        ENTER_NOTIFY: filter_non_sendevent,
+        LEAVE_NOTIFY: filter_non_sendevent,
+        FOCUS_IN: filter_non_sendevent,
+        FOCUS_OUT: filter_non_sendevent,
+        # Noita seems to require GENERIC_EVENT's be passed through in order to launch.
+        # I'll dive into the details later.
+        # GENERIC_EVENT: filter_non_sendevent,
     }
 
 
@@ -129,7 +131,9 @@ def handle_query_pointer_request(
     request: memoryview, con: request_connection.RequestConnection, sequence_num: int
 ) -> Optional[bytes]:
     window = struct.unpack("I", request[4:8])[0]
-    print("Query pointer window: ", hex(window))
+    logging.debug(
+        "Query pointer window id %s, sequence num: %d", hex(window), sequence_num
+    )
 
 
 def handle_query_pointer_reply(
@@ -138,6 +142,7 @@ def handle_query_pointer_reply(
     con.server_state.lock()
     if con.server_state.pointer_state_init:
         same_screen = reply[1]
+        sequence_num = struct.unpack("H", reply[2:4])[0]
         root, child, rx, ry, wx, wy = struct.unpack(
             "IIHHHH",
             reply[8:24],
@@ -185,7 +190,22 @@ def handle_query_pointer_reply(
         # d = Xlib.display.Display()
         # qp_win = d.create_resource_object("window", con.server_state.pointer_window)
         # print("QP Reply window Geom: ", qp_win.get_geometry(), flush=True)
-        print("QP same-screen? ", same_screen, flush=True)
+        # print("QP same-screen? ", same_screen, flush=True)
+        logging.debug(
+            f"QP Parsed Reply #{sequence_num}: ",
+            same_screen,
+            root,
+            child,
+            rx,
+            ry,
+            wx,
+            wy,
+            flush=True,
+        )
+        if same_screen != 0 and same_screen != 1:
+            logging.error(
+                "QueryPointer reply parsing failed. The bytes in question likely aren't a query pointer reply"
+            )
         reply[12:24] = struct.pack("Ihhhh", child, rx, ry, wx, wy)
     con.server_state.unlock()
     return None
@@ -234,9 +254,12 @@ def handle_motion_notify_event(
         return memoryview(b"")
 
 
-def filter_event(
+def filter_non_sendevent(
     event: memoryview, con: reply_connection.ReplyConnection
 ) -> Optional[bytes]:
     code = struct.unpack("B", event[0:1])[0]
-    logging.info("Filtering event with code: %d", code)
+    if is_send_event(code):
+        return None
+
+    logging.debug("Filtering non-sendevent with code: %d", code)
     return memoryview(b"")
