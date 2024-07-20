@@ -107,9 +107,9 @@ void* dlsym(void* handle, const char* name) {
   if (strcmp(name, "clock_nanosleep") == 0) {
     return (void*)clock_nanosleep;
   }
-  // if (strcmp(name, "XQueryPointer") == 0) {
-  //   return (void*)XQueryPointer;
-  // }
+  if (strcmp(name, "getenv") == 0) {
+    return (void*)getenv;
+  }
 
   // Dispatch to next dlsym
   if (!next_dlsym) {
@@ -123,7 +123,7 @@ void load_dlsyms() {}
 #endif // DLSYM_OVERRIDE
 
 // A helper macro that takes in a function name "func" and declares a
-// pointer type "PFN_func" of that function;s type.
+// pointer type "PFN_func" of that function's type.
 #define PFN_TYPEDEF(func) typedef decltype(&func) PFN_##func
 
 // A helper macro that takes in a function name "func" and dlsym loads the
@@ -143,7 +143,7 @@ PFN_TYPEDEF(nanosleep);
 PFN_TYPEDEF(usleep);
 PFN_TYPEDEF(sleep);
 PFN_TYPEDEF(clock_nanosleep);
-// PFN_TYPEDEF(XQueryPointer);
+typedef char* (*PFN_getenv)(const char*);
 
 // Global
 std::atomic<PFN_time> real_time(nullptr);
@@ -154,7 +154,7 @@ std::atomic<PFN_nanosleep> real_nanosleep(nullptr);
 std::atomic<PFN_usleep> real_usleep(nullptr);
 std::atomic<PFN_sleep> real_sleep(nullptr);
 std::atomic<PFN_clock_nanosleep> real_clock_nanosleep(nullptr);
-// std::atomic<PFN_XQueryPointer> real_XQueryPointer(nullptr);
+std::atomic<PFN_getenv> real_getenv(nullptr);
 
 // Statically initialize our global pointers.
 class InitPFNs {
@@ -171,7 +171,7 @@ class InitPFNs {
     LAZY_LOAD_REAL(usleep);
     LAZY_LOAD_REAL(sleep);
     LAZY_LOAD_REAL(clock_nanosleep);
-//     LAZY_LOAD_REAL(XQueryPointer);
+    LAZY_LOAD_REAL(getenv);
   }
 };
 
@@ -486,7 +486,19 @@ int __real_clock_gettime(int clkid, timespec* t) {
 }
 
 
-// extern "C" bool XQueryPointer(Display* display, Window w, Window* root_return, Window* child_return, int* root_x_return, int* root_y_return, int* win_x_return, int* win_y_return, unsigned int* mask_return) {
-//     printf("Intercepted XQueryPointer\n");
-//     return false;
-// }
+char* getenv(const char* name) {
+  static InitPFNs init_static_pfns;
+
+  LAZY_LOAD_REAL(getenv);
+
+  void* caller_addr = __builtin_return_address(0);
+  Dl_info caller_info;
+  dladdr(caller_addr, &caller_info);
+
+  char buf[256];
+  int len = snprintf(buf, 256, "PLF: Called getenv for symbol: %s\nPLF: fname: %s, sname: %s\n",
+                    name, caller_info.dli_fname, caller_info.dli_sname);
+  write(STDOUT_FILENO, buf, len);
+
+  return real_getenv(name);
+}
