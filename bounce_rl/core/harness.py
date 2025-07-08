@@ -65,13 +65,13 @@ def base_app_env(
 ) -> Dict[str, str]:
     env = base_env.copy()
     if not app_config.get("disable_time_control", False):
-        # NOTE: ld.so only seems to correctly load the multiarch libraries
-        # when we use absolute paths and LD_PRELOAD w/o LD_LIBRARY_PATH.
-        extra_ld_preloads = [
-            project_root_dir + "/bounce_rl/libs/libtime_control32.so",
-            project_root_dir + "/bounce_rl/libs/libtime_control64.so",
-        ]
-        env["LD_PRELOAD"] = ":".join([env.get("LD_PRELOAD", ""), *extra_ld_preloads])
+        # # NOTE: ld.so only seems to correctly load the multiarch libraries
+        # # when we use absolute paths and LD_PRELOAD w/o LD_LIBRARY_PATH.
+        # extra_ld_preloads = [
+        #     project_root_dir + "/bounce_rl/libs/libtime_control32.so",
+        #     project_root_dir + "/bounce_rl/libs/libtime_control64.so",
+        # ]
+        # env["LD_PRELOAD"] = ":".join([env.get("LD_PRELOAD", ""), *extra_ld_preloads])
         env["TIME_CHANNEL"] = str(instance)
 
     # Drop the virtualenv path for child process
@@ -142,7 +142,7 @@ class Harness(object):
         proxy_x_display = 10 + self.instance
 
         command = (
-            f'xauth add :{proxy_x_display} .  "$(xauth list | grep $(hostname) '
+            f'xauth add :{proxy_x_display} .  "$(xauth -n list | grep $(hostname) '
             f"| grep '{host_x_display}' | awk '{{print $3}}')\""
         )
         subprocess.run(command, shell=True)
@@ -151,7 +151,7 @@ class Harness(object):
         self.proxy_subproc = subprocess.Popen(
             [
                 "python",
-                f"{project_root()}/bounce_rl/x_multiseat/proxy.py",
+                f"{project_root()}/bounce_rl/x_proxy/proxy_main.py",
                 "--proxy_display",
                 f"{proxy_x_display}",
                 "--real_display",
