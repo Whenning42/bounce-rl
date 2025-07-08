@@ -59,6 +59,9 @@ char *CaptureImage(const capture_t capture_h, Window window) {
 
 void CleanupImageCapture(capture_t capture_h) {
     struct ImageCapture* capture = capture_h;
+    if (!capture) {
+      printf("Passed nullptr to CleanupImageCapture.\n");
+    }
     assert(XShmDetach(capture->display, &capture->shminfo));
     XDestroyImage(capture->image);
     shmdt(capture->shminfo.shmaddr);
