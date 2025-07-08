@@ -78,11 +78,16 @@ def launch_process_container(
     When the returned process exits or is killed, all programs in the
     namespace will be killed."""
 
-    launch_cmd = shlex.split(
-        f"bwrap --unshare-pid --bind / / "
-        "--proc /proc --dev-bind /dev /dev "
-        f"--unshare-user --uid {os.getuid()} --gid {os.getgid()} {cmd}"
-    )
+    # Note: At one point we were using this bwrap namespace, but as of
+    # July 2025, it seems to break the Noita env, so I'm disabling it until
+    # I get the chance to look at this more closely.
+    # launch_cmd = shlex.split(
+    #     f"bwrap --unshare-pid --bind / / "
+    #     "--proc /proc --dev-bind /dev /dev "
+    #     f"--unshare-user --uid {os.getuid()} --gid {os.getgid()} {cmd}"
+    # )
+    launch_cmd = shlex.split(f"{cmd}")
+
     print("Parsed popen command: ", launch_cmd, flush=True)
     p = subprocess.Popen(launch_cmd, cwd=directory, env=env, stderr=subprocess.PIPE)
     _ = subprocess.Popen(
