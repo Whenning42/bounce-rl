@@ -15,34 +15,15 @@ def RequestHandlerTable() -> Dict[int, Callable[[memoryview], Optional[bytes]]]:
     return {
         CREATE_WINDOW: HandleCreateWindowRequest,
         CHANGE_WINDOW_ATTRIBUTES: HandleChangeWindowAttributesRequest,
-        QUERY_POINTER: HandleQueryPointerRequest,
     }
 
 
 def ReplyHandlerTable() -> Dict[int, Callable[[memoryview], Optional[bytes]]]:
-    return {QUERY_POINTER: HandleQueryPointerReply}
+    return {}
 
 
 def EventHandlerTable() -> Dict[int, Callable[[memoryview], Optional[bytes]]]:
     return {}
-
-
-def HandleQueryPointerReply(reply: memoryview) -> Optional[bytes]:
-    root, child, rx, ry, wx, wy = struct.unpack(
-        "IIHHHH",
-        reply[8:24],
-    )
-    print("Query pointer real pos:", hex(root), hex(child), rx, ry, wx, wy)
-    # Write a new cursor position.
-    tl, tr = rx - wx, ry - wy
-    x, y = 500, 200
-    nrx = tl + x
-    nry = tr + y
-    nwx = tl + x
-    nwy = tr + y
-    print("Query pointer fake pos:", nrx, nry, nwx, nwy)
-    reply[16:24] = struct.pack("HHHH", nrx, nry, nwx, nwy)
-    return None
 
 
 def HandleCreateWindowRequest(request: memoryview) -> Optional[bytes]:
@@ -86,8 +67,3 @@ def HandleChangeWindowAttributesRequest(request: memoryview) -> Optional[bytes]:
                 if bit_mask == OVERRIDE_REDIRECT:
                     request[12 + 4 * val_i : 12 + 4 * (val_i + 1)] = struct.pack("I", 1)
                 val_i += 1
-
-
-def HandleQueryPointerRequest(request: memoryview) -> Optional[bytes]:
-    window = struct.unpack("I", request[4:8])[0]
-    print("Query pointer window: ", hex(window))
