@@ -38,20 +38,6 @@ def handle_error(*args):
         logging.debug("Orphan window closed: %s", window_id)
 
 
-# Caller has to unpack the property return value.
-# For "_NET_WM_PID" property, it's an array of ints. For other types I'm not sure.
-def query_window_property(display, window, property_name, property_type) -> List[int]:
-    property_name_atom = display.get_atom(property_name)
-    try:
-        result = window.get_full_property(property_name_atom, property_type)
-        if result:
-            return list(result.value)
-        else:
-            return []
-    except Xlib.error.BadWindow:
-        return [-1]
-
-
 # A no-op error handler.
 def suppress_error(*args):
     pass
