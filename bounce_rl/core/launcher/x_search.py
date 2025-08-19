@@ -65,6 +65,7 @@ class WindowLookup:
         ), "Harness requires the running window manager to implement _NET_WM_PID annotations."
         window_pid = window_pid_result[0]
         logging.debug("Got window pid: %s", window_pid)
+        logging.debug("Looking for root pid: %d", self.root_pid)
         # The _NET_WM_PID will be a pid in the container namespace. We need to map it
         # back to the host pid namespace.
         host_pid = self.pid_mapper.get(window_pid)

@@ -95,12 +95,15 @@ def launch_process_container(
         stdin=p.stderr,
         stderr=subprocess.STDOUT,
     )
-    unshare_pid = p.pid
-    cmd_pid = get_child_pid(unshare_pid)
+    # unshare_pid = p.pid
+    # cmd_pid = get_child_pid(unshare_pid)
+    cmd_pid = p.pid
 
-    print("Root pid:", p.pid, "unshare_pid:", unshare_pid, "cmd_pid:", cmd_pid)
+    # print("Root pid:", p.pid, "unshare_pid:", unshare_pid, "cmd_pid:", cmd_pid)
+    print("Root pid:", p.pid, "cmd_pid:", cmd_pid)
 
     if cmd_pid is None:
         return -1, -1, PIDMapper(-1)
     pidns = get_pid_ns(cmd_pid)
-    return unshare_pid, cmd_pid, PIDMapper(pidns)
+    # return unshare_pid, cmd_pid, PIDMapper(pidns)
+    return cmd_pid, cmd_pid, PIDMapper(pidns)

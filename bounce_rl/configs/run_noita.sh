@@ -28,7 +28,9 @@ ln -s $(pwd)/bounce_rl/environments/noita/mod $HOME/.steam/steam/steamapps/commo
 export STEAM_COMPAT_DATA_PATH="$RUN_COMPAT_DATA"
 export STEAM_COMPAT_CLIENT_INSTALL_PATH=$HOME/.local/share/Steam
 export STEAM_COMPAT_LIBRARY_PATHS=$HOME/.local/share/Steam/steamapps
-export STEAM_RUNTIME_LIBRARY_PATH=$HOME/.local/share/Steam/ubuntu12_32/steam-runtime/pinned_libs_32:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/pinned_libs_64:/usr/lib/libfakeroot:/usr/lib32:/usr/lib/perf:/usr/lib:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/lib/i386-linux-gnu:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/usr/lib/i386-linux-gnu:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/lib/x86_64-linux-gnu:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/usr/lib/x86_64-linux-gnu:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/lib:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/usr/lib
+
+# Does disabling steam runtime library do something for us?
+# export STEAM_RUNTIME_LIBRARY_PATH=$HOME/.local/share/Steam/ubuntu12_32/steam-runtime/pinned_libs_32:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/pinned_libs_64:/usr/lib/libfakeroot:/usr/lib32:/usr/lib/perf:/usr/lib:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/lib/i386-linux-gnu:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/usr/lib/i386-linux-gnu:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/lib/x86_64-linux-gnu:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/usr/lib/x86_64-linux-gnu:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/lib:/home/william/.local/share/Steam/ubuntu12_32/steam-runtime/usr/lib
 # TODO: Shader cache?
 
 
