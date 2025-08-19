@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import gym
+import libtimecontrol
 import numpy as np
 import simplejpeg
 
@@ -18,7 +19,6 @@ import bounce_rl.configs.app_configs as app_configs
 from bounce_rl.core.harness import Harness
 from bounce_rl.core.keyboard import keyboard
 from bounce_rl.core.keyboard.keyboard import lib_mpx_input
-from bounce_rl.core.time_control import time_writer
 from bounce_rl.environments.noita import noita_info, noita_reward
 from bounce_rl.utilities.paths import project_root
 from bounce_rl.utilities.util import GrowingCircularFIFOArray, LinearInterpolator
@@ -157,6 +157,8 @@ class NoitaEnv(gym.core.Env):
         self.ep_num = 0
         self.env_step = 0
 
+        self.time_control = libtimecontrol.TimeController(self.instance)
+        self.environment |= self.time_control.child_flags()
         self._reset_env(skip_startup=skip_startup)
 
     @staticmethod
@@ -179,7 +181,7 @@ class NoitaEnv(gym.core.Env):
 
     @staticmethod
     def _observation_space(
-        run_config: Optional[Dict[str, Any]] = None
+        run_config: Optional[Dict[str, Any]] = None,
     ) -> gym.spaces.Box:
         if run_config is None:
             run_config = NoitaEnv._default_run_config()
@@ -243,7 +245,8 @@ class NoitaEnv(gym.core.Env):
             raise RuntimeError("NoitaEnv.pre_init has already been called.")
 
         for i in range(num_envs):
-            time_writer.SetSpeedup(1, str(i))
+            tc = libtimecontrol.TimeController(i)
+            tc.set_speedup(1)
 
         lib_mpx, lib_mpx_ffi = lib_mpx_input.make_lib_mpx_input()
         display = lib_mpx.open_display(b":0")
@@ -262,7 +265,7 @@ class NoitaEnv(gym.core.Env):
 
     def _reset_env(self, skip_startup: bool = False):
         # Raises a runtime error if the environment fails to start.
-        time_writer.SetSpeedup(1, str(self.instance))
+        self.time_control.set_speedup(1)
         for i in range(3):
             did_reset = self._try_reset_env(skip_startup=skip_startup)
             if did_reset:
@@ -397,9 +400,9 @@ class NoitaEnv(gym.core.Env):
         init_info = self.noita_info.current_info()
         retries = 20
         for i in range(retries):
-            time_writer.SetSpeedup(self.run_config["run_rate"], str(self.instance))
+            self.time_control.set_speedup(self.run_config["run_rate"])
             time.sleep(self.run_config["step_duration"] / self.run_config["run_rate"])
-            time_writer.SetSpeedup(self.run_config["pause_rate"], str(self.instance))
+            self.time_control.set_speedup(self.run_config["pause_rate"])
             info = self.noita_info.on_tick()
             if info["tick"] != init_info["tick"]:
                 break
