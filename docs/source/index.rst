@@ -22,4 +22,4 @@ BounceRL is a framework for turning games into RL environments.
    :hidden:
    :caption: Environments
 
-   noita
+   environments/noita
