@@ -30,20 +30,20 @@ REOPEN_CLOSED_WINDOWS = False
 window_owners: Dict[int, Any] = {}
 
 
-def handle_error(*args):
+def _handle_error(*args):
     window_id = args[0].resource_id.id
     if window_id in window_owners:
-        window_owners[window_id].on_window_closed(window_id)
+        window_owners[window_id]._on_window_closed(window_id)
     else:
         logging.debug("Orphan window closed: %s", window_id)
 
 
 # A no-op error handler.
-def suppress_error(*args):
+def _suppress_error(*args):
     pass
 
 
-def base_app_env(
+def _base_app_env(
     instance: int,
     base_env: Dict[str, str],
     app_config: dict,
@@ -98,7 +98,7 @@ class Harness(object):
         )
 
         self.display = display.Display()
-        self.display.set_error_handler(handle_error)  # Python XLib handler
+        self.display.set_error_handler(_handle_error)  # Python XLib handler
         image_capture.ImageCapture.set_error_handler(
             suppress_error  # Screen capture library has no need to throw errors
         )
@@ -152,7 +152,7 @@ class Harness(object):
 
         env = os.environ.copy()
         env.update(self.environment)
-        env = base_app_env(
+        env = _base_app_env(
             self.instance, env, self.app_config, project_root_dir=project_root()
         )
         env["PID_OFFSET"] = str(1000 * self.instance)
@@ -277,7 +277,7 @@ class Harness(object):
         pgid = os.getpgid(self.subprocess_pid)
         os.killpg(pgid, signal.SIGCONT)
 
-    def on_window_closed(self, window_id):
+    def _on_window_closed(self, window_id):
         global window_owners
         del window_owners[window_id]
 

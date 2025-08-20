@@ -28,6 +28,12 @@ bounce_rl/environments/noita/mod/mod
 cython_build/
 dist/
 
+# Claude
+CLAUDE.md
+
+# Docs
+docs/build
+
 # Minecraft files
 logs/*
 GPUCache/*
