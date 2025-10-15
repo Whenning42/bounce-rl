@@ -1,9 +1,4 @@
-# Implements a virtual X11 mouse and keyboard
-# TODO: Rename to reflect added mouse capabilities.
-# FIXME: Window position and dimensions need to actually
-# come from the window.
-# TODO: Move failsafe and keysym/keycode functions to a separate class.
-#       This will allow this file to be py-xlib free.
+# TODO: Consider moving Mouse and Keyboard into their own classes and files.
 
 import _thread
 import re
@@ -14,14 +9,12 @@ from enum import Enum
 from typing import Set, Union
 
 import numpy as np
-import Xlib.display
-import Xlib.protocol
 import Xlib.X
 import Xlib.XK
-import Xlib.xobject
+from Xlib import X
 from Xlib.ext import xinput
 
-from bounce_rl.core.keyboard import lib_mpx_input
+from bounce_rl.platform.window_connection import WindowConnection
 
 
 def keysym_for_key_name(key_name):
@@ -53,27 +46,12 @@ class Keyboard(object):
 
     def __init__(
         self,
-        display: Xlib.display.Display,
-        window: Xlib.xobject.drawable.Window,
-        window_x: int = 0,
-        window_y: int = 0,
+        window_connection: WindowConnection,
         keyboard_config: dict = {},
-        instance: int = 0,
     ):
         self.last_keymap = np.zeros(84)
-        self.window = window
-        print("Keyboard win:", window)
-        # TODO: Get these values from Xlib window properties.
-        self.window_x = window_x
-        self.window_y = window_y
-        self.window_w = 640
-        self.window_h = 360
-        self.py_xlib_display = display
-        self.lib_mpx_input, self.lib_mpx_input_ffi = lib_mpx_input.make_lib_mpx_input()
-        self.display = self.lib_mpx_input.open_display("".encode())
-        self.lib_mpx_input.assign_cursor(
-            self.display, self.window.id, lib_mpx_input.cursor_name(instance).encode()
-        )
+        self.window = window_connection.window
+        self.display = window_connection.display
 
         self.sequence_keydown_time = keyboard_config.get("sequence_keydown_time", 0.25)
 
@@ -107,19 +85,17 @@ class Keyboard(object):
             (keyboard_id, xinput.KeyPressMask | xinput.KeyReleaseMask)
             for keyboard_id in keyboard_ids
         ]
-        root = self.py_xlib_display.screen().root
+        root = self.display.screen().root
         root.xinput_select_events(event_masks)
 
         while self.should_run_failsafe:
-            p = self.py_xlib_display.pending_events()
+            p = self.display.pending_events()
             for i in range(p):
-                event = self.py_xlib_display.next_event()
-                if event.type == self.py_xlib_display.extension_event.GenericEvent:
+                event = self.display.next_event()
+                if event.type == self.display.extension_event.GenericEvent:
                     if (
                         event.data["detail"]
-                        == self.py_xlib_display.keysym_to_keycode(
-                            keysym_for_key_name("9")
-                        )
+                        == self.display.keysym_to_keycode(keysym_for_key_name("9"))
                         and event.data["mods"]["effective_mods"] & Xlib.X.ShiftMask
                         and event.data["mods"]["effective_mods"] & Xlib.X.ControlMask
                     ):
@@ -225,18 +201,32 @@ class Keyboard(object):
         return keycode
 
     def _change_key(self, key_name: str, direction: int, modifier=0):
-        keycode = self.key_name_to_keycode(self.py_xlib_display, key_name)
-        self.lib_mpx_input.key_event(self.display, keycode, direction)
+        event_type = X.KeyPress
+        if direction == Keyboard.RELEASE:
+            event_type = X.KeyRelease
+        keycode = self.key_name_to_keycode(self.display, key_name)
+        self.display.fake_input(event_type, keycode)
+        self.display.flush()
 
     def move_mouse(self, x: Union[int, float], y: Union[int, float]) -> None:
         x = min(max(int(x), 1), self.window_w - 1)
         y = min(max(int(y), 1), self.window_h - 1)
-        x = x + self.window_x
-        y = y + self.window_y
-        self.lib_mpx_input.move_mouse(self.display, x, y)
+
+        # Might be faster (1 server round trip instead of 3), but needs more testing.
+        # self.window.warp_pointer(x, y)
+        # self.display.flush()
+
+        root = self.window.query_tree().root
+        _, root_x, root_y = self.window.translate_coords(root, x, y)
+        self.display.fake_input(X.MotionNotify, x=root_x, y=root_y)
+        self.display.flush()
 
     def set_mouse_button(self, button: MouseButton, direction: int) -> None:
-        self.lib_mpx_input.button_event(self.display, button.value, direction)
+        event_type = X.ButtonPress
+        if direction == Keyboard.RELEASE:
+            event_type = X.ButtonRelease
+        self.display.fake_input(event_type, button.value)
+        self.display.flush()
 
     def set_held_mouse_buttons(self, mouse_buttons: Set[MouseButton]):
         # Implements re-press mouse mode.
@@ -248,6 +238,5 @@ class Keyboard(object):
         self.held_mouse_buttons = mouse_buttons
 
     def cleanup(self):
-        self.lib_mpx_input.close_display(self.display)
         self.should_run_failsafe = False
         self.failsafe_thread.join()

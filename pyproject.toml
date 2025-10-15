@@ -9,8 +9,8 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9"
-numpy = "^1.26.4"
+python = ">=3.10"
+numpy = "^2.2.0"
 gym = "0.23.1"
 cffi = "^1.16.0"
 simplejpeg = "^1.7.0"
@@ -21,6 +21,7 @@ sphinx = "^7.3.0"
 sphinx-autodoc-typehints = "^2.3.0"
 sphinx-autobuild = "^2024.10.3"
 furo = "^2025.7.19"
+bounce-desktop = "0.1.5"
 
 [build-system]
 requires = [

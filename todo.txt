@@ -1,58 +1,22 @@
-Project:
-- Noita Env release
-  - Env improvements
-    ✓ Set up a regression test
-    - P2: Make exploration state observable
-  - ✓: Switch to simplejpeg
-  - ✓: Build wheels for python 3.8-3.11
-  - P0: Test on clean ubuntu machine
-  - P1: Code complete
-  - P2: Marketing approach?
-    - P0: Pitch
-      - P0: Blurbs and graphics
-    - P2: Factorio support?
-    - P3: Baseline agent?
-  - P2: Improve output file formats to reduce filesystem overhead
+Project next steps:
+  - Add usage examples to bounce_desktop readme
+
+  - Delete Noita env until post-factorio MVP
+
+  - Factorio info implementation
+>   - Do I have a mod on disk somewhere? ~/Workspaces/factorio_mod
+    - How do you log data? send_udp: https://lua-api.factorio.com/latest/classes/LuaHelpers.html#send_udp
+                           log: https://lua-api.factorio.com/latest/auxiliary/libraries.html#new-functions
+    - How do you enable the mod?
+    
+  - Base Env and Integration class design
+    - Find in my Krita notes somewhere.
+
+  - Explore multi-instance support
+    - Is this blocked by libgvnc using a single main thread for all vnc clients?
+
+  - Bring Noita env back
+    - Need to have a good Proton solution
+      - Process reaping, etc
 
 
-Noita SB3 PPO Exp 1 (no image regularization)
-Path: out/noita_sb3_ppo_no_reg/
-
-Unprioritized:
-
-- Give a write-up (Something relatively light)
-    - Documentation
-    - Short reflection (Below is probably too much)
-        - Motivation
-            - Wanted to re-create OpenAI Universe.
-            - Wanted to either succeed in training an AI to play a game,
-              or learn what the "blockers" were
-        - Game choice
-            - Wrote up a list
-            - Initially chose Skyrogue
-        - Harness
-        - Many side-tracks
-            - MC
-            - Compression
-            - ...
-        - Return to the project
-            - A better focus on engineering instead of research
-        - Reward Fns
-        - Time accel
-        - RL
-        - Future directions
-            - Solve AOR single track (assuming search doesn't)
-            - Solve other AOR tracks
-            - Solve other games
-
-        - Distill the story above into a clear narrative
-            - Why I built
-            - What I built
-            - How I grew
-            - What's the state of RL
-- Noita
-    - DrQv2 + thresholding?
-        - I don't this this would work, but would be interesting to try
-        - Map (0, 1) via sigmoid of 4*tanh(2x-1) to get a smoothed (0, 1) prob
-          - With this prob, sample the action space and use this action
-          - There's not really a gradient here.

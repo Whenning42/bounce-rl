@@ -18,7 +18,6 @@ import simplejpeg
 import bounce_rl.configs.app_configs as app_configs
 from bounce_rl.core.harness import Harness
 from bounce_rl.core.keyboard import keyboard
-from bounce_rl.core.keyboard.keyboard import lib_mpx_input
 from bounce_rl.environments.noita import noita_info, noita_reward
 from bounce_rl.utilities.paths import project_root
 from bounce_rl.utilities.util import GrowingCircularFIFOArray, LinearInterpolator
@@ -158,6 +157,8 @@ class NoitaEnv(gym.core.Env):
         self.env_step = 0
 
         self.time_control = libtimecontrol.TimeController(self.instance)
+        self.time_control.set_speedup(1)
+
         self.environment |= self.time_control.child_flags()
         self._reset_env(skip_startup=skip_startup)
 
@@ -234,34 +235,6 @@ class NoitaEnv(gym.core.Env):
     @property
     def action_space(self):
         return NoitaEnv._action_space()
-
-    @classmethod
-    def pre_init(cls, num_envs: int = 1):
-        """Should be called before any NoitaEnv instances are created.
-
-        Sets up the MPX cursors"""
-
-        if cls.singleton_init:
-            raise RuntimeError("NoitaEnv.pre_init has already been called.")
-
-        for i in range(num_envs):
-            tc = libtimecontrol.TimeController(i)
-            tc.set_speedup(1)
-
-        lib_mpx, lib_mpx_ffi = lib_mpx_input.make_lib_mpx_input()
-        display = lib_mpx.open_display(b":0")
-        for i in range(num_envs):
-            lib_mpx.make_cursor(display, lib_mpx_input.cursor_name(i).encode("utf-8"))
-
-        def cleanup_cursors():
-            for i in range(num_envs):
-                lib_mpx.delete_cursor(
-                    display, lib_mpx_input.cursor_name(i).encode("utf-8")
-                )
-            lib_mpx.close_display(display)
-
-        atexit.register(cleanup_cursors)
-        cls.singleton_init = True
 
     def _reset_env(self, skip_startup: bool = False):
         # Raises a runtime error if the environment fails to start.

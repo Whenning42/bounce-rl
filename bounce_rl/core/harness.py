@@ -16,31 +16,16 @@ import Xlib.X
 import Xlib.XK
 from Xlib import display
 
-from bounce_rl.core.image_capture import image_capture
-from bounce_rl.core.keyboard import keyboard
+from bounce_rl.platform.graphics.image_capture import ImageCapture
+from bounce_rl.core.input.xtest import Keyboard
 from bounce_rl.core.launcher.launcher import Launcher
+from bounce_rl.platform.window_connection import WindowConnection
 from bounce_rl.utilities import fps_helper, util
 from bounce_rl.utilities.paths import project_root
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 
-
-REOPEN_CLOSED_WINDOWS = False
-
 window_owners: Dict[int, Any] = {}
-
-
-def _handle_error(*args):
-    window_id = args[0].resource_id.id
-    if window_id in window_owners:
-        window_owners[window_id]._on_window_closed(window_id)
-    else:
-        logging.debug("Orphan window closed: %s", window_id)
-
-
-# A no-op error handler.
-def _suppress_error(*args):
-    pass
 
 
 def _base_app_env(
@@ -98,18 +83,12 @@ class Harness(object):
         )
 
         self.display = display.Display()
-        self.display.set_error_handler(_handle_error)  # Python XLib handler
-        image_capture.ImageCapture.set_error_handler(
-            suppress_error  # Screen capture library has no need to throw errors
-        )
-
         self.root_window = self.display.screen().root
         self.root_window.change_attributes(event_mask=Xlib.X.SubstructureNotifyMask)
         self.display.flush()
 
         self.window = None
         self.keyboard = None
-        self.full_window_capture = None
         self.ready = False
         self.proxy_subproc: Optional[Any] = None
         self.launcher = Launcher()
@@ -122,30 +101,6 @@ class Harness(object):
         if self.proxy_subproc is not None:
             self.proxy_subproc.kill()
             self.proxy_subproc = None
-
-    def _launch_x_proxy(self) -> int:
-        host_x_display = os.environ.get("DISPLAY", ":0")
-        proxy_x_display = 10 + self.instance
-
-        command = (
-            f'xauth add :{proxy_x_display} .  "$(xauth -n list | grep $(hostname) '
-            f"| grep '{host_x_display}' | awk '{{print $3}}')\""
-        )
-        subprocess.run(command, shell=True)
-
-        subprocess.run(shlex.split(f"rm -f /tmp/.X11-unix/X{proxy_x_display}"))
-        self.proxy_subproc = subprocess.Popen(
-            [
-                "python",
-                f"{project_root()}/bounce_rl/x_proxy/proxy_main.py",
-                "--proxy_display",
-                f"{proxy_x_display}",
-                "--real_display",
-                host_x_display,
-            ]
-        )
-        time.sleep(0.1)
-        return proxy_x_display
 
     def _launch_app(self):
         logging.debug("Opening window.")
@@ -163,10 +118,6 @@ class Harness(object):
         )
         if directory == "":
             directory = None
-
-        if self.run_config.get("use_x_proxy", False):
-            proxy_display = self._launch_x_proxy()
-            env["DISPLAY"] = f":{proxy_display}"
 
         windows = self.launcher.launch_app(
             self.instance,
@@ -188,11 +139,11 @@ class Harness(object):
                 self.instance,
             )
             assert False
-
         self._attach(windows[0])
 
     def _attach(self, window_id):
         window = self.display.create_resource_object("window", window_id)
+        window_connection = WindowConnection(self.display, window)
         x = 100 + int(self.run_config["scale"] * self.run_config["x_res"] * self.x_pos)
         y = 100 + int(self.run_config["scale"] * self.run_config["y_res"] * self.y_pos)
 
@@ -208,13 +159,9 @@ class Harness(object):
         self.display.sync()
 
         self.window = window
-        self.keyboard = keyboard.Keyboard(
-            self.display,
-            window,
-            x,
-            y,
+        self.keyboard = Keyboard(
+            window_connection,
             self.app_config.get("keyboard_config", {}),
-            instance=self.instance,
         )
         # Noita environment can't have mouse over a menu item at launch.
         # The enviroment would like to configure this mouse move at launch,
@@ -224,20 +171,9 @@ class Harness(object):
         time.sleep(0.5)
         self.display.flush()
 
-        self.full_window_capture = self._add_capture(
-            (0, 0, self.run_config["x_res"], self.run_config["y_res"])
-        )
+        self._window_capture = ImageCapture(window_connection)
         window_owners[window.id] = self
         self.ready = True
-
-    # Takes a ROI of format ("x", "y", "w", "h") and returns a function that can
-    # be called to capture a np array of the pixels in that region.
-    def _add_capture(self, region):
-        region = [round(c * self.run_config["scale"]) for c in region]
-        x, y, w, h = region
-        capture = image_capture.ImageCapture(x, y, w, h)
-        # Use a default argument to force the lambda not to capture a reference to self.
-        return lambda id=self.window.id: capture.get_image(id)
 
     def cleanup(self):
         """Kills the child app and releases all resources held by this Harness."""
@@ -265,26 +201,6 @@ class Harness(object):
             return False
         return True
 
-    def get_screen(self, instance=0) -> np.array:
-        assert self.full_window_capture is not None
-        return util.npBGRAtoRGB(self.full_window_capture())
-
-    def pause(self):
-        pgid = os.getpgid(self.subprocess_pid)
-        os.killpg(pgid, signal.SIGSTOP)
-
-    def resume(self):
-        pgid = os.getpgid(self.subprocess_pid)
-        os.killpg(pgid, signal.SIGCONT)
-
-    def _on_window_closed(self, window_id):
-        global window_owners
-        del window_owners[window_id]
-
-        if self.window.id == window_id:
-            self.window = None
-            self.keyboard = None
-            if REOPEN_CLOSED_WINDOWS:
-                self._launch_app()
-            return
-        assert False
+    def get_screen(self) -> np.array:
+        assert self._window_capture is not None
+        return util.npBGRAtoRGB(self._window_capture.get_image())
