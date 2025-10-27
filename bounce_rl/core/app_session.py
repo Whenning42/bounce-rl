@@ -1,40 +1,60 @@
 # AppSession is a container-like object holding a running BounceRL app.
 # For each running instance of an app, app session holds a data folder, a virtual
 # desktop, and a process.
+#
+# TODO: Make subprocess clean-up robust. i.e. use a subprocess reaper.
+# TODO: Make temp folder clean-up robust. i.e. use something
+# like ephemeral_directory() implemented in libtimecontrol (currently
+# it only has a C implementation, no bindings).
+# TODO: Clean up the subprocess at an appropriate time.
 
+import os
 import subprocess
+import tempfile
+
+import libtimecontrol
 
 
 class AppSession:
-    def __init__(self, run_command: str):
+    def __init__(self, sessions_folder: str, run_command: list[str]):
         """Creates an AppSession that will run `run_command` once .start_process() is
         called."""
         self._run_command = run_command
         self._desktop = None
-        self._folder = None
+        self._folder = tempfile.TemporaryDirectory(prefix=sessions_folder)
         self._process = None
-        self._time_controller = None
+        self._time_controller = libtimecontrol.TimeController()
 
-    def start_process() -> subprocess.Process:
+    def __del__(self):
+        # Only clean up the process if it's actually been started.
+        if self._process is not None:
+            self._process.kill()
+        if self._folder is not None:
+            self._folder.cleanup()
+
+    # A wrapper around subprocess.Popen that's used by start_process. We use this to
+    # mock subprocess calls in unit tests.
+    def _popen(self, *args, **kwargs) -> subprocess.Popen:
+        return subprocess.Popen(*args, **kwargs)
+
+    def start_process(self) -> subprocess.Popen:
         """Launch `run_command` in this AppSession.
 
         This is it's own function instead of happening automatically in __init__,
         so that callers can copy run-time data into the session folder before
         `run_command` is run."""
-        pass
+        self._process = self._popen(
+            self._run_command, env=os.environ | self._time_controller.child_flags()
+        )
 
-    @property
     def desktop(self):
         return self._desktop
 
-    @property
     def data_folder(self):
-        return self._folder
+        return self._folder.name
 
-    @property
     def process(self):
         return self._process
 
-    @property
-    def time_controller(self):
+    def time_controller(self) -> libtimecontrol.TimeController:
         return self._time_controller
