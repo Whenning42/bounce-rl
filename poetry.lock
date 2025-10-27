@@ -472,13 +472,13 @@ i18n = ["Babel (>=2.7)"]
 
 [[package]]
 name = "libtimecontrol"
-version = "0.1.2"
-description = ""
+version = "0.2.0"
+description = "An experimental library for realtime control of the speed of time in Linux child processes"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "libtimecontrol-0.1.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:38878c0274a6ed52a6204cc110e6e6991a8b99fde5086b2df6555201c51105fc"},
+    {file = "libtimecontrol-0.2.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:1cf0146dd1762596502baa913b2a66d446b372ad3e0a42969ea56283c85546b3"},
 ]
 
 [package.dependencies]
@@ -1331,4 +1331,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "32546454e52f2d4973a93c6bbe8b186cbb1ad1b8101b47bd82bc6b978f8c5d7f"
+content-hash = "4078d6a2fddcf6f559d746a6b20e5e96fb42e60347a824f10f1047f49422be50"
