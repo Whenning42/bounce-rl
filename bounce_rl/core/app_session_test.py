@@ -51,10 +51,26 @@ class TestAppSession(unittest.TestCase):
             s.time_controller().child_flags(), p_kwargs.get("env")
         )
 
-    # TODO: Implement desktop launching.
-    # def test_desktop(self):
-    #     s = AppSession(self.sessions_dir, "")
-    #     self.assertIsInstance(s.desktop(), bounce_desktop.Desktop)
+    def test_desktop(self):
+        s = AppSession(self.sessions_dir, "")
+        self.assertIsInstance(s.desktop(), bounce_desktop.Desktop)
+
+    def test_desktop_env_passed_to_subprocess(self):
+        p_args = []
+        p_kwargs = {}
+
+        def test_popen(*args, **kwargs):
+            nonlocal p_args, p_kwargs
+            p_args = args
+            p_kwargs = kwargs
+
+        s = AppSession(self.sessions_dir, ["whoami"])
+        s._popen = test_popen
+        s.start_process()
+        self.assertEqual(p_args[0], ["whoami"])
+        self.assertDictContainsSubset(
+            s.desktop().get_desktop_env(), p_kwargs.get("env")
+        )
 
 
 if __name__ == "__main__":

@@ -7,11 +7,13 @@
 # like ephemeral_directory() implemented in libtimecontrol (currently
 # it only has a C implementation, no bindings).
 # TODO: Clean up the subprocess at an appropriate time.
+# TODO: Unit tests should maybe use mock desktops.
 
 import os
 import subprocess
 import tempfile
 
+import bounce_desktop
 import libtimecontrol
 
 
@@ -20,7 +22,7 @@ class AppSession:
         """Creates an AppSession that will run `run_command` once .start_process() is
         called."""
         self._run_command = run_command
-        self._desktop = None
+        self._desktop = bounce_desktop.Desktop.create(640, 480)
         self._folder = tempfile.TemporaryDirectory(prefix=sessions_folder)
         self._process = None
         self._time_controller = libtimecontrol.TimeController()
@@ -44,7 +46,10 @@ class AppSession:
         so that callers can copy run-time data into the session folder before
         `run_command` is run."""
         self._process = self._popen(
-            self._run_command, env=os.environ | self._time_controller.child_flags()
+            self._run_command,
+            env=os.environ
+            | self._desktop.get_desktop_env()
+            | self._time_controller.child_flags(),
         )
 
     def desktop(self):
