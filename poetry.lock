@@ -92,13 +92,13 @@ lxml = ["lxml"]
 
 [[package]]
 name = "bounce-desktop"
-version = "0.1.5"
+version = "0.2.1"
 description = "Hardware-accelerated Linux virtual desktops."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "bounce_desktop-0.1.5.tar.gz", hash = "sha256:e0c1f28db928fc90309723b5f1984139799e83f9f936a18e108eba867c2df28b"},
+    {file = "bounce_desktop-0.2.1.tar.gz", hash = "sha256:1c9954baa2fbde0e90ff9186819ff987c9fb123e248251045be30e4139dcec55"},
 ]
 
 [package.dependencies]
@@ -1331,4 +1331,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "7258af41069392ac701fd56baa700e47706942318970df7519ad6169e7f2be1c"
+content-hash = "e75b6956e8026df63fe21b58c5feaafe42ffc39c9fa1ef4fe1a88f0368c1ff1f"

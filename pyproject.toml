@@ -21,7 +21,7 @@ sphinx = "^7.3.0"
 sphinx-autodoc-typehints = "^2.3.0"
 sphinx-autobuild = "^2024.10.3"
 furo = "^2025.7.19"
-bounce-desktop = "0.1.5"
+bounce-desktop = "^0.2.1"
 
 [build-system]
 requires = [
