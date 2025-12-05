@@ -1,0 +1,319 @@
+readme.md
+  # Overview
+  The BounceRL input system takes in high-level
+  PyAutoGUI style input actions either directly, or
+  through a Gym action space, and dispatches raw
+  input events to a Desktop backend.
+
+  To ensure models trained to output gym actions
+  can be used across environments or BounceRL
+  versions that support different sets of inputs, we
+  do two things:
+
+  1. We use a fixed Gym action space across all
+  apps/environments and mask out the actions corresponding
+  to disallowed inputs on a per-environment basis.
+
+  2. We’ll keep the gym action space
+  to desktop input mapping stable, only append
+  new inputs to the end of the action space, and
+  make it easy to no-op pad a smaller action
+  space action to be in a newer, larger, action
+  space.
+
+  We don't support actions like type("hello world"),
+  but it might not be too hard to add if/when necessary.
+
+  We also don't support mouse zoom yet, but we'll add
+  it as a fast follow.
+
+keys.py
+  // Defines the set of keys our input system will use
+  // Along with "key classes", sets of related keys one
+  // may want to use for example, to specify which
+  // keys an application environment allows agents to
+  // use.
+
+  keys:
+    // All of the keys use X11 keysym values.
+    // Bouncer keys are uncased whereas X11 key syms
+    // are cased. We use the uppercase key syms for the
+    // letters and can convert to lowercase key syms
+    // by adding LOWERCASE_OFFSET
+
+    LOWERCASE_OFFSET = 0x0020
+    # Letters
+    KEY_A = 0x0041
+    KEY_B = 0x0042
+    ...
+
+    # Digits
+    KEY_0 = 0x0030
+    ...
+
+    # Punctuation
+    KEY_EXCLAM = 0x0021     # !
+    KEY_AT = 0x0040         # @
+    KEY_NUMBERSIGN = 0x0023 # #
+    ...
+
+    # FnKeys
+    ...
+
+    # Modifiers
+    # Note: We only implement the left shift, alt, control keys.
+    KEY_SHIFT_L = 0xffe1
+    KEY_ALT_L = 0xffe9
+    KEY_CONTROL_L = 0xffe3
+
+    # Other
+    # Tab, Escape, Enter, Backspace
+    ...
+
+    # Pointer Buttons
+    KEY_POINTER_BUTTON1 = 0xfee9
+    KEY_POINTER_BUTTON2 = ...
+    KEY_POINTER_BUTTON3 = ...
+    LEFT_MOUSE_BUTTON = KEY_POINTER_BUTTON1 # More readable aliases for the pointer buttons.
+    RIGHT_MOUSE_BUTTON = KEY_POINTER_BUTTON2
+    MIDDLE_MOUSE_BUTTON = KEY_POINTER_BUTTON3
+
+  Key Classes:
+    Letters = (KEY_A, ..., KEY_Z)
+    Digits = (KEY_0, ..., KEY_9)
+    Punctuation = (KEY_EXCLAM, KEY_AT, KEY_STERLING, ... (the keys are: $ % ^ & * ( ) - _ = + [ ] { } \ | ~ ` ; : ' " , < > . ? /))
+    FnKeys = ...
+    Modifiers = L-Shift, L-Alt, L-Ctrl // We don't use right shift, alt, or ctrl
+    Other = Tab, Escape, Enter, Backspace
+    PointerButtons = ("Pointer_Button_1", "Pointer_Button_2", "Pointer_Button_3")
+
+  // The rest of the keys are unmapped.
+  // As per vncdotool.readthedocs.io/en/78/rfbproto.html KeyEvent section:
+  //   In the RFB protocol, the shift key is a hint,
+  //   keysym state on the wire is authoritative.
+  //   ctrl + alt modifier key state in the protocol
+  //   is also authoritative.
+
+allowed_inputs.py
+  // Allowed input mappings can be constructed as allow list or denylists of keys
+  // and key classes.
+
+  // E.g. The Factorio allowed mapping is
+  //    DisallowKeys([FnKeys, Escape])
+  // or AllowKeys([Letters, Digits, Punctuation, Modifiers, Tab, Enter, Backspace, PointerButtons])
+
+  class AllowKeys(List[Key | KeyClass])
+    .keys() -> constructor keys
+
+  class DisallowKeys(List[Key | KeyClass])
+    .to_allow_list() -> AllowList // Takes all keys and remove disallowed ones.
+
+key_action.py:
+  // Represents a slightly higher level action for a key, like PyAutoGUI actions.
+  // Input system can convert actions to raw key up and key down events.
+
+  KeyAction: frozen dataclasses
+    action: KeyActionType{KEY_PRESS, KEY_UP, KEY_DOWN}
+    key: Key
+
+key_event.py
+  // A raw key event. Our input system generates
+  // these and sends them to our desktop.
+
+  KeyEvent: frozen dataclasses
+    action: KeyDirection { KEY_UP, KEY_DOWN }
+    key: Key
+
+mouse_action.py:
+  // Relative or absolute mouse position moves as well as
+  // drag events. Mouse coordinates are in screen pixels.
+
+  MouseAction: frozen dataclasses
+    is_relative: bool
+    position: tuple[int, int]
+    is_drag: bool
+    drag_button: Key
+
+  move_mouse(delta_position: tuple[int, int]) -> MouseAction
+  move_to(position: tuple[int, int]) -> MouseAction
+  drag_mouse(button: Key, delta_position: tuple[int, int]) -> ...
+  drag_mouse_to(button: Key, position: tuple[int, int]) -> ...
+
+mouse_event.py:
+  // A raw mouse move event. Our input system generates
+  // these and sends them to our Desktop. All mouse events are
+  // absolute position moves.
+
+  MouseEvent: frozen dataclasses
+    position: tuple[int, int] // An absolute move of the
+    // mouse to this screen pixel position.
+
+# Implementation note:
+#   I'd actually prefer if all of the actions and event types were in a single
+#   input_types.py file.
+#   Also create union types InputAction = KeyAction | MouseAction, and InputEvent = KeyEvent | MouseEvent and use
+#   them wherever these types are used below.
+
+gym_input.py:
+  // Helpers to expose our input system through the Gym API.
+  // BounceRL exposes all KeyActions and MouseActions
+  // in a fixed layout action space and masks out
+  // disallowed actions when applying gym inputs
+  // to the desktop.
+  // We'll keep our Action Space compatible
+  // across versions by adding new keys to the back
+  // of the action space.
+  //
+  // Action Space:
+  //   Keys (includes mouse buttons):
+  //    For each key in our keys list, add
+  //    a Discrete(4) value which corresponds to:
+  //    (no-op, press, key_down, key_up).
+  //
+  //   Mouse
+  //     Box ([-screen_width, -screen_height], [screen_width, screen_height]), // relative or delta position
+  //     Discrete(2) // Mouse translation mode (relative, absolute)
+  //     Discrete(3) // Mouse action (None, move, drag)
+
+  action_space() -> spaces.Space // Return the Gym Action space for inputs.
+
+  mask_action(action: GymAction, allowed_inputs: AllowList) -> GymAction
+    // Masks the given Gym action to only allowed
+    // inputs. Environments apply this automatically,
+    // but users can also use this themselves
+    // to normalize their actions to just the
+    // inputs that apply to an environment.
+
+  process_gym_action(action: GymAction) -> List[InputAction]
+    // Converts a Gym action to its corresponding input actions.
+
+input_processor.py:
+  // Manages keyboard and mouse state and generates events from actions.
+  // Keyboard state management includes:
+  //   shift-key based letter casing, releaing held keys before presses,
+  //   and ignoring key down and key up actions when the key's already in that
+  //   position.
+  // Mouse state management includes:
+  //   storing the mouse's current x and y position so relative move actions can
+  //   be converted to absolute move events. We'll also pass the screen size
+  //   to the input processor, so that it can bound relative moves to within the
+  //   screen dimensions.
+
+  class InputProcessor(screen_x, screen_y)
+    process_input_actions(List[InputAction]) -> List[InputEvents]
+    release_buttons() -> List[KeyEvent]
+      // Releases any held buttons. This is useful when you're
+      // resetting an environment.
+
+event_dispatch.py:
+  // Dispatches a list of events to a Desktop.
+  apply_bounce_desktop_events(events: List[InputEvents], desktop: Desktop)
+    // Invokes the event handlers on "desktop" that
+    // correspond to the given list of events.
+
+benchmark.py
+  // Test how much time it takes to process a fixed
+  // Gym input actions and dispatch their generated
+  // events to a fake Desktop.
+  class FakeDesktop:
+    // Implements the same event interface as Bounce Desktop,
+    // with functions that do nothing.
+
+  benchmark_action_a/b
+    // Benchmark actions a and b will be gym actions in our gym action space such that:
+    //   For keys in the action space with keysym = 0, 1 % 4: no-op
+    //   For keys in the action space with keysym = 2 % 4: press the key
+    //   For keys in the action space with keysym = 3 % 4: if input a, press down, if input b, release key.
+    //   For mouse, input a and input b both move the mouse relative (10, 10).
+
+  benchmark_input_system(loop_iters = 1,000,000) -> float
+    // Runs the end-to-end input system benchmark and returns
+    // the average time it takes in seconds to process and
+    // dispatch a new input.
+    Pseudo-code:
+      input_processor = InputProcessor()
+      desktop = FakeDesktop()
+      Time this loop:
+        for i in range(loop_iters):
+          if i % 2 == 0:
+            action = benchmark_action_a
+          else:
+            action = benchmark_action_b
+          events = input_processor.process_gym_action(action)
+          apply_list_events(events, desktop)
+      Return total loop time / loop iters
+
+  if name == "main":
+    print(f"Action input handling takes {benchmark_input_system()} seconds")
+
+
+Testing Plan:
+  - keys.py: Manually verify keysyms match x11 keysyms, no unit tests, since this is definitions
+  - allowed_inputs.py
+    - test AllowList.keys() de-duplicates any duplicate keys given to the constructor
+    - test DenyList.to_allow_list() returns all keys minus the deny-listed keys
+  - input_types.py: No unit tests necessary. These are just structs.
+  - gym_input.py: 
+    - tests and detailed design still TBD.
+  - input_processor:
+    # Test Shift Casing
+      - test that holding shift before a letter press gives an upper case letter press, i.e.
+        - Actions: shift down, a down
+        - Should generate: shift key down, uppercase a down.
+      - test that holding shift after a letter press gives a lower case letter press
+        - Actions: a down, shift down
+        - Should generate: lowercase a down, shift down
+      - test that releasing a held key releases the key's original case
+        - Actions: shift down, a down, shift up, a up
+        - Should generate: shift down, uppercase A down, shift up, uppercase A up
+    # Test Key Up/Down State Handling
+      - test that pressing a held key generates a key-up before the press
+        - Actions: a down, press a
+        - Should generate: a down, a up, a down, a up
+      - test that releasing an already up key generates nothing
+        - Actions: a up
+        - Should generate: nothing
+      - test that pressing down a pressed key generate nothing
+        - Actions: a down, a down
+        - Should generate: a down (just the first a down)
+    # Test release_buttons()
+      - release buttons releases down buttons
+        - Actions: press a, b down, c down, d down, d up
+        - Then, release_buttons() should generate: b up, c up.
+    # Mouse State handling
+      - Test that absolute and relative mouse moves are clamped to staying on the screen
+        - create input processor (600, 600)
+        - then actions: move_to(800, 800), move_to(-200, -200), move(1000, 0)
+        - should generate: move_event(600, 600), move_event(0, 0), move_event(600, 0)
+      - Test relative moves go to correct location
+        - input_processor(600, 600)
+        - actions: move_to(100, 100), move(10, 5), move(20, 10)
+        - should generate: move_event(100, 100), move_event(110, 105), move_event(130, 115)
+
+  - event_dispatch.py:
+    - Create a mock desktop that tracks which inputs were applied to it.
+    - Test KeyUp/KeyDown events: test that KeyUp and KeyDown events invoke key_press and key_release with keysym passed through
+    - Test move mouse MouseEvents: test that move mouse event invokes move_mouse with correct x and y passed through
+    - Test Pointer Button Up/Down Events: test that KeyUp pointer 1 button invokes mouse_release(1), KeyDown pointer 2 button invokes mouse_press(2),
+      and KeyDown pointer 3 button invokes mouse_press(3).
+      
+
+Implementation Plan:
+  Let's implement this system in 5 different commits:
+  - Commit 1: keys.py
+  - Commit 2: allowed_inputs.py, input_types.py
+  - Commit 3: gym_input.py
+  - Commit 4: input_processor.py, event_dispatch.py
+  - Commit 5: benchmark.py
+
+  For each commit, Claude will act as the coder and I (the user) will act as the reviewer + committer.
+
+
+FAQs:
+  - How can we make sure that input processor's mouse position matches the desktop mouse position at init time?
+    A: We don't. The first relative mouse move will just be an absolute one relative to where we initially the input processor's mouse
+       and that's perfectly fine. Just note it in the input processor's file comment.
+
+Next Steps:
+  - Ask opus for design review
+  - Ask sonnet to implement the system
