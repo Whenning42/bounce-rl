@@ -13,10 +13,11 @@ Space = Any
 
 
 class AppEnvironment:
-    def __init__(self, app: App):
+    def __init__(self, app: App, resolution: tuple[int, int]):
         self._app = app
         self._metadata = None
         self.render_mode = None
+        self.resolution = resolution
 
     def reset(
         self, seed: int | None, options: dict[str, Any]

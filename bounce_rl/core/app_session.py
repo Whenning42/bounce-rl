@@ -52,13 +52,13 @@ class AppSession:
             | self._time_controller.child_flags(),
         )
 
-    def desktop(self):
+    def desktop(self) -> bounce_desktop.Desktop:
         return self._desktop
 
-    def data_folder(self):
+    def data_folder(self) -> str:
         return self._folder.name
 
-    def process(self):
+    def process(self) -> subprocess.Popen:
         return self._process
 
     def time_controller(self) -> libtimecontrol.TimeController:
