@@ -28,8 +28,8 @@ def apply_bounce_desktop_events(events: List[InputEvent], desktop) -> None:
     for event in events:
         if isinstance(event, KeyEvent):
             # Check if this is a mouse button (pointer buttons use KeyEvent)
-            if _is_pointer_button(event.key):
-                button = _keysym_to_button_number(event.key)
+            if _is_pointer_button(event.keysym):
+                button = _keysym_to_button_number(event.keysym)
                 if event.action == KeyDirection.KEY_DOWN:
                     desktop.mouse_press(button)
                 else:  # KEY_UP
@@ -37,9 +37,9 @@ def apply_bounce_desktop_events(events: List[InputEvent], desktop) -> None:
             else:
                 # Regular keyboard key
                 if event.action == KeyDirection.KEY_DOWN:
-                    desktop.key_press(event.key)
+                    desktop.key_press(event.keysym)
                 else:  # KEY_UP
-                    desktop.key_release(event.key)
+                    desktop.key_release(event.keysym)
         elif isinstance(event, MouseEvent):
             desktop.move_mouse(event.position[0], event.position[1])
 

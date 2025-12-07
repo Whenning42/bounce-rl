@@ -15,10 +15,10 @@ from bounce_rl.input.input_types import (
     InputAction,
     KeyAction,
     KeyActionType,
-    drag_mouse,
-    drag_mouse_to,
-    move_mouse,
-    move_to,
+    drag_mouse_action,
+    drag_mouse_to_action,
+    move_mouse_action,
+    move_to_action,
 )
 from bounce_rl.input.keys import (
     LEFT_MOUSE_BUTTON,
@@ -198,10 +198,10 @@ def process_gym_action(
             position = (int(x), int(y))
 
             if mouse_action_type == MOUSE_ACTION_MOVE:
-                result.append(move_to(position))
+                result.append(move_to_action(position))
             elif mouse_action_type == MOUSE_ACTION_DRAG:
                 drag_button = _DRAG_BUTTON_MAP[drag_button_idx]
-                result.append(drag_mouse_to(drag_button, position))
+                result.append(drag_mouse_to_action(drag_button, position))
 
         else:  # MOUSE_RELATIVE
             # Clamp relative positions to [-400, 400]
@@ -210,9 +210,9 @@ def process_gym_action(
             position = (int(x), int(y))
 
             if mouse_action_type == MOUSE_ACTION_MOVE:
-                result.append(move_mouse(position))
+                result.append(move_mouse_action(position))
             elif mouse_action_type == MOUSE_ACTION_DRAG:
                 drag_button = _DRAG_BUTTON_MAP[drag_button_idx]
-                result.append(drag_mouse(drag_button, position))
+                result.append(drag_mouse_action(drag_button, position))
 
     return result

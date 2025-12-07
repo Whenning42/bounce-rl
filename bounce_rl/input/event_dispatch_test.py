@@ -3,7 +3,7 @@
 import unittest
 
 from bounce_rl.input.event_dispatch import apply_bounce_desktop_events
-from bounce_rl.input.input_types import KeyDirection, KeyEvent, MouseEvent
+from bounce_rl.input.input_types import key_down_event, key_up_event, mouse_move_event
 from bounce_rl.input.keys import (
     KEY_A,
     KEY_B,
@@ -43,8 +43,8 @@ class TestEventDispatch(unittest.TestCase):
         through."""
         desktop = MockDesktop()
         events = [
-            KeyEvent(action=KeyDirection.KEY_DOWN, key=KEY_A),
-            KeyEvent(action=KeyDirection.KEY_UP, key=KEY_B),
+            key_down_event(KEY_A),
+            key_up_event(KEY_B),
         ]
 
         apply_bounce_desktop_events(events, desktop)
@@ -54,7 +54,7 @@ class TestEventDispatch(unittest.TestCase):
     def test_mouse_move_events(self):
         """Move mouse event invokes move_mouse with correct x and y passed through."""
         desktop = MockDesktop()
-        events = [MouseEvent(position=(100, 200)), MouseEvent(position=(300, 400))]
+        events = [mouse_move_event((100, 200)), mouse_move_event((300, 400))]
 
         apply_bounce_desktop_events(events, desktop)
 
@@ -66,9 +66,9 @@ class TestEventDispatch(unittest.TestCase):
         """Pointer button events invoke mouse_press/mouse_release."""
         desktop = MockDesktop()
         events = [
-            KeyEvent(action=KeyDirection.KEY_UP, key=LEFT_MOUSE_BUTTON),
-            KeyEvent(action=KeyDirection.KEY_DOWN, key=RIGHT_MOUSE_BUTTON),
-            KeyEvent(action=KeyDirection.KEY_DOWN, key=MIDDLE_MOUSE_BUTTON),
+            key_up_event(LEFT_MOUSE_BUTTON),
+            key_down_event(RIGHT_MOUSE_BUTTON),
+            key_down_event(MIDDLE_MOUSE_BUTTON),
         ]
 
         apply_bounce_desktop_events(events, desktop)
@@ -82,11 +82,11 @@ class TestEventDispatch(unittest.TestCase):
         """Mixed key, mouse, and pointer events are dispatched correctly."""
         desktop = MockDesktop()
         events = [
-            KeyEvent(action=KeyDirection.KEY_DOWN, key=KEY_A),
-            MouseEvent(position=(50, 75)),
-            KeyEvent(action=KeyDirection.KEY_DOWN, key=LEFT_MOUSE_BUTTON),
-            KeyEvent(action=KeyDirection.KEY_UP, key=KEY_A),
-            KeyEvent(action=KeyDirection.KEY_UP, key=LEFT_MOUSE_BUTTON),
+            key_down_event(KEY_A),
+            mouse_move_event((50, 75)),
+            key_down_event(LEFT_MOUSE_BUTTON),
+            key_up_event(KEY_A),
+            key_up_event(LEFT_MOUSE_BUTTON),
         ]
 
         apply_bounce_desktop_events(events, desktop)
