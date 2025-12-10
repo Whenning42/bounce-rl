@@ -1,36 +1,26 @@
 # Instances of the App class implement app-specific BounceRL integrations.
+# TODO: Figure out how Apps communicate any set up steps they need to run.
 
-from typing import Any, Protocol
+from abc import ABC, abstractmethod
 
-# TODO: Use real types instead of placeholders
-Info = Any
-ActionType = Any
-AppSession = Any
+from bounce_desktop import Desktop
+
+from bounce_rl.core.gym_types import GymObservation, GymStepTuple
 
 
-class App(Protocol):
-    def step() -> tuple[float, bool, bool, Info]:
-        """Returns (reward, terminated, truncated, info)"""
-        pass
+class App(ABC):
+    @abstractmethod
+    def finalize_step(self, obs: GymObservation) -> GymStepTuple:
+        """Get app state at the end of a step and calculate the final step tuple's
+        value."""
+        ...
 
-    def input_map() -> dict[str, ActionType]:
-        """A mapping from input axis names to action types"""
-        pass
+    @abstractmethod
+    def start(self, desktop: Desktop) -> None:
+        """Runs the app's launch macro on the given desktop."""
+        ...
 
-    def start() -> AppSession:
-        """Launch the app and run any macros to get it to its environment initial state.
-
-        Returns an AppSession holding the platform specific app state incl.
-        - Session folders
-        - Virtual desktop handles
-        - Time controller
-        - Root process"""
-        pass
-
-    def supports_resolution(width: int, height: int) -> bool:
-        """Returns True if the given resolution is supported by this app."""
-        pass
-
-    # TODO:
-    # d Figure out return type of input_map()
-    # - Figure out interface for declaring supported app resolutions
+    @abstractmethod
+    def supported_resolutions(self) -> list[tuple[int, int]]:
+        """Returns a list of resolutions supported by this app."""
+        ...
