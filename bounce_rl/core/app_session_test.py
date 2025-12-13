@@ -20,18 +20,18 @@ class TestAppSession(unittest.TestCase):
         self._sessions_dir.cleanup()
 
     def test_temp_folder(self):
-        s = AppSession(self.sessions_dir, "")
+        s = AppSession(self.sessions_dir, "", (640, 480))
         self.assertIsInstance(s._folder, tempfile.TemporaryDirectory)
         self.assertTrue(os.path.exists(s.data_folder()))
 
     def test_start_process_launches_subprocess(self):
         # "whoami" is a simple binary that should be present across platforms.
-        s = AppSession(self.sessions_dir, ["whoami"])
+        s = AppSession(self.sessions_dir, ["whoami"], (640, 480))
         s.start_process()
         self.assertIsInstance(s._process, subprocess.Popen)
 
     def test_time_controller(self):
-        s = AppSession(self.sessions_dir, "")
+        s = AppSession(self.sessions_dir, "", (640, 480))
         self.assertIsInstance(s.time_controller(), libtimecontrol.TimeController)
 
     def test_time_control_env_passed_to_subprocess(self):
@@ -43,7 +43,7 @@ class TestAppSession(unittest.TestCase):
             p_args = args
             p_kwargs = kwargs
 
-        s = AppSession(self.sessions_dir, ["whoami"])
+        s = AppSession(self.sessions_dir, ["whoami"], (640, 480))
         s._popen = test_popen
         s.start_process()
         self.assertEqual(p_args[0], ["whoami"])
@@ -52,7 +52,7 @@ class TestAppSession(unittest.TestCase):
         )
 
     def test_desktop(self):
-        s = AppSession(self.sessions_dir, "")
+        s = AppSession(self.sessions_dir, "", (640, 480))
         self.assertIsInstance(s.desktop(), bounce_desktop.Desktop)
 
     def test_desktop_env_passed_to_subprocess(self):
@@ -64,7 +64,7 @@ class TestAppSession(unittest.TestCase):
             p_args = args
             p_kwargs = kwargs
 
-        s = AppSession(self.sessions_dir, ["whoami"])
+        s = AppSession(self.sessions_dir, ["whoami"], (640, 480))
         s._popen = test_popen
         s.start_process()
         self.assertEqual(p_args[0], ["whoami"])

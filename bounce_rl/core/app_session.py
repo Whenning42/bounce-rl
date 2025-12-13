@@ -18,11 +18,19 @@ import libtimecontrol
 
 
 class AppSession:
-    def __init__(self, sessions_folder: str, run_command: list[str]):
+    def __init__(
+        self, sessions_folder: str, run_command: list[str], resolution: tuple[int, int]
+    ):
         """Creates an AppSession that will run `run_command` once .start_process() is
-        called."""
+        called.
+
+        Args:
+            sessions_folder: Parent directory for creating temp session folder
+            run_command: Command to execute (list of command parts)
+            resolution: Desktop resolution as (width, height) tuple
+        """
         self._run_command = run_command
-        self._desktop = bounce_desktop.Desktop.create(640, 480)
+        self._desktop = bounce_desktop.Desktop.create(resolution[0], resolution[1])
         self._folder = tempfile.TemporaryDirectory(prefix=sessions_folder)
         self._process = None
         self._time_controller = libtimecontrol.TimeController()
@@ -34,9 +42,9 @@ class AppSession:
         if self._folder is not None:
             self._folder.cleanup()
 
-    # A wrapper around subprocess.Popen that's used by start_process. We use this to
-    # mock subprocess calls in unit tests.
     def _popen(self, *args, **kwargs) -> subprocess.Popen:
+        """A wrapper around subprocess.Popen that's used by start_process. We use this
+        to mock subprocess calls in unit tests."""
         return subprocess.Popen(*args, **kwargs)
 
     def start_process(self) -> subprocess.Popen:
