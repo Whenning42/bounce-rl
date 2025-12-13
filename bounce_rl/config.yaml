@@ -1,0 +1,12 @@
+apps:
+ - name: "Factorio"
+ # Note: We install the mod at app set up time, not via this config,
+ #       since the mod settings file is generated from run-time data.
+   install:
+     from: "/home/william/Games/factorio"
+     to: "factorio"
+   entrypoint: "/factorio/bin/x64/factorio"
+   run_speed: 1.0
+   pause_speed: 0.2
+
+ - name: "Noita"
