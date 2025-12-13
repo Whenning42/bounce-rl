@@ -12,7 +12,7 @@ class TestFactorioApp(unittest.TestCase):
         """Test that FactorioApp can be launched on a human-viewable desktop."""
         desktop = bounce_desktop.Desktop.create(1000, 600)
         factorio = FactorioApp()
-        factorio.start(desktop)
+        factorio.begin(desktop)
         # TODO: Once we've got error returns on failed launches, assert launch was successful
 
     def test_do_finalize_step(self):

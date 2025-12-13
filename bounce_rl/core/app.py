@@ -1,5 +1,4 @@
 # Instances of the App class implement app-specific BounceRL integrations.
-# TODO: Figure out how Apps communicate any set up steps they need to run.
 
 from abc import ABC, abstractmethod
 
@@ -9,6 +8,12 @@ from bounce_rl.core.gym_types import GymObservation, GymStepTuple
 
 
 class App(ABC):
+    @staticmethod
+    @abstractmethod
+    def name() -> str:
+        """Returns the name of the app used to select it from the BounceRL config."""
+        ...
+
     @abstractmethod
     def finalize_step(self, obs: GymObservation) -> GymStepTuple:
         """Get app state at the end of a step and calculate the final step tuple's
@@ -16,7 +21,15 @@ class App(ABC):
         ...
 
     @abstractmethod
-    def start(self, desktop: Desktop) -> None:
+    def post_install(self) -> None:
+        """Runs install logic after copying app files from install config.
+
+        For example, Factorio generates instance-specific mod settings and installs
+        its state-export mod in post_install."""
+        ...
+
+    @abstractmethod
+    def begin(self, desktop: Desktop) -> None:
         """Runs the app's launch macro on the given desktop."""
         ...
 

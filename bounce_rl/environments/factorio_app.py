@@ -13,6 +13,11 @@ class FactorioApp(App):
     def __init__(self):
         self._previous_state: dict[str, Any] = {}
 
+    @staticmethod
+    def name() -> str:
+        """Returns the name of the app used in config."""
+        return "Factorio"
+
     def finalize_step(self, obs: GymObservation) -> GymStepTuple:
         """Get app state at the end of a step and calculate the final step tuple's value."""
         game_state = StateReader.get_state()
@@ -45,14 +50,23 @@ class FactorioApp(App):
         self._previous_state = game_state
         return (obs, reward, terminated, truncated, info)
 
-    def start(self, desktop) -> None:
+    def post_install(self) -> None:
+        """Install Factorio mod after app files are copied.
+
+        TODO: Implement mod installation:
+        - Get install_path from session.data_folder() / "factorio"
+        - Get port_num and verbose from app_config
+        - Call factorio_state_exporter.install_mod(str(install_path), port_num, verbose)
+        """
+        pass
+
+    def begin(self, desktop) -> None:
         """Runs the app's launch macro on the given desktop.
 
         TODO: Implement the Factorio start sequence here.
         This should launch Factorio and get it to a state where the agent can begin
         interacting with the game.
         """
-        # TODO: Implement Factorio launch macro
         pass
 
     def supported_resolutions(self) -> list[tuple[int, int]]:
