@@ -92,13 +92,14 @@ lxml = ["lxml"]
 
 [[package]]
 name = "bounce-desktop"
-version = "0.2.1"
+version = "0.2.2"
 description = "Hardware-accelerated Linux virtual desktops."
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "bounce_desktop-0.2.1.tar.gz", hash = "sha256:1c9954baa2fbde0e90ff9186819ff987c9fb123e248251045be30e4139dcec55"},
+    {file = "bounce_desktop-0.2.2-py3-none-any.whl", hash = "sha256:91a6f2390f51322141546a1301695c79dfad06e3c6e7e342fb799e0dccdf08ea"},
+    {file = "bounce_desktop-0.2.2.tar.gz", hash = "sha256:e6d86494101c2fec3d53e03192bab60db3ffac860cb7d8b1c262213de0b3ff96"},
 ]
 
 [package.dependencies]
@@ -354,6 +355,22 @@ typing-extensions = {version = ">=4.6.0", markers = "python_version < \"3.13\""}
 
 [package.extras]
 test = ["pytest (>=6)"]
+
+[[package]]
+name = "factorio-state-exporter"
+version = "0.1.5"
+description = "Factorio mod and Python library for reading game state via UDP"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = []
+develop = false
+
+[package.source]
+type = "git"
+url = "https://github.com/Whenning42/factorio-state-exporter.git"
+reference = "HEAD"
+resolved_reference = "c81a4809ba5dfa3f8e304d7985bfeb1b3c146184"
 
 [[package]]
 name = "furo"
@@ -1331,4 +1348,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "e75b6956e8026df63fe21b58c5feaafe42ffc39c9fa1ef4fe1a88f0368c1ff1f"
+content-hash = "31aec9fbb05019dd51f176c8eb9cc752dd11115aa039965275c307186a98060c"
