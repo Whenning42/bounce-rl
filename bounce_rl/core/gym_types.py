@@ -4,6 +4,7 @@ from typing import Any
 
 import numpy as np
 
+GymAction = np.ndarray
 GymObservation = np.ndarray
 
 # Info dictionary returned in step tuples

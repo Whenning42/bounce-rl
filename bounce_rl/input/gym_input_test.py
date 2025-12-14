@@ -23,6 +23,7 @@ from bounce_rl.input.gym_input import (
     MOUSE_RELATIVE,
     action_space,
     mask_action,
+    no_op_gym_action,
     process_gym_action,
 )
 from bounce_rl.input.input_types import KeyAction, KeyActionType, MouseAction
@@ -34,14 +35,6 @@ from bounce_rl.input.keys import (
     MIDDLE_MOUSE_BUTTON,
     RIGHT_MOUSE_BUTTON,
 )
-
-
-def no_op_gym_action():
-    """Create a no-op gym action (all keys no-op, no mouse action)."""
-    key_actions = np.zeros(len(ACTION_KEYS), dtype=int)
-    mouse_discrete = np.array([MOUSE_ABSOLUTE, MOUSE_ACTION_NONE, MOUSE_DRAG_LEFT])
-    mouse_position = np.array([0, 0])
-    return [key_actions, mouse_discrete, mouse_position]
 
 
 class TestActionSpace(unittest.TestCase):

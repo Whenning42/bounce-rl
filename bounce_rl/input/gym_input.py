@@ -8,7 +8,7 @@ a fixed-layout action space that can be masked for per-environment input restric
 from typing import List
 
 import numpy as np
-from gym import spaces
+from gymnasium import spaces
 
 from bounce_rl.input.allowed_inputs import AllowKeys
 from bounce_rl.input.input_types import (
@@ -144,6 +144,14 @@ def mask_action(action: tuple, allowed_inputs: AllowKeys) -> tuple:
             masked_key_actions[i] = KEY_NO_OP
 
     return (masked_key_actions, mouse_discrete, mouse_position)
+
+
+def no_op_gym_action() -> tuple:
+    """Create a no-op gym action (all keys no-op, no mouse action)."""
+    key_actions = np.zeros(len(ACTION_KEYS), dtype=int)
+    mouse_discrete = np.array([MOUSE_ABSOLUTE, MOUSE_ACTION_NONE, MOUSE_DRAG_LEFT])
+    mouse_position = np.array([0, 0])
+    return [key_actions, mouse_discrete, mouse_position]
 
 
 def process_gym_action(

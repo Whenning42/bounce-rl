@@ -5,17 +5,14 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+import gymnasium as gym
 import numpy as np
 import yaml
 
 from bounce_rl.core.app import App
 from bounce_rl.core.app_session import AppSession
-
-# TODO: Replace these placeholders with real types
-Action = Any
-Observation = Any
-Info = Any
-Space = Any
+from bounce_rl.core.gym_types import GymAction, GymInfo, GymObservation
+from bounce_rl.input import gym_input
 
 
 def get_sessions_folder() -> str:
@@ -92,7 +89,13 @@ def install_app_from_config(session: AppSession, config: dict[str, Any]) -> None
 
 
 class AppEnvironment:
-    def __init__(self, app_cls: type[App], resolution: tuple[int, int]):
+    def __init__(
+        self,
+        app_cls: type[App],
+        resolution: tuple[int, int],
+        session_cls: type = AppSession,
+        config_path: str | None = None,
+    ):
         """Initialize AppEnvironment for the given App class and resolution.
 
         Args:
@@ -103,63 +106,61 @@ class AppEnvironment:
         self.resolution = resolution
         self._metadata = None
         self.render_mode = None
+        self.session_cls = session_cls
+        self.config_path = config_path
         self._init()
 
     def _init(self):
         """Initializes or re-initializes the AppEnvironment.
 
-        Called from __init__ and reset(). Loads config, creates session,
-        and delegates to _do_init() for actual environment setup.
+        Called from __init__ and reset(). Loads the config and creates an AppSession,
+        then installs and starts the app.
         """
-        config = load_app_config(self.app_cls.name())
-        entrypoint_list = shlex.split(config["entrypoint"])
-        session = AppSession(get_sessions_folder(), entrypoint_list, self.resolution)
-        self._do_init(self.app_cls, config, session)
+        self.config = load_app_config(self.app_cls.name(), self.config_path)
+        self.session = self.session_cls(
+            get_sessions_folder(),
+            shlex.split(self.config["entrypoint"]),
+            self.resolution,
+        )
 
-    def _do_init(self, app_cls: type[App], config: dict[str, Any], session: AppSession):
-        """Starts or restarts the environment for the given app.
+        self.app = self.app_cls()
+        install_app_from_config(self.session, self.config)
+        self.app.post_install()
+        self.session.start_process()
+        self.app.begin(self.session.desktop())
+        self.session.time_controller().set_speedup(self.config.get("pause_speed", 1.0))
 
-        Separated into a helper to support unit testing by allowing
-        mock session and config to be injected.
+    def reset(
+        self, seed: int | None, options: dict[str, Any]
+    ) -> tuple[GymObservation, GymInfo]:
+        self._init()
+        return self.step(gym_input.no_op_gym_action())
 
-        Args:
-            app_cls: App subclass to instantiate
-            config: App configuration dictionary
-            session: AppSession instance to use
-        """
+    def step(
+        self, action: GymAction
+    ) -> tuple[GymObservation, float, bool, bool, GymInfo]:
+        # TODO
+        pass
+
+    def render(self) -> None | np.ndarray:
+        # TODO
+        pass
+
+    def close(self) -> None:
         if hasattr(self, "app") and self.app is not None:
             del self.app
         if hasattr(self, "session") and self.session is not None:
             del self.session
 
-        self.app = app_cls()
-        self.app_config = config
-        self.session = session
-
-        install_app_from_config(session, config)
-        self.app.post_install()
-        self.session.start_process()
-        self.app.begin(self.session.desktop())
-        self.session.time_controller().set_speedup(config.get("pause_speed", 1.0))
-
-    def reset(
-        self, seed: int | None, options: dict[str, Any]
-    ) -> tuple[Observation, Info]:
-        pass
-
-    def step(self, action: Action) -> tuple[Observation, float, bool, bool, Info]:
-        pass
-
-    def render(self) -> None | np.ndarray:
-        pass
-
-    def close(self) -> None:
-        pass
+    @property
+    def action_space(self) -> gym.Space:
+        return gym_input.action_space(self.resolution[0], self.resolution[1])
 
     @property
-    def action_space(self) -> Space:
-        pass
-
-    @property
-    def observation_space(self) -> Space:
-        pass
+    def observation_space(self) -> gym.Space:
+        return gym.spaces.Box(
+            0,
+            255,
+            (3, self.resolution[0], self.resolution[1]),
+            dtype=np.uint8,
+        )
