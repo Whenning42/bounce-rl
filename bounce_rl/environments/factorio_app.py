@@ -3,10 +3,12 @@
 import math
 from typing import Any
 
+from bounce_desktop import Desktop
 from factorio_state_exporter import StateReader
 
 from bounce_rl.core.app import App
 from bounce_rl.core.gym_types import GymInfo, GymObservation, GymStepTuple
+from bounce_rl.environments.factorio_macro import factorio_start_macro
 
 
 class FactorioApp(App):
@@ -60,14 +62,9 @@ class FactorioApp(App):
         """
         pass
 
-    def begin(self, desktop) -> None:
-        """Runs the app's launch macro on the given desktop.
-
-        TODO: Implement the Factorio start sequence here.
-        This should launch Factorio and get it to a state where the agent can begin
-        interacting with the game.
-        """
-        pass
+    def begin(self, desktop: Desktop) -> None:
+        """Runs the app's launch macro on the given desktop."""
+        factorio_start_macro(desktop)
 
     def supported_resolutions(self) -> list[tuple[int, int]]:
         """Returns a list of resolutions supported by this app."""
