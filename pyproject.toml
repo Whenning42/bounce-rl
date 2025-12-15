@@ -23,6 +23,7 @@ furo = "^2025.7.19"
 bounce-desktop = "^0.2.2"
 factorio-state-exporter = {git = "https://github.com/Whenning42/factorio-state-exporter.git"}
 gymnasium = "^1.2.2"
+pytest = "^9.0.2"
 
 [build-system]
 requires = [
