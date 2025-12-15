@@ -11,7 +11,7 @@ from bounce_rl.core.app_environment import (
     install_app_from_config,
     load_app_config,
 )
-from bounce_rl.core.fake_app import FakeApp, fake_app_config
+from bounce_rl.core.fake_app import FakeApp, fake_app_bounce_config
 from bounce_rl.core.fake_app_session import FakeAppSession
 from bounce_rl.input import gym_input
 
@@ -24,12 +24,11 @@ class TestLoadAppConfig(unittest.TestCase):
         self.assertGreater(len(config), 0)
 
     def test_load_app_config_loads_app_data(self):
-        app_conf = {"name": "my_app", "entrypoint": "my_entrypoint"}
-        conf = {"apps": [app_conf]}
+        conf = fake_app_bounce_config()
         with tempfile.NamedTemporaryFile(mode="w") as f:
             yaml.dump(conf, f)
-            read_app_conf = load_app_config("my_app", f.name)
-            self.assertEqual(read_app_conf, app_conf)
+            read_app_conf = load_app_config("fake_app", f.name)
+            self.assertEqual(read_app_conf, conf["apps"][0])
 
 
 class TestInstallAppFromConfig(unittest.TestCase):
@@ -66,7 +65,7 @@ class TestInstallAppFromConfig(unittest.TestCase):
 class TestAppEnvironment(unittest.TestCase):
     def test_action_space(self):
         with tempfile.NamedTemporaryFile(mode="w") as f:
-            yaml.dump(fake_app_config(), f)
+            yaml.dump(fake_app_bounce_config(), f)
             env = AppEnvironment(
                 FakeApp, (640, 480), session_cls=FakeAppSession, config_path=f.name
             )
@@ -74,7 +73,7 @@ class TestAppEnvironment(unittest.TestCase):
 
     def test_observation_space(self):
         with tempfile.NamedTemporaryFile(mode="w") as f:
-            yaml.dump(fake_app_config(), f)
+            yaml.dump(fake_app_bounce_config(), f)
             env = AppEnvironment(
                 FakeApp, (640, 480), session_cls=FakeAppSession, config_path=f.name
             )

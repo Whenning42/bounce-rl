@@ -4,8 +4,19 @@ from bounce_rl.core.app import App
 from bounce_rl.core.gym_types import GymObservation, GymStepTuple
 
 
-def fake_app_config() -> dict:
-    return {"apps": [{"name": "fake_app", "entrypoint": "pwd"}]}
+def fake_app_bounce_config() -> dict:
+    """Returns a minimal valid fake app config."""
+    return {
+        "apps": [
+            {
+                "name": "fake_app",
+                "entrypoint": "pwd",
+                "run_speed": "1.0",
+                "pause_speed": "0.2",
+                "step_length": "0.25",
+            }
+        ]
+    }
 
 
 class FakeApp(App):
