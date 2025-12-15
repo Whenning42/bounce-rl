@@ -5,7 +5,8 @@ import unittest
 
 import bounce_desktop
 import libtimecontrol
-from app_session import AppSession
+
+from bounce_rl.core.app_session import AppSession
 
 
 class TestAppSession(unittest.TestCase):

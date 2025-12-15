@@ -16,10 +16,16 @@ import tempfile
 import bounce_desktop
 import libtimecontrol
 
+from bounce_rl.input.input_processor import InputProcessor
+
 
 class AppSession:
     def __init__(
-        self, sessions_folder: str, run_command: list[str], resolution: tuple[int, int]
+        self,
+        sessions_folder: str,
+        run_command: list[str],
+        resolution: tuple[int, int],
+        visible=False,
     ):
         """Creates an AppSession that will run `run_command` once .start_process() is
         called.
@@ -30,10 +36,13 @@ class AppSession:
             resolution: Desktop resolution as (width, height) tuple
         """
         self._run_command = run_command
-        self._desktop = bounce_desktop.Desktop.create(resolution[0], resolution[1])
+        self._desktop = bounce_desktop.Desktop.create(
+            resolution[0], resolution[1], visible
+        )
         self._folder = tempfile.TemporaryDirectory(prefix=sessions_folder)
         self._process = None
         self._time_controller = libtimecontrol.TimeController()
+        self._input_processor = InputProcessor(resolution[0], resolution[1])
 
     def __del__(self):
         # Only clean up the process if it's actually been started.
@@ -58,6 +67,7 @@ class AppSession:
             env=os.environ
             | self._desktop.get_desktop_env()
             | self._time_controller.child_flags(),
+            cwd=self.data_folder(),
         )
 
     def desktop(self) -> bounce_desktop.Desktop:
@@ -66,8 +76,11 @@ class AppSession:
     def data_folder(self) -> str:
         return self._folder.name
 
-    def process(self) -> subprocess.Popen:
+    def process(self) -> subprocess.Popen | None:
         return self._process
 
     def time_controller(self) -> libtimecontrol.TimeController:
         return self._time_controller
+
+    def input_processor(self) -> InputProcessor:
+        return self._input_processor
