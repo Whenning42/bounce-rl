@@ -5,7 +5,7 @@ This module exposes the BounceRL input system through the Gym API, providing
 a fixed-layout action space that can be masked for per-environment input restrictions.
 """
 
-from typing import List
+from typing import Sequence
 
 import numpy as np
 from gymnasium import spaces
@@ -113,7 +113,9 @@ def action_space(screen_width: int, screen_height: int) -> spaces.Tuple:
     return spaces.Tuple((key_actions, mouse_discrete, mouse_position))
 
 
-def mask_action(action: tuple, allowed_inputs: AllowKeys) -> tuple:
+def mask_action(
+    action: Sequence[np.ndarray], allowed_inputs: AllowKeys
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Masks the given Gym action to only allowed inputs.
 
@@ -123,7 +125,7 @@ def mask_action(action: tuple, allowed_inputs: AllowKeys) -> tuple:
     Disallowed key actions are set to KEY_NO_OP (0).
 
     Args:
-        action: Gym action tuple (key_actions, mouse_discrete, mouse_position)
+        action: Gym action sequence (key_actions, mouse_discrete, mouse_position)
         allowed_inputs: AllowKeys instance specifying which keys are allowed
 
     Returns:
@@ -146,7 +148,7 @@ def mask_action(action: tuple, allowed_inputs: AllowKeys) -> tuple:
     return (masked_key_actions, mouse_discrete, mouse_position)
 
 
-def no_op_gym_action() -> tuple:
+def no_op_gym_action() -> list[np.ndarray]:
     """Create a no-op gym action (all keys no-op, no mouse action)."""
     key_actions = np.zeros(len(ACTION_KEYS), dtype=int)
     mouse_discrete = np.array([MOUSE_ABSOLUTE, MOUSE_ACTION_NONE, MOUSE_DRAG_LEFT])
@@ -155,8 +157,8 @@ def no_op_gym_action() -> tuple:
 
 
 def process_gym_action(
-    action: tuple, screen_width: int, screen_height: int
-) -> List[InputAction]:
+    action: Sequence[np.ndarray], screen_width: int, screen_height: int
+) -> list[InputAction]:
     """
     Converts a Gym action to its corresponding input actions.
 
