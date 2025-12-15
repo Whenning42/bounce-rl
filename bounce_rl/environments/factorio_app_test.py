@@ -1,20 +1,15 @@
 import math
+import tempfile
 import unittest
+from pathlib import Path
 
-import bounce_desktop
 import numpy as np
 
+from bounce_rl.core.fake_app_session import FakeAppSession
 from bounce_rl.environments.factorio_app import FactorioApp
 
 
 class TestFactorioApp(unittest.TestCase):
-    def test_launch(self):
-        """Test that FactorioApp can be launched on a human-viewable desktop."""
-        desktop = bounce_desktop.Desktop.create(1000, 600)
-        factorio = FactorioApp()
-        factorio.begin(desktop)
-        # TODO: Once we've got error returns on failed launches, assert launch was successful
-
     def test_do_finalize_step(self):
         """Test the _do_finalize_step reward calculation."""
         factorio = FactorioApp()
@@ -31,8 +26,21 @@ class TestFactorioApp(unittest.TestCase):
         self.assertAlmostEqual(reward, 2 * (math.log(20) - math.log(10)))
         self.assertFalse(terminated)
         self.assertFalse(truncated)
-
         # Don't check info for now. Info design is still TBD.
+
+    def test_post_install(self):
+        factorio = FactorioApp()
+        with tempfile.TemporaryDirectory() as sessions_dir:
+            session = FakeAppSession(sessions_dir)
+            factorio.post_install(session)
+            expected_mod_file = (
+                Path(session.data_folder())
+                / "factorio"
+                / "mods"
+                / "state-exporter"
+                / "info.json"
+            )
+            self.assertTrue(expected_mod_file.exists)
 
 
 if __name__ == "__main__":

@@ -1,19 +1,27 @@
 # An app integration for Factorio.
 
 import math
+from pathlib import Path
 from typing import Any
 
+import factorio_state_exporter
 from bounce_desktop import Desktop
-from factorio_state_exporter import StateReader
 
 from bounce_rl.core.app import App
+from bounce_rl.core.app_session import AppSession
 from bounce_rl.core.gym_types import GymInfo, GymObservation, GymStepTuple
 from bounce_rl.environments.factorio_macro import factorio_start_macro
 
 
 class FactorioApp(App):
     def __init__(self):
+        self._state_exporter_port = 30111
+        self._state_exporter_verbose = False
+
         self._previous_state: dict[str, Any] = {}
+        self._state_reader = factorio_state_exporter.StateReader(
+            self._state_exporter_port
+        )
 
     @staticmethod
     def name() -> str:
@@ -22,7 +30,7 @@ class FactorioApp(App):
 
     def finalize_step(self, obs: GymObservation) -> GymStepTuple:
         """Get app state at the end of a step and calculate the final step tuple's value."""
-        game_state = StateReader.get_state()
+        game_state = self._state_reader.get_state()
         return self._do_finalize_step(obs, game_state)
 
     def _do_finalize_step(
@@ -52,15 +60,13 @@ class FactorioApp(App):
         self._previous_state = game_state
         return (obs, reward, terminated, truncated, info)
 
-    def post_install(self) -> None:
-        """Install Factorio mod after app files are copied.
-
-        TODO: Implement mod installation:
-        - Get install_path from session.data_folder() / "factorio"
-        - Get port_num and verbose from app_config
-        - Call factorio_state_exporter.install_mod(str(install_path), port_num, verbose)
-        """
-        pass
+    def post_install(self, session: AppSession) -> None:
+        """Install Factorio state export mod into the AppSession's already copied over
+        factorio install."""
+        factorio_path = Path(session.data_folder()) / "factorio"
+        factorio_state_exporter.install_mod(
+            factorio_path, self._state_exporter_port, self._state_exporter_verbose
+        )
 
     def begin(self, desktop: Desktop) -> None:
         """Runs the app's launch macro on the given desktop."""
