@@ -20,7 +20,7 @@ class TestAppSession(unittest.TestCase):
         self._sessions_dir.cleanup()
 
     def test_temp_folder(self):
-        s = AppSession(self.sessions_dir, "", (640, 480))
+        s = AppSession(self.sessions_dir, [""], (640, 480))
         self.assertIsInstance(s._folder, tempfile.TemporaryDirectory)
         self.assertTrue(os.path.exists(s.data_folder()))
 
@@ -31,7 +31,7 @@ class TestAppSession(unittest.TestCase):
         self.assertIsInstance(s._process, subprocess.Popen)
 
     def test_time_controller(self):
-        s = AppSession(self.sessions_dir, "", (640, 480))
+        s = AppSession(self.sessions_dir, [""], (640, 480))
         self.assertIsInstance(s.time_controller(), libtimecontrol.TimeController)
 
     def test_time_control_env_passed_to_subprocess(self):
@@ -52,7 +52,7 @@ class TestAppSession(unittest.TestCase):
         )
 
     def test_desktop(self):
-        s = AppSession(self.sessions_dir, "", (640, 480))
+        s = AppSession(self.sessions_dir, [""], (640, 480))
         self.assertIsInstance(s.desktop(), bounce_desktop.Desktop)
 
     def test_desktop_env_passed_to_subprocess(self):
