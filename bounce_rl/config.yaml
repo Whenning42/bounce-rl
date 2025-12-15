@@ -5,8 +5,7 @@ apps:
    install:
      from: "/home/william/Games/factorio"
      to: "factorio"
-   entrypoint: "/factorio/bin/x64/factorio"
+   entrypoint: "factorio/bin/x64/factorio"
    run_speed: 1.0
    pause_speed: 0.2
-
- - name: "Noita"
+   step_length: 0.25
