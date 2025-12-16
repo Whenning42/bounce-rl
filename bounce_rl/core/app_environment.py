@@ -2,6 +2,7 @@
 
 import shlex
 import shutil
+import time
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,7 @@ import yaml
 from bounce_rl.core.app import App
 from bounce_rl.core.app_session import AppSession
 from bounce_rl.core.gym_types import GymAction, GymInfo, GymObservation
-from bounce_rl.input import gym_input
+from bounce_rl.input import event_dispatch, gym_input
 
 
 def get_sessions_folder() -> str:
@@ -24,7 +25,9 @@ def get_sessions_folder() -> str:
     return str(Path.home() / ".local" / "share" / "bounce_rl")
 
 
-def load_app_config(app_name: str, config_path: str | None = None) -> dict[str, Any]:
+def load_app_config(
+    app_name: str, config_path: str | Path | None = None
+) -> dict[str, Any]:
     """Load app configuration from bounce_rl/config.yaml.
 
     Args:
@@ -89,18 +92,28 @@ def install_app_from_config(session: AppSession, config: dict[str, Any]) -> None
 
 
 class AppEnvironment:
+    metadata = {"render_modes": ["human"]}
+
     def __init__(
         self,
         app_cls: type[App],
         resolution: tuple[int, int],
         session_cls: type = AppSession,
         config_path: str | None = None,
+        render_mode: str | None = None,
     ):
         """Initialize AppEnvironment for the given App class and resolution.
+
+        See Farama Foundation's docs for explainers of what each method should do.
 
         Args:
             app_cls: App subclass to run
             resolution: Desktop resolution as (width, height) tuple
+            session_cls: An optional alternative AppSession implementation.
+            config_path: An optional alternative bounce config path.
+            render_mode: Pass in "human" to also render this environment on the
+                         system's current desktop. This will have a modest performance
+                         overhead.
         """
         self.app_cls = app_cls
         self.resolution = resolution
@@ -108,6 +121,17 @@ class AppEnvironment:
         self.render_mode = None
         self.session_cls = session_cls
         self.config_path = config_path
+
+        self.render_human = False
+        if render_mode is not None:
+            if render_mode not in self.metadata["render_modes"]:
+                raise ValueError(
+                    f"AppEnvironments do not support render mode: {render_mode}."
+                    f"It should be one of: {self.metadata['render_modes']}."
+                )
+            if render_mode == "human":
+                self.render_human = True
+
         self._init()
 
     def _init(self):
@@ -116,35 +140,66 @@ class AppEnvironment:
         Called from __init__ and reset(). Loads the config and creates an AppSession,
         then installs and starts the app.
         """
+        if hasattr(self, "session") and self.session is not None:
+            del self.session
+        if hasattr(self, "app") and self.app is not None:
+            del self.app
+
         self.config = load_app_config(self.app_cls.name(), self.config_path)
         self.session = self.session_cls(
             get_sessions_folder(),
             shlex.split(self.config["entrypoint"]),
             self.resolution,
+            visible=self.render_human,
         )
 
         self.app = self.app_cls()
         self._allowed_input = self.app.allowed_input()
         install_app_from_config(self.session, self.config)
-        self.app.post_install()
+        self.app.post_install(self.session)
         self.session.start_process()
         self.app.begin(self.session.desktop())
-        self.session.time_controller().set_speedup(self.config.get("pause_speed", 1.0))
+        self.session.time_controller().set_speedup(float(self.config["pause_speed"]))
 
     def reset(
-        self, seed: int | None, options: dict[str, Any]
+        self, seed: int | None = None, options: dict[str, Any] = {}
     ) -> tuple[GymObservation, GymInfo]:
         self._init()
-        return self.step(gym_input.no_op_gym_action())
+        obs, reward, terminated, truncated, info = self.step(
+            gym_input.no_op_gym_action()
+        )
+        return obs, info
 
     def step(
         self, action: GymAction
     ) -> tuple[GymObservation, float, bool, bool, GymInfo]:
-        # TODO
-        pass
+        # Apply action to the app session's desktop
+        action = gym_input.mask_action(action, self._allowed_input)
+        input_actions = gym_input.process_gym_action(
+            action, self.resolution[0], self.resolution[1]
+        )
+        immediate_events, delayed_events = (
+            self.session.input_processor().process_input_actions(input_actions)
+        )
+        event_dispatch.apply_bounce_desktop_events(
+            immediate_events, self.session.desktop()
+        )
+
+        # Step the environment
+        self.session.time_controller().set_speedup(self.config["run_speed"])
+        step_time = float(self.config["step_length"]) / float(self.config["run_speed"])
+        time.sleep(step_time / 2)
+        event_dispatch.apply_bounce_desktop_events(
+            delayed_events, self.session.desktop()
+        )
+        time.sleep(step_time / 2)
+        self.session.time_controller().set_speedup(self.config["pause_speed"])
+
+        # Get observation from the desktop and the Gym step tuple from the app.
+        obs = self.session.desktop().get_frame()
+        return self.app.finalize_step(obs)
 
     def render(self) -> None | np.ndarray:
-        # TODO
         pass
 
     def close(self) -> None:
