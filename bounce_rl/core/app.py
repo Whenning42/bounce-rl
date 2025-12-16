@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from bounce_desktop import Desktop
 
+from bounce_rl.core.app_session import AppSession
 from bounce_rl.core.gym_types import GymObservation, GymStepTuple
 from bounce_rl.input.allowed_inputs import AllowKeys
 
@@ -29,7 +30,7 @@ class App(ABC):
         ...
 
     @abstractmethod
-    def post_install(self) -> None:
+    def post_install(self, session: AppSession) -> None:
         """Runs install logic after copying app files from install config.
 
         For example, Factorio generates instance-specific mod settings and installs
