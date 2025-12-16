@@ -124,6 +124,7 @@ class AppEnvironment:
         )
 
         self.app = self.app_cls()
+        self._allowed_input = self.app.allowed_input()
         install_app_from_config(self.session, self.config)
         self.app.post_install()
         self.session.start_process()

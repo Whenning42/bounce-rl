@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from bounce_desktop import Desktop
 
 from bounce_rl.core.gym_types import GymObservation, GymStepTuple
+from bounce_rl.input.allowed_inputs import AllowKeys
 
 
 class App(ABC):
@@ -12,6 +13,13 @@ class App(ABC):
     @abstractmethod
     def name() -> str:
         """Returns the name of the app used to select it from the BounceRL config."""
+        ...
+
+    @abstractmethod
+    def allowed_input(self) -> AllowKeys:
+        """Returns the set of key presses that this environment supports.
+        Keys may be disallowed for example to prevent agents from accidentally quitting
+        or opening settings menus."""
         ...
 
     @abstractmethod
