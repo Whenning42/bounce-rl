@@ -12,7 +12,13 @@ from bounce_rl.core.app_session import AppSession
 from bounce_rl.core.gym_types import GymInfo, GymObservation, GymStepTuple
 from bounce_rl.environments.factorio_macro import factorio_start_macro
 from bounce_rl.input.allowed_inputs import AllowKeys, DisallowKeys
-from bounce_rl.input.keys import KEY_ASCIITILDE, KEY_CONTROL_L, KEY_ESCAPE, FnKeys
+from bounce_rl.input.keys import (
+    KEY_ALT_L,
+    KEY_ASCIITILDE,
+    KEY_CONTROL_L,
+    KEY_ESCAPE,
+    FnKeys,
+)
 
 
 class FactorioApp(App):
@@ -31,8 +37,18 @@ class FactorioApp(App):
         return "Factorio"
 
     def allowed_input(self) -> AllowKeys:
+        """The set of keys agents are allowed to use in the Factorio environment.
+
+        We disable these keys for these reasons:
+        - Control: Prevents running ctrl shortcuts e.q. ctrl+q.
+        - Escape: Prevents the agent from opening the game's menus.
+        - Tilde: Prevents the agent from opening the console.
+        - Alt: Prevents the agent from being able to press Alt+Enter which exits
+               full screen mode.
+        - All Fn Keys: Prevents opening debug menus/views.
+        """
         return DisallowKeys(
-            [KEY_CONTROL_L, KEY_ESCAPE, KEY_ASCIITILDE, FnKeys]
+            [KEY_CONTROL_L, KEY_ESCAPE, KEY_ASCIITILDE, KEY_ALT_L, FnKeys]
         ).to_allow_list()
 
     def finalize_step(self, obs: GymObservation) -> GymStepTuple:

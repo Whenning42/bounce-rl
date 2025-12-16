@@ -2,6 +2,8 @@ import time
 
 from bounce_desktop import Desktop
 
+from bounce_rl.input.keys import KEY_0, KEY_ALT_L, KEY_BACKSPACE, KEY_TAB
+
 
 def factorio_start_macro(d: Desktop):
     """Note: Expects that factorio is running around version 2.0.66 and with a
@@ -22,16 +24,18 @@ def factorio_start_macro(d: Desktop):
         *click,
         (d.move_mouse, (650, 40)),  # Hover over Seed
         *click,
-        (d.key_press, (0xFF08,)),  # Delete Seed string
+        (d.key_press, (KEY_BACKSPACE,)),  # Delete Seed string
         (time.sleep, (1,)),
-        (d.key_release, (0xFF08,)),
-        (d.key_press, (0x30,)),  # Type "0" for the seed
-        (d.key_release, (0x30,)),
+        (d.key_release, (KEY_BACKSPACE,)),
+        (d.key_press, (KEY_0,)),  # Type "0" for the seed
+        (d.key_release, (KEY_0,)),
         (d.move_mouse, (600, 570)),  # Hover over "Play"
         *click,
         (time.sleep, (1,)),
-        (d.key_press, (0xFF09,)),  # Press tab to skip intro pan
-        (d.key_release, (0xFF09,)),
+        (d.key_press, (KEY_TAB,)),  # Press tab to skip intro pan
+        (d.key_release, (KEY_TAB,)),
+        (d.key_press, (KEY_ALT_L,)),  # Press alt to enter alt item view mode
+        (d.key_release, (KEY_ALT_L,)),
     ]
 
     for action in macro:
