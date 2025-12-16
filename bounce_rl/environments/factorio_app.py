@@ -12,7 +12,7 @@ from bounce_rl.core.app_session import AppSession
 from bounce_rl.core.gym_types import GymInfo, GymObservation, GymStepTuple
 from bounce_rl.environments.factorio_macro import factorio_start_macro
 from bounce_rl.input.allowed_inputs import AllowKeys, DisallowKeys
-from bounce_rl.input.keys import KEY_CONTROL_L, KEY_ESCAPE, FnKeys
+from bounce_rl.input.keys import KEY_ASCIITILDE, KEY_CONTROL_L, KEY_ESCAPE, FnKeys
 
 
 class FactorioApp(App):
@@ -31,7 +31,9 @@ class FactorioApp(App):
         return "Factorio"
 
     def allowed_input(self) -> AllowKeys:
-        return DisallowKeys([KEY_CONTROL_L, KEY_ESCAPE, FnKeys]).to_allow_list()
+        return DisallowKeys(
+            [KEY_CONTROL_L, KEY_ESCAPE, KEY_ASCIITILDE, FnKeys]
+        ).to_allow_list()
 
     def finalize_step(self, obs: GymObservation) -> GymStepTuple:
         """Get app state at the end of a step and calculate the final step tuple's value."""
