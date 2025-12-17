@@ -24,6 +24,7 @@ bounce-desktop = "^0.2.2"
 factorio-state-exporter = {git = "https://github.com/Whenning42/factorio-state-exporter.git"}
 gymnasium = "^1.2.2"
 pytest = "^9.0.2"
+pillow = "^12.0.0"
 
 [build-system]
 requires = [

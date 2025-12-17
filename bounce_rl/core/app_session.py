@@ -12,11 +12,21 @@
 import os
 import subprocess
 import tempfile
+from pathlib import Path
 
 import bounce_desktop
 import libtimecontrol
 
 from bounce_rl.input.input_processor import InputProcessor
+
+
+def default_sessions_folder() -> str:
+    """Get the session folder location in user's home directory.
+
+    Returns:
+        Path to the sessions folder
+    """
+    return str(Path.home() / ".local" / "share" / "bounce_rl")
 
 
 class AppSession:
@@ -69,6 +79,7 @@ class AppSession:
             | self._time_controller.child_flags(),
             cwd=self.data_folder(),
         )
+        return self._process
 
     def desktop(self) -> bounce_desktop.Desktop:
         return self._desktop

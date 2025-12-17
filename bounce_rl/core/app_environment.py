@@ -11,18 +11,9 @@ import numpy as np
 import yaml
 
 from bounce_rl.core.app import App
-from bounce_rl.core.app_session import AppSession
+from bounce_rl.core.app_session import AppSession, default_sessions_folder
 from bounce_rl.core.gym_types import GymAction, GymInfo, GymObservation
 from bounce_rl.input import event_dispatch, gym_input
-
-
-def get_sessions_folder() -> str:
-    """Get the session folder location in user's home directory.
-
-    Returns:
-        Path to the sessions folder
-    """
-    return str(Path.home() / ".local" / "share" / "bounce_rl")
 
 
 def load_app_config(
@@ -147,7 +138,7 @@ class AppEnvironment:
 
         self.config = load_app_config(self.app_cls.name(), self.config_path)
         self.session = self.session_cls(
-            get_sessions_folder(),
+            default_sessions_folder(),
             shlex.split(self.config["entrypoint"]),
             self.resolution,
             visible=self.render_human,
