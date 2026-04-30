@@ -11,7 +11,7 @@ import time
 
 import numpy as np
 
-from bounce_rl.input.event_dispatch import apply_bounce_desktop_events
+from bounce_rl.input.event_dispatch import apply_events_to_desktop
 from bounce_rl.input.gym_input import (
     ACTION_KEYS,
     KEY_DOWN,
@@ -113,8 +113,8 @@ def benchmark_input_system(loop_iters: int = 100_000) -> float:
         immediate_events, delayed_events = input_processor.process_input_actions(
             input_actions
         )
-        apply_bounce_desktop_events(immediate_events, desktop)
-        apply_bounce_desktop_events(delayed_events, desktop)
+        apply_events_to_desktop(immediate_events, desktop)
+        apply_events_to_desktop(delayed_events, desktop)
 
     end_time = time.perf_counter()
     total_loop_time = end_time - start_time

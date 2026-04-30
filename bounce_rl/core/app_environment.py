@@ -172,17 +172,13 @@ class AppEnvironment:
         immediate_events, delayed_events = (
             self.session.input_processor().process_input_actions(input_actions)
         )
-        event_dispatch.apply_bounce_desktop_events(
-            immediate_events, self.session.desktop()
-        )
+        event_dispatch.apply_events_to_desktop(immediate_events, self.session.desktop())
 
         # Step the environment
         self.session.time_controller().set_speedup(self.config["run_speed"])
         step_time = float(self.config["step_length"]) / float(self.config["run_speed"])
         time.sleep(step_time / 2)
-        event_dispatch.apply_bounce_desktop_events(
-            delayed_events, self.session.desktop()
-        )
+        event_dispatch.apply_events_to_desktop(delayed_events, self.session.desktop())
         time.sleep(step_time / 2)
         self.session.time_controller().set_speedup(self.config["pause_speed"])
 

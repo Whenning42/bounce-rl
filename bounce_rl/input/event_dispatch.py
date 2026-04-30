@@ -9,7 +9,7 @@ from typing import List
 from bounce_rl.input.input_types import InputEvent, KeyDirection, KeyEvent, MouseEvent
 
 
-def apply_bounce_desktop_events(events: List[InputEvent], desktop) -> None:
+def apply_events_to_desktop(events: List[InputEvent], desktop) -> None:
     """
     Dispatch input events to a Desktop backend.
 
