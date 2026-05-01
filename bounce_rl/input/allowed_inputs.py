@@ -7,38 +7,13 @@ environment using either allow lists or deny lists.
 
 from typing import Union
 
-from bounce_rl.input.keys import (
-    Digits,
-    FnKeys,
-    Letters,
-    Modifiers,
-    MouseButtons,
-    Other,
-    Punctuation,
-    ScrollButtons,
-)
-
-# Type alias for a key value
-Key = int
+from bounce_rl.input.keys import AllKeys, Keycode
 
 # Type alias for a key class (tuple of keys)
-KeyClass = tuple[Key, ...]
+KeyClass = tuple[Keycode, ...]
 
 # Union type for constructor arguments
-KeyOrKeyClass = Union[Key, KeyClass]
-
-
-# All keys in the system (for deny list conversion)
-_ALL_KEYS = (
-    Letters
-    + Digits
-    + Punctuation
-    + FnKeys
-    + Modifiers
-    + Other
-    + MouseButtons
-    + ScrollButtons
-)
+KeyOrKeyClass = Union[Keycode, KeyClass]
 
 
 class AllowKeys:
@@ -58,7 +33,7 @@ class AllowKeys:
         """
         self._allowed = allowed
 
-    def keys(self) -> list[Key]:
+    def keycodes(self) -> list[Keycode]:
         """
         Returns the expanded list of allowed keys, with duplicates removed.
 
@@ -124,6 +99,6 @@ class DisallowKeys:
         disallowed_set = set(disallowed_expanded)
 
         # Build allowed list from all keys minus disallowed
-        allowed = [key for key in _ALL_KEYS if key not in disallowed_set]
+        allowed = [key for key in AllKeys if key not in disallowed_set]
 
         return AllowKeys(allowed)

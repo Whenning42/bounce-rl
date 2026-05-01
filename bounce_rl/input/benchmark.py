@@ -3,27 +3,17 @@ Benchmark for the BounceRL input system.
 
 This module benchmarks the end-to-end performance of processing Gym actions
 through the input system and dispatching events to a desktop backend.
-
-As of 2025/12/06, the end-to-end input handling takes ~100 microseconds
 """
 
+import copy
 import time
 
 import numpy as np
 
 from bounce_rl.input.event_dispatch import apply_events_to_desktop
-from bounce_rl.input.gym_input import (
-    ACTION_KEYS,
-    KEY_DOWN,
-    KEY_NO_OP,
-    KEY_PRESS,
-    KEY_UP,
-    MOUSE_ACTION_MOVE,
-    MOUSE_DRAG_LEFT,
-    MOUSE_RELATIVE,
-    process_gym_action,
-)
+from bounce_rl.input.gym_input import ACTION_KEYCODES, no_op_gym_action, process_gym_action
 from bounce_rl.input.input_processor import InputProcessor
+from bounce_rl.input.input_types import KeyActionKind, MouseActionKind
 
 
 class FakeDesktop:
@@ -33,10 +23,10 @@ class FakeDesktop:
     Implements the same event interface as Bounce Desktop with no-op methods.
     """
 
-    def key_press(self, keysym: int) -> None:
+    def key_press(self, keycode: int) -> None:
         pass
 
-    def key_release(self, keysym: int) -> None:
+    def key_release(self, keycode: int) -> None:
         pass
 
     def move_mouse(self, x: int, y: int) -> None:
@@ -49,55 +39,44 @@ class FakeDesktop:
         pass
 
 
-def _create_benchmark_action(use_key_down: bool) -> tuple:
+def _create_benchmark_action(use_mouse_move: bool) -> dict:
     """
-    Create a benchmark action based on keysym values.
+    Create a benchmark action using the current dict-shaped Gym input API.
 
-    For keys in the action space with keysym ≡ 0, 1 (mod 4): no-op
-    For keys in the action space with keysym ≡ 2 (mod 4): press the key
-    For keys in the action space with keysym ≡ 3 (mod 4):
-        - if use_key_down=True: press down
-        - if use_key_down=False: release key
-    For mouse: move relative (10, 10)
-
-    Args:
-        use_key_down: If True, use KEY_DOWN for mod 3 keys; if False, use KEY_UP
-
-    Returns:
-        Gym action tuple (key_actions, mouse_discrete, mouse_position)
+    Key slots are filled with a deterministic mix of no-op and press actions.
+    Mouse movement alternates between a centered no-op and a move to exercise
+    both paths without sending compound mouse actions to dispatch.
     """
-    key_actions = np.zeros(len(ACTION_KEYS), dtype=int)
+    action = no_op_gym_action()
 
-    for i, keysym in enumerate(ACTION_KEYS):
-        remainder = keysym % 4
-        if remainder == 0 or remainder == 1:
-            key_actions[i] = KEY_NO_OP
-        elif remainder == 2:
-            key_actions[i] = KEY_PRESS
-        else:  # remainder == 3
-            key_actions[i] = KEY_DOWN if use_key_down else KEY_UP
+    for i in range(min(len(action["keys"]), len(ACTION_KEYCODES))):
+        keycode = ACTION_KEYCODES[i]
+        remainder = keycode % 4
+        if remainder == 0:
+            action_kind = KeyActionKind.KEY_ACTION_NONE
+        elif remainder == 1:
+            action_kind = KeyActionKind.KEY_PRESS
+        else:
+            action_kind = KeyActionKind.KEY_PRESS
 
-    mouse_discrete = np.array([MOUSE_RELATIVE, MOUSE_ACTION_MOVE, MOUSE_DRAG_LEFT])
-    mouse_position = np.array([10, 10])
+        action["keys"][i] = np.array([i, action_kind], dtype=int)
 
-    return (key_actions, mouse_discrete, mouse_position)
+    if use_mouse_move:
+        action["mouse_action"]["action"] = MouseActionKind.MOVE
+        action["mouse_action"]["target"] = np.array([0.25, -0.25], dtype=np.float32)
+
+    return action
 
 
-# Pre-create benchmark actions
-benchmark_action_a = _create_benchmark_action(use_key_down=True)
-benchmark_action_b = _create_benchmark_action(use_key_down=False)
+# Pre-create benchmark actions.
+benchmark_action_a = _create_benchmark_action(use_mouse_move=True)
+benchmark_action_b = _create_benchmark_action(use_mouse_move=False)
 
 
 def benchmark_input_system(loop_iters: int = 100_000) -> float:
     """
     Runs the end-to-end input system benchmark and returns
     the average time in seconds to process and dispatch a new input.
-
-    Args:
-        loop_iters: Number of iterations to run
-
-    Returns:
-        Average time in seconds per iteration
     """
     input_processor = InputProcessor(800, 600)
     desktop = FakeDesktop()
@@ -109,7 +88,8 @@ def benchmark_input_system(loop_iters: int = 100_000) -> float:
             action = benchmark_action_a
         else:
             action = benchmark_action_b
-        input_actions = process_gym_action(action, 800, 600)
+
+        input_actions = process_gym_action(copy.deepcopy(action), 800, 600)
         immediate_events, delayed_events = input_processor.process_input_actions(
             input_actions
         )

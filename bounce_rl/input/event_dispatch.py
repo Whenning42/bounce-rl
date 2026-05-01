@@ -6,53 +6,96 @@ This module dispatches low-level input events to desktop backends.
 
 from typing import List
 
-from bounce_rl.input.input_types import InputEvent, KeyDirection, KeyEvent, MouseEvent
+from bounce_rl.input.input_types import (
+    InputAction,
+    KeyAction,
+    KeyActionKind,
+    KeyDirection,
+    MouseActionKind,
+    MouseButtonAction,
+    MouseDragAction,
+    MouseMoveAction,
+    ScrollAction,
+)
+from bounce_rl.input.keys import MouseButtons
 
 
-def apply_events_to_desktop(events: List[InputEvent], desktop) -> None:
-    """
-    Dispatch input events to a Desktop backend.
-
-    Invokes the appropriate event handlers on the desktop object based on
-    the event type.
-
-    Args:
-        events: List of input events to dispatch
-        desktop: Desktop backend object with event handler methods:
-            - key_press(keysym: int) - Called for key down events
-            - key_release(keysym: int) - Called for key up events
-            - move_mouse(x: int, y: int) - Called for mouse move events
-            - mouse_press(button: int) - Called for mouse button down events
-            - mouse_release(button: int) - Called for mouse button up events
-    """
+def apply_events_to_desktop(events: List[InputAction], desktop) -> None:
+    """Dispatch input events to a Desktop backend."""
     for event in events:
-        if isinstance(event, KeyEvent):
-            # Check if this is a mouse button (pointer buttons use KeyEvent)
-            if _is_pointer_button(event.keysym):
-                button = _keysym_to_button_number(event.keysym)
-                if event.action == KeyDirection.KEY_DOWN:
-                    desktop.mouse_press(button)
-                else:  # KEY_UP
-                    desktop.mouse_release(button)
-            else:
-                # Regular keyboard key
-                if event.action == KeyDirection.KEY_DOWN:
-                    desktop.key_press(event.keysym)
-                else:  # KEY_UP
-                    desktop.key_release(event.keysym)
-        elif isinstance(event, MouseEvent):
+        if isinstance(event, MouseDragAction):
+            raise ValueError(
+                "apply_events_to_desktop should only receive raw event actions. "
+                "Not compound actions like MouseDragAction."
+            )
+        if isinstance(event, KeyAction) and event.action == KeyActionKind.KEY_PRESS:
+            raise ValueError(
+                "apply_events_to_desktop should only receive raw event actions. "
+                "Not compound actions like KeyActionKind.KEY_PRESS."
+            )
+        if (
+            isinstance(event, MouseButtonAction)
+            and event.action == MouseActionKind.BTN_PRESS
+        ):
+            raise ValueError(
+                "apply_events_to_desktop should only receive raw event actions. "
+                "Not compound actions like MouseActionKind.BTN_PRESS."
+            )
+
+        if isinstance(event, KeyAction):
+            _dispatch_key_action(event, desktop)
+        elif isinstance(event, MouseButtonAction):
+            _dispatch_mouse_button_action(event, desktop)
+        elif isinstance(event, MouseMoveAction):
             desktop.move_mouse(event.position[0], event.position[1])
+        elif isinstance(event, ScrollAction):
+            _dispatch_scroll_action(event, desktop)
+        else:
+            assert False
 
 
-def _is_pointer_button(keysym: int) -> bool:
-    """Check if a keysym represents a pointer button."""
-    # Pointer buttons are in the range 0xFEE9-0xFEED
-    return 0xFEE9 <= keysym <= 0xFEED
+def _dispatch_key_action(event: KeyAction, desktop) -> None:
+    if event.keycode in MouseButtons:
+        _dispatch_mouse_button_action(
+            MouseButtonAction(
+                action=_mouse_action_kind_from_key_action_kind(event.action),
+                button=event.keycode,
+            ),
+            desktop,
+        )
+        return
+
+    if event.action == KeyActionKind.KEY_DOWN:
+        desktop.key_press(event.keycode)
+    elif event.action == KeyActionKind.KEY_UP:
+        desktop.key_release(event.keycode)
+    else:
+        assert False
 
 
-def _keysym_to_button_number(keysym: int) -> int:
-    """Convert pointer button keysym to button number (1-5)."""
-    # KEY_POINTER_BUTTON1 = 0xFEE9 -> button 1
-    # KEY_POINTER_BUTTON2 = 0xFEEA -> button 2
-    # etc.
-    return keysym - 0xFEE9 + 1
+def _dispatch_mouse_button_action(event: MouseButtonAction, desktop) -> None:
+    if event.action == MouseActionKind.BTN_DOWN:
+        desktop.mouse_press(event.button)
+    elif event.action == MouseActionKind.BTN_UP:
+        desktop.mouse_release(event.button)
+    else:
+        assert False
+
+
+def _dispatch_scroll_action(event: ScrollAction, desktop) -> None:
+    if hasattr(desktop, "scroll"):
+        desktop.scroll(event.direction)
+    elif event.direction == KeyDirection.KEY_DOWN and hasattr(desktop, "scroll_down"):
+        desktop.scroll_down()
+    elif event.direction == KeyDirection.KEY_UP and hasattr(desktop, "scroll_up"):
+        desktop.scroll_up()
+
+
+def _mouse_action_kind_from_key_action_kind(action: KeyActionKind) -> MouseActionKind:
+    if action == KeyActionKind.KEY_DOWN:
+        return MouseActionKind.BTN_DOWN
+    if action == KeyActionKind.KEY_UP:
+        return MouseActionKind.BTN_UP
+    if action == KeyActionKind.KEY_PRESS:
+        return MouseActionKind.BTN_PRESS
+    return MouseActionKind.NONE

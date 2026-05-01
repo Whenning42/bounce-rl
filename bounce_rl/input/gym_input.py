@@ -5,224 +5,159 @@ This module exposes the BounceRL input system through the Gym API, providing
 a fixed-layout action space that can be masked for per-environment input restrictions.
 """
 
-from typing import Sequence
-
 import numpy as np
 from gymnasium import spaces
+import copy
 
 from bounce_rl.input.allowed_inputs import AllowKeys
 from bounce_rl.input.input_types import (
     InputAction,
     KeyAction,
-    KeyActionType,
-    drag_mouse_action,
-    drag_mouse_to_action,
-    move_mouse_action,
-    move_to_action,
+    KeyActionKind,
+    KeyDirection,
+    MouseMoveAction,
+    MouseButtonAction,
+    MouseDragAction,
+    ScrollAction,
+    MouseActionKind,
 )
 from bounce_rl.input.keys import (
-    LEFT_MOUSE_BUTTON,
-    MIDDLE_MOUSE_BUTTON,
-    RIGHT_MOUSE_BUTTON,
-    Digits,
     FnKeys,
     Letters,
     Modifiers,
     MouseButtons,
     Other,
-    Punctuation,
-    ScrollButtons,
+    Symbols,
 )
 
 # Key ordering in action space
 # IMPORTANT: This list should only be extended in future versions, never reordered.
 # New keys must be appended to maintain backward compatibility with trained models.
-ACTION_KEYS = (
-    Letters  # KEY_A through KEY_Z
-    + Digits  # KEY_0 through KEY_9
-    + Punctuation  # KEY_EXCLAM, KEY_AT, etc.
-    + FnKeys  # F1 through F12
-    + Modifiers  # KEY_SHIFT_L, KEY_ALT_L, KEY_CONTROL_L
-    + Other  # Tab, Escape, Enter, Backspace
-    + MouseButtons  # LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON, MIDDLE_MOUSE_BUTTON
-    + ScrollButtons  # SCROLL_UP, SCROLL_DOWN
-)
+ACTION_KEYCODES = Letters + Symbols + FnKeys + Modifiers + Other
 
-# Tuple indices
-KEYS_INDEX = 0
-MOUSE_DISCRETE_INDEX = 1
-MOUSE_POSITION_INDEX = 2
+MAX_BUTTON_ACTIONS = 8
 
-# Key action values
-KEY_NO_OP = 0
-KEY_PRESS = 1
-KEY_DOWN = 2
-KEY_UP = 3
-
-# Mouse discrete indices (within action[1])
-MOUSE_TRANSLATION_MODE_INDEX = 0
-MOUSE_ACTION_INDEX = 1
-MOUSE_DRAG_BUTTON_INDEX = 2
-
-# Mouse translation mode values
-MOUSE_ABSOLUTE = 0
-MOUSE_RELATIVE = 1
-
-# Mouse action values
-MOUSE_ACTION_NONE = 0
-MOUSE_ACTION_MOVE = 1
-MOUSE_ACTION_DRAG = 2
-
-# Mouse drag button values
-MOUSE_DRAG_LEFT = 0
-MOUSE_DRAG_RIGHT = 1
-MOUSE_DRAG_MIDDLE = 2
-
-# Map drag button indices to key values
-_DRAG_BUTTON_MAP = {
-    MOUSE_DRAG_LEFT: LEFT_MOUSE_BUTTON,
-    MOUSE_DRAG_RIGHT: RIGHT_MOUSE_BUTTON,
-    MOUSE_DRAG_MIDDLE: MIDDLE_MOUSE_BUTTON,
-}
+_keys_shape = (MAX_BUTTON_ACTIONS, 2)
+_mouse_pos_shape = (2,)
 
 
-def action_space(screen_width: int, screen_height: int) -> spaces.Tuple:
-    """
-    Return the Gym action space for inputs.
+def action_space(
+    screen_width: int | None = None, screen_height: int | None = None
+) -> spaces.Dict:
+    def mouse_pos_space():
+        return spaces.Box(
+            low=np.array([-1, -1]), high=np.array([1, 1]), dtype=np.float32
+        )
 
-    Args:
-        screen_width: Width of the screen in pixels
-        screen_height: Height of the screen in pixels
-
-    Returns:
-        A Gym Tuple space with three elements:
-        - [0] MultiDiscrete for key actions - one Discrete(4) per key in ACTION_KEYS
-        - [1] MultiDiscrete for mouse discrete actions - [translation_mode, action, drag_button]
-        - [2] Box for mouse position - [x, y] with bounds for both absolute and relative moves
-    """
-    key_actions = spaces.MultiDiscrete([4] * len(ACTION_KEYS))
-
-    mouse_discrete = spaces.MultiDiscrete([2, 3, 3])
-
-    mouse_position = spaces.Box(
-        low=np.array([-400, -400], dtype=np.float32),
-        high=np.array([screen_width, screen_height], dtype=np.float32),
-        dtype=np.float32,
+    return spaces.Dict(
+        {
+            "keys": spaces.MultiDiscrete(
+                np.array(
+                    [
+                        [len(ACTION_KEYCODES), len(KeyActionKind)]
+                        for i in range(MAX_BUTTON_ACTIONS)
+                    ]
+                )
+            ),
+            "mouse_action": spaces.Dict(
+                {
+                    "button": spaces.Discrete(len(MouseButtons)),
+                    "action": spaces.Discrete(len(MouseActionKind)),
+                    "drag_start": mouse_pos_space(),
+                    "target": mouse_pos_space(),
+                }
+            ),
+            "scroll": spaces.Discrete(len(KeyDirection)),
+        }
     )
 
-    return spaces.Tuple((key_actions, mouse_discrete, mouse_position))
+
+def mask_action(action: dict, allowed_inputs: AllowKeys) -> dict:
+    """Masks the given Gym action to only allowed inputs."""
+    action = copy.deepcopy(action)
+    allowed_keycodes = set(allowed_inputs.keycodes())
+    for act in action["keys"]:  # type: ignore
+        key_idx, _ = act
+        keycode = ACTION_KEYCODES[int(key_idx)]
+        if keycode not in allowed_keycodes:
+            act[1] = KeyActionKind.KEY_ACTION_NONE
+    return action
 
 
-def mask_action(
-    action: Sequence[np.ndarray], allowed_inputs: AllowKeys
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Masks the given Gym action to only allowed inputs.
-
-    Environments apply this automatically, but users can also use this themselves
-    to normalize their actions to just the inputs that apply to an environment.
-
-    Disallowed key actions are set to KEY_NO_OP (0).
-
-    Args:
-        action: Gym action sequence (key_actions, mouse_discrete, mouse_position)
-        allowed_inputs: AllowKeys instance specifying which keys are allowed
-
-    Returns:
-        Masked action tuple with disallowed keys set to KEY_NO_OP
-    """
-    key_actions, mouse_discrete, mouse_position = action
-
-    # Get the list of allowed keys
-    allowed_keys = allowed_inputs.keys()
-    allowed_keys_set = set(allowed_keys)
-
-    # Make a copy of key actions to modify
-    masked_key_actions = np.array(key_actions, copy=True)
-
-    # Mask disallowed keys by setting them to KEY_NO_OP
-    for i, key in enumerate(ACTION_KEYS):
-        if key not in allowed_keys_set:
-            masked_key_actions[i] = KEY_NO_OP
-
-    return (masked_key_actions, mouse_discrete, mouse_position)
-
-
-def no_op_gym_action() -> list[np.ndarray]:
+def no_op_gym_action() -> dict:
     """Create a no-op gym action (all keys no-op, no mouse action)."""
-    key_actions = np.zeros(len(ACTION_KEYS), dtype=int)
-    mouse_discrete = np.array([MOUSE_ABSOLUTE, MOUSE_ACTION_NONE, MOUSE_DRAG_LEFT])
-    mouse_position = np.array([0, 0])
-    return [key_actions, mouse_discrete, mouse_position]
+    return {
+        "keys": np.zeros(_keys_shape, dtype=int),
+        "mouse_action": {
+            "button": 0,
+            "action": MouseActionKind.NONE,
+            "drag_start": np.zeros(_mouse_pos_shape, dtype=np.float32),
+            "target": np.zeros(_mouse_pos_shape, dtype=np.float32),
+        },
+        "scroll": KeyDirection.KEY_NO_DIRECTION,
+    }
+
+
+def _screen_position(
+    normalized_position: np.ndarray | tuple[float, float] | list[float],
+    screen_width: int,
+    screen_height: int,
+) -> tuple[int, int]:
+    x = float(np.clip(normalized_position[0], -1, 1))
+    y = float(np.clip(normalized_position[1], -1, 1))
+    return (int((x + 1) * screen_width / 2), int((y + 1) * screen_height / 2))
 
 
 def process_gym_action(
-    action: Sequence[np.ndarray], screen_width: int, screen_height: int
+    action: dict, screen_width: int, screen_height: int
 ) -> list[InputAction]:
-    """
-    Converts a Gym action to its corresponding input actions.
+    """Converts a Gym action to its corresponding input actions."""
+    out = []
 
-    Mouse position values are clamped during processing:
-    - Absolute positions: clamped to [0, screen_width] and [0, screen_height]
-    - Relative positions: clamped to [-400, 400] for both x and y
+    def pos(p):
+        return _screen_position(p, screen_width, screen_height)
 
-    Args:
-        action: Gym action tuple (key_actions, mouse_discrete, mouse_position)
-        screen_width: Width of the screen in pixels
-        screen_height: Height of the screen in pixels
-
-    Returns:
-        List of InputAction objects (KeyAction and/or MouseAction)
-    """
-    key_actions, mouse_discrete, mouse_position = action
-
-    result = []
-
-    # Process key actions
-    for i, key_action_value in enumerate(key_actions):
-        if key_action_value == KEY_NO_OP:
+    # keys
+    for key_idx, action_type in action["keys"]:
+        if action_type == KeyActionKind.KEY_ACTION_NONE:
             continue
+        keycode = ACTION_KEYCODES[int(key_idx)]
+        out.append(KeyAction(action=action_type, keycode=keycode))
 
-        key = ACTION_KEYS[i]
+    # mouse_action
+    mouse_action = action["mouse_action"]["action"]
+    mouse_button_idx = action["mouse_action"]["button"]
+    target = action["mouse_action"]["target"]
+    if mouse_action == MouseActionKind.MOVE:
+        out.append(MouseMoveAction(pos(target)))
 
-        if key_action_value == KEY_PRESS:
-            result.append(KeyAction(action=KeyActionType.KEY_PRESS, key=key))
-        elif key_action_value == KEY_DOWN:
-            result.append(KeyAction(action=KeyActionType.KEY_DOWN, key=key))
-        elif key_action_value == KEY_UP:
-            result.append(KeyAction(action=KeyActionType.KEY_UP, key=key))
+    elif mouse_action == MouseActionKind.DRAG:
+        drag_start = action["mouse_action"]["drag_start"]
+        out.append(
+            MouseDragAction(
+                pos(drag_start),
+                pos(target),
+                MouseButtons[mouse_button_idx],
+            )
+        )
 
-    # Process mouse actions
-    translation_mode = mouse_discrete[MOUSE_TRANSLATION_MODE_INDEX]
-    mouse_action_type = mouse_discrete[MOUSE_ACTION_INDEX]
-    drag_button_idx = mouse_discrete[MOUSE_DRAG_BUTTON_INDEX]
+    elif mouse_action in (
+        MouseActionKind.BTN_PRESS,
+        MouseActionKind.BTN_DOWN,
+        MouseActionKind.BTN_UP,
+    ):
+        out.append(MouseMoveAction(pos(target)))
+        out.append(MouseButtonAction(mouse_action, MouseButtons[mouse_button_idx]))
 
-    if mouse_action_type != MOUSE_ACTION_NONE:
-        # Extract and clamp position
-        x, y = float(mouse_position[0]), float(mouse_position[1])
+    elif mouse_action == MouseActionKind.NONE:
+        pass
 
-        if translation_mode == MOUSE_ABSOLUTE:
-            # Clamp absolute positions to screen bounds
-            x = max(0, min(x, screen_width))
-            y = max(0, min(y, screen_height))
-            position = (int(x), int(y))
+    else:
+        assert False
 
-            if mouse_action_type == MOUSE_ACTION_MOVE:
-                result.append(move_to_action(position))
-            elif mouse_action_type == MOUSE_ACTION_DRAG:
-                drag_button = _DRAG_BUTTON_MAP[drag_button_idx]
-                result.append(drag_mouse_to_action(drag_button, position))
+    # scroll
+    scroll_direction = action["scroll"]
+    if scroll_direction != KeyDirection.KEY_NO_DIRECTION:
+        out.append(ScrollAction(direction=scroll_direction))
 
-        else:  # MOUSE_RELATIVE
-            # Clamp relative positions to [-400, 400]
-            x = max(-400, min(x, 400))
-            y = max(-400, min(y, 400))
-            position = (int(x), int(y))
-
-            if mouse_action_type == MOUSE_ACTION_MOVE:
-                result.append(move_mouse_action(position))
-            elif mouse_action_type == MOUSE_ACTION_DRAG:
-                drag_button = _DRAG_BUTTON_MAP[drag_button_idx]
-                result.append(drag_mouse_action(drag_button, position))
-
-    return result
+    return out

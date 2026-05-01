@@ -3,8 +3,19 @@
 import unittest
 from bounce_rl.input.allowed_inputs import AllowKeys, DisallowKeys
 from bounce_rl.input.keys import (
-    KEY_A, KEY_B, KEY_C, KEY_D, KEY_E, KEY_Z, KEY_0, KEY_1,
-    Letters, Digits, FnKeys, KEY_F1, KEY_F12
+    KEY_A,
+    KEY_B,
+    KEY_C,
+    KEY_D,
+    KEY_E,
+    KEY_Z,
+    KEY_0,
+    KEY_1,
+    Letters,
+    Symbols,
+    FnKeys,
+    KEY_F1,
+    KEY_F12,
 )
 
 
@@ -15,7 +26,7 @@ class TestAllowKeys(unittest.TestCase):
         """Verify AllowList.keys() de-duplicates any duplicate keys."""
         # Create an allow list with duplicates
         allow_list = AllowKeys([KEY_A, KEY_B, KEY_A, KEY_C, KEY_B])
-        keys = allow_list.keys()
+        keys = allow_list.keycodes()
 
         # Should have deduplicated keys in order of first appearance
         self.assertEqual(keys, [KEY_A, KEY_B, KEY_C])
@@ -23,34 +34,34 @@ class TestAllowKeys(unittest.TestCase):
     def test_allow_list_expands_key_classes(self):
         """Verify AllowList expands key classes correctly."""
         # Create an allow list with key classes
-        allow_list = AllowKeys([Letters, Digits])
-        keys = allow_list.keys()
+        allow_list = AllowKeys([Letters, Symbols])
+        keys = allow_list.keycodes()
 
-        # Should have all letters and digits
-        self.assertEqual(len(keys), 26 + 10)
+        # Should have all letters and symbol keys
+        self.assertEqual(len(keys), len(Letters) + len(Symbols))
         self.assertIn(KEY_A, keys)
         for letter in Letters:
             self.assertIn(letter, keys)
-        for digit in Digits:
-            self.assertIn(digit, keys)
+        for symbol in Symbols:
+            self.assertIn(symbol, keys)
 
     def test_allow_list_mixed_keys_and_classes(self):
         """Verify AllowList handles mix of individual keys and classes."""
-        allow_list = AllowKeys([KEY_A, Digits, KEY_B])
-        keys = allow_list.keys()
+        allow_list = AllowKeys([KEY_A, Symbols, KEY_B])
+        keys = allow_list.keycodes()
 
-        # Should have A, B, and all digits
+        # Should have A, B, and all symbol keys
         self.assertIn(KEY_A, keys)
         self.assertIn(KEY_B, keys)
-        for digit in Digits:
-            self.assertIn(digit, keys)
-        self.assertEqual(len(keys), 2 + 10)  # A, B, and 10 digits
+        for symbol in Symbols:
+            self.assertIn(symbol, keys)
+        self.assertEqual(len(keys), 2 + len(Symbols))
 
     def test_allow_list_deduplicates_across_classes(self):
         """Verify deduplication works even when key appears in multiple classes."""
         # Manually create a scenario with overlap
         allow_list = AllowKeys([KEY_A, Letters])
-        keys = allow_list.keys()
+        keys = allow_list.keycodes()
 
         # KEY_A appears twice (once alone, once in Letters), should deduplicate
         self.assertEqual(keys.count(KEY_A), 1)
@@ -65,7 +76,7 @@ class TestDisallowKeys(unittest.TestCase):
         # Deny just a few keys
         deny_list = DisallowKeys([KEY_A, KEY_B, KEY_C])
         allow_list = deny_list.to_allow_list()
-        keys = allow_list.keys()
+        keys = allow_list.keycodes()
 
         # Should not contain denied keys
         self.assertNotIn(KEY_A, keys)
@@ -83,7 +94,7 @@ class TestDisallowKeys(unittest.TestCase):
         # Deny all function keys
         deny_list = DisallowKeys([FnKeys])
         allow_list = deny_list.to_allow_list()
-        keys = allow_list.keys()
+        keys = allow_list.keycodes()
 
         # Should not contain any function keys
         self.assertNotIn(KEY_F1, keys)
@@ -91,22 +102,22 @@ class TestDisallowKeys(unittest.TestCase):
         for fkey in FnKeys:
             self.assertNotIn(fkey, keys)
 
-        # Should still contain letters and digits
+        # Should still contain letters and symbols
         self.assertIn(KEY_A, keys)
         self.assertIn(KEY_0, keys)
 
     def test_deny_list_mixed(self):
         """Verify DenyList works with mix of keys and classes."""
         # Deny specific keys and a class
-        deny_list = DisallowKeys([KEY_A, Digits, KEY_B])
+        deny_list = DisallowKeys([KEY_A, Symbols, KEY_B])
         allow_list = deny_list.to_allow_list()
-        keys = allow_list.keys()
+        keys = allow_list.keycodes()
 
-        # Should not contain A, B, or any digits
+        # Should not contain A, B, or any symbols
         self.assertNotIn(KEY_A, keys)
         self.assertNotIn(KEY_B, keys)
-        for digit in Digits:
-            self.assertNotIn(digit, keys)
+        for symbol in Symbols:
+            self.assertNotIn(symbol, keys)
 
         # Should contain other letters
         self.assertIn(KEY_C, keys)

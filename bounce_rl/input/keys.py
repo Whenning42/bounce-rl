@@ -1,193 +1,189 @@
 """
-Key definitions and key classes for the BounceRL input system.
+Evdev key and button code definitions for the BounceRL input system.
 
-All keys use X11 keysym values. Bouncer keys are uncased whereas X11 keysyms
-are cased. We use the uppercase keysyms for the letters and can convert to
-lowercase keysyms by adding LOWERCASE_OFFSET.
+Values mirror Linux input-event-codes.h. These are physical key/button codes,
+so shifted symbols like "!" or "@" are represented by their digit key plus a
+separate shift action instead of by a separate keysym.
 """
 
-# Offset to convert uppercase letter keysyms to lowercase
-LOWERCASE_OFFSET = 0x0020
+Keycode = int
+Button = int
 
-# Letters (uppercase keysyms)
-KEY_A = 0x0041
-KEY_B = 0x0042
-KEY_C = 0x0043
-KEY_D = 0x0044
-KEY_E = 0x0045
-KEY_F = 0x0046
-KEY_G = 0x0047
-KEY_H = 0x0048
-KEY_I = 0x0049
-KEY_J = 0x004A
-KEY_K = 0x004B
-KEY_L = 0x004C
-KEY_M = 0x004D
-KEY_N = 0x004E
-KEY_O = 0x004F
-KEY_P = 0x0050
-KEY_Q = 0x0051
-KEY_R = 0x0052
-KEY_S = 0x0053
-KEY_T = 0x0054
-KEY_U = 0x0055
-KEY_V = 0x0056
-KEY_W = 0x0057
-KEY_X = 0x0058
-KEY_Y = 0x0059
-KEY_Z = 0x005A
+# Letters
+KEY_Q = 16
+KEY_W = 17
+KEY_E = 18
+KEY_R = 19
+KEY_T = 20
+KEY_Y = 21
+KEY_U = 22
+KEY_I = 23
+KEY_O = 24
+KEY_P = 25
+KEY_A = 30
+KEY_S = 31
+KEY_D = 32
+KEY_F = 33
+KEY_G = 34
+KEY_H = 35
+KEY_J = 36
+KEY_K = 37
+KEY_L = 38
+KEY_Z = 44
+KEY_X = 45
+KEY_C = 46
+KEY_V = 47
+KEY_B = 48
+KEY_N = 49
+KEY_M = 50
 
-# Letters (lowercase keysyms)
-KEY_a = 0x0061
-KEY_b = 0x0062
-KEY_c = 0x0063
-KEY_d = 0x0064
-KEY_e = 0x0065
-KEY_f = 0x0066
-KEY_g = 0x0067
-KEY_h = 0x0068
-KEY_i = 0x0069
-KEY_j = 0x006A
-KEY_k = 0x006B
-KEY_l = 0x006C
-KEY_m = 0x006D
-KEY_n = 0x006E
-KEY_o = 0x006F
-KEY_p = 0x0070
-KEY_q = 0x0071
-KEY_r = 0x0072
-KEY_s = 0x0073
-KEY_t = 0x0074
-KEY_u = 0x0075
-KEY_v = 0x0076
-KEY_w = 0x0077
-KEY_x = 0x0078
-KEY_y = 0x0079
-KEY_z = 0x007A
+# Number row
+KEY_1 = 2
+KEY_2 = 3
+KEY_3 = 4
+KEY_4 = 5
+KEY_5 = 6
+KEY_6 = 7
+KEY_7 = 8
+KEY_8 = 9
+KEY_9 = 10
+KEY_0 = 11
 
-# Digits
-KEY_0 = 0x0030
-KEY_1 = 0x0031
-KEY_2 = 0x0032
-KEY_3 = 0x0033
-KEY_4 = 0x0034
-KEY_5 = 0x0035
-KEY_6 = 0x0036
-KEY_7 = 0x0037
-KEY_8 = 0x0038
-KEY_9 = 0x0039
+# Symbol keys
+KEY_MINUS = 12
+KEY_EQUAL = 13
+KEY_LEFTBRACE = 26
+KEY_RIGHTBRACE = 27
+KEY_BACKSLASH = 43
+KEY_SEMICOLON = 39
+KEY_APOSTROPHE = 40
+KEY_GRAVE = 41
+KEY_COMMA = 51
+KEY_DOT = 52
+KEY_SLASH = 53
 
-# Punctuation
-KEY_EXCLAM = 0x0021       # !
-KEY_AT = 0x0040           # @
-KEY_NUMBERSIGN = 0x0023   # #
-KEY_DOLLAR = 0x0024       # $
-KEY_PERCENT = 0x0025      # %
-KEY_ASCIICIRCUM = 0x005E  # ^
-KEY_AMPERSAND = 0x0026    # &
-KEY_ASTERISK = 0x002A     # *
-KEY_PARENLEFT = 0x0028    # (
-KEY_PARENRIGHT = 0x0029   # )
-KEY_MINUS = 0x002D        # -
-KEY_UNDERSCORE = 0x005F   # _
-KEY_EQUAL = 0x003D        # =
-KEY_PLUS = 0x002B         # +
-KEY_BRACKETLEFT = 0x005B  # [
-KEY_BRACKETRIGHT = 0x005D # ]
-KEY_BRACELEFT = 0x007B    # {
-KEY_BRACERIGHT = 0x007D   # }
-KEY_BACKSLASH = 0x005C    # \
-KEY_BAR = 0x007C          # |
-KEY_ASCIITILDE = 0x007E   # ~
-KEY_GRAVE = 0x0060        # `
-KEY_SEMICOLON = 0x003B    # ;
-KEY_COLON = 0x003A        # :
-KEY_APOSTROPHE = 0x0027   # '
-KEY_QUOTEDBL = 0x0022     # "
-KEY_COMMA = 0x002C        # ,
-KEY_LESS = 0x003C         # <
-KEY_GREATER = 0x003E      # >
-KEY_PERIOD = 0x002E       # .
-KEY_QUESTION = 0x003F     # ?
-KEY_SLASH = 0x002F        # /
+# Existing repo-facing aliases for symbol key positions.
+KEY_BRACKETLEFT = KEY_LEFTBRACE
+KEY_BRACKETRIGHT = KEY_RIGHTBRACE
+KEY_PERIOD = KEY_DOT
 
-# Function Keys
-KEY_F1 = 0xFFBE
-KEY_F2 = 0xFFBF
-KEY_F3 = 0xFFC0
-KEY_F4 = 0xFFC1
-KEY_F5 = 0xFFC2
-KEY_F6 = 0xFFC3
-KEY_F7 = 0xFFC4
-KEY_F8 = 0xFFC5
-KEY_F9 = 0xFFC6
-KEY_F10 = 0xFFC7
-KEY_F11 = 0xFFC8
-KEY_F12 = 0xFFC9
+# Function keys
+KEY_F1 = 59
+KEY_F2 = 60
+KEY_F3 = 61
+KEY_F4 = 62
+KEY_F5 = 63
+KEY_F6 = 64
+KEY_F7 = 65
+KEY_F8 = 66
+KEY_F9 = 67
+KEY_F10 = 68
+KEY_F11 = 87
+KEY_F12 = 88
 
-# Modifiers (left-side only)
-KEY_SHIFT_L = 0xFFE1
-KEY_ALT_L = 0xFFE9
-KEY_CONTROL_L = 0xFFE3
+# Modifiers
+KEY_LEFTCTRL = 29
+KEY_LEFTSHIFT = 42
+KEY_LEFTALT = 56
 
-# Other
-KEY_TAB = 0xFF09
-KEY_ESCAPE = 0xFF1B
-KEY_ENTER = 0xFF0D
-KEY_BACKSPACE = 0xFF08
+# Existing repo-facing modifier aliases.
+KEY_CONTROL_L = KEY_LEFTCTRL
+KEY_SHIFT_L = KEY_LEFTSHIFT
+KEY_ALT_L = KEY_LEFTALT
 
-# Pointer Buttons
-KEY_POINTER_BUTTON1 = 0xFEE9
-KEY_POINTER_BUTTON2 = 0xFEEA
-KEY_POINTER_BUTTON3 = 0xFEEB
-KEY_POINTER_BUTTON4 = 0xFEEC
-KEY_POINTER_BUTTON5 = 0xFEED
+# Other keys
+KEY_ESC = 1
+KEY_BACKSPACE = 14
+KEY_TAB = 15
+KEY_ENTER = 28
+KEY_SPACE = 57
 
-# Mouse button aliases
-LEFT_MOUSE_BUTTON = KEY_POINTER_BUTTON1
-RIGHT_MOUSE_BUTTON = KEY_POINTER_BUTTON2
-MIDDLE_MOUSE_BUTTON = KEY_POINTER_BUTTON3
-SCROLL_UP_BUTTON = KEY_POINTER_BUTTON4
-SCROLL_DOWN_BUTTON = KEY_POINTER_BUTTON5
+# Existing repo-facing aliases.
+KEY_ESCAPE = KEY_ESC
 
-# Key Classes - Sets of related keys
+# Pointer buttons
+BTN_LEFT = 0x110
+BTN_RIGHT = 0x111
+BTN_MIDDLE = 0x112
+
+# Existing repo-facing mouse aliases.
+LEFT_MOUSE_BUTTON = BTN_LEFT
+RIGHT_MOUSE_BUTTON = BTN_RIGHT
+MIDDLE_MOUSE_BUTTON = BTN_MIDDLE
+
+# Key classes - sets of related evdev codes.
 Letters = (
-    KEY_A, KEY_B, KEY_C, KEY_D, KEY_E, KEY_F, KEY_G, KEY_H, KEY_I, KEY_J,
-    KEY_K, KEY_L, KEY_M, KEY_N, KEY_O, KEY_P, KEY_Q, KEY_R, KEY_S, KEY_T,
-    KEY_U, KEY_V, KEY_W, KEY_X, KEY_Y, KEY_Z
+    KEY_A,
+    KEY_B,
+    KEY_C,
+    KEY_D,
+    KEY_E,
+    KEY_F,
+    KEY_G,
+    KEY_H,
+    KEY_I,
+    KEY_J,
+    KEY_K,
+    KEY_L,
+    KEY_M,
+    KEY_N,
+    KEY_O,
+    KEY_P,
+    KEY_Q,
+    KEY_R,
+    KEY_S,
+    KEY_T,
+    KEY_U,
+    KEY_V,
+    KEY_W,
+    KEY_X,
+    KEY_Y,
+    KEY_Z,
 )
 
-Digits = (
-    KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9
-)
-
-Punctuation = (
-    KEY_EXCLAM, KEY_AT, KEY_NUMBERSIGN, KEY_DOLLAR, KEY_PERCENT,
-    KEY_ASCIICIRCUM, KEY_AMPERSAND, KEY_ASTERISK, KEY_PARENLEFT,
-    KEY_PARENRIGHT, KEY_MINUS, KEY_UNDERSCORE, KEY_EQUAL, KEY_PLUS,
-    KEY_BRACKETLEFT, KEY_BRACKETRIGHT, KEY_BRACELEFT, KEY_BRACERIGHT,
-    KEY_BACKSLASH, KEY_BAR, KEY_ASCIITILDE, KEY_GRAVE, KEY_SEMICOLON,
-    KEY_COLON, KEY_APOSTROPHE, KEY_QUOTEDBL, KEY_COMMA, KEY_LESS,
-    KEY_GREATER, KEY_PERIOD, KEY_QUESTION, KEY_SLASH
+Symbols = (
+    KEY_0,
+    KEY_1,
+    KEY_2,
+    KEY_3,
+    KEY_4,
+    KEY_5,
+    KEY_6,
+    KEY_7,
+    KEY_8,
+    KEY_9,
+    KEY_MINUS,
+    KEY_EQUAL,
+    KEY_LEFTBRACE,
+    KEY_RIGHTBRACE,
+    KEY_BACKSLASH,
+    KEY_SEMICOLON,
+    KEY_APOSTROPHE,
+    KEY_GRAVE,
+    KEY_COMMA,
+    KEY_DOT,
+    KEY_SLASH,
 )
 
 FnKeys = (
-    KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6,
-    KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11, KEY_F12
+    KEY_F1,
+    KEY_F2,
+    KEY_F3,
+    KEY_F4,
+    KEY_F5,
+    KEY_F6,
+    KEY_F7,
+    KEY_F8,
+    KEY_F9,
+    KEY_F10,
+    KEY_F11,
+    KEY_F12,
 )
 
-Modifiers = (
-    KEY_SHIFT_L, KEY_ALT_L, KEY_CONTROL_L
-)
+Modifiers = (KEY_SHIFT_L, KEY_ALT_L, KEY_CONTROL_L)
 
-Other = (
-    KEY_TAB, KEY_ESCAPE, KEY_ENTER, KEY_BACKSPACE
-)
+Other = (KEY_TAB, KEY_ESCAPE, KEY_ENTER, KEY_BACKSPACE, KEY_SPACE)
 
-MouseButtons = (
-    KEY_POINTER_BUTTON1, KEY_POINTER_BUTTON2, KEY_POINTER_BUTTON3
-)
+MouseButtons = (BTN_LEFT, BTN_RIGHT, BTN_MIDDLE)
 
-ScrollButtons = (
-    KEY_POINTER_BUTTON4, KEY_POINTER_BUTTON5
-)
+AllKeys = Letters + Symbols + FnKeys + Modifiers + Other

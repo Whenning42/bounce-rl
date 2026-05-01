@@ -3,274 +3,132 @@
 import unittest
 
 import numpy as np
+from gymnasium import spaces
 
-from bounce_rl.input.allowed_inputs import DisallowKeys
+from bounce_rl.input.allowed_inputs import AllowKeys
 from bounce_rl.input.gym_input import (
-    ACTION_KEYS,
-    KEY_DOWN,
-    KEY_NO_OP,
-    KEY_PRESS,
-    KEY_UP,
-    KEYS_INDEX,
-    MOUSE_ABSOLUTE,
-    MOUSE_ACTION_DRAG,
-    MOUSE_ACTION_MOVE,
-    MOUSE_ACTION_NONE,
-    MOUSE_DISCRETE_INDEX,
-    MOUSE_DRAG_LEFT,
-    MOUSE_DRAG_RIGHT,
-    MOUSE_POSITION_INDEX,
-    MOUSE_RELATIVE,
+    ACTION_KEYCODES,
+    MAX_BUTTON_ACTIONS,
     action_space,
     mask_action,
     no_op_gym_action,
     process_gym_action,
 )
-from bounce_rl.input.input_types import KeyAction, KeyActionType, MouseAction
-from bounce_rl.input.keys import (
-    KEY_A,
-    KEY_B,
-    KEY_C,
-    LEFT_MOUSE_BUTTON,
-    MIDDLE_MOUSE_BUTTON,
-    RIGHT_MOUSE_BUTTON,
+from bounce_rl.input.input_types import (
+    KeyAction,
+    KeyActionKind,
+    KeyDirection,
+    MouseActionKind,
+    MouseButtonAction,
+    MouseDragAction,
+    MouseMoveAction,
+    ScrollAction,
 )
+from bounce_rl.input.keys import BTN_LEFT, KEY_A, KEY_B
 
 
 class TestActionSpace(unittest.TestCase):
-    """Tests for action_space function."""
-
-    def test_action_space_structure(self):
-        """Verify action space has correct structure."""
-        space = action_space(800, 600)
-
-        # Should be a Tuple space with 3 elements
-        self.assertEqual(len(space.spaces), 3)
-
-        # First element: MultiDiscrete for keys
-        key_space = space.spaces[0]
-        self.assertEqual(len(key_space.nvec), len(ACTION_KEYS))
-        self.assertTrue(all(n == 4 for n in key_space.nvec))
-
-        # Second element: MultiDiscrete for mouse discrete
-        mouse_discrete_space = space.spaces[1]
-        self.assertEqual(len(mouse_discrete_space.nvec), 3)
-        self.assertEqual(list(mouse_discrete_space.nvec), [2, 3, 3])
-
-        # Third element: Box for mouse position
-        mouse_pos_space = space.spaces[2]
-        self.assertEqual(mouse_pos_space.shape, (2,))
-        np.testing.assert_array_equal(mouse_pos_space.low, [-400, -400])
-        np.testing.assert_array_equal(mouse_pos_space.high, [800, 600])
+    def test_no_op_action_is_in_action_space(self):
+        self.assertTrue(action_space(800, 600).contains(no_op_gym_action()))
 
 
 class TestMaskAction(unittest.TestCase):
-    """Tests for mask_action function."""
-
     def test_mask_action_masks_disallowed_keys(self):
-        """Verify that disallowed keys are set to no-op while allowed keys are
-        unchanged."""
-        # Create action with all keys set to KEY_PRESS
         action = no_op_gym_action()
-        action[KEYS_INDEX] = np.ones(len(ACTION_KEYS), dtype=int)
+        action["keys"][0] = [ACTION_KEYCODES.index(KEY_A), KeyActionKind.KEY_PRESS]
+        action["keys"][1] = [ACTION_KEYCODES.index(KEY_B), KeyActionKind.KEY_DOWN]
 
-        # Mask action to disallow KEY_A and KEY_B
-        masked_action = mask_action(
-            action, DisallowKeys([KEY_A, KEY_B]).to_allow_list()
-        )
+        masked_action = mask_action(action, AllowKeys([KEY_B]))
 
-        # Disallowed keys should be KEY_NO_OP, others should remain KEY_PRESS
-        masked_key_actions = masked_action[KEYS_INDEX]
-        self.assertEqual(masked_key_actions[ACTION_KEYS.index(KEY_A)], KEY_NO_OP)
-        self.assertEqual(masked_key_actions[ACTION_KEYS.index(KEY_B)], KEY_NO_OP)
+        self.assertEqual(masked_action["keys"][0][1], KeyActionKind.KEY_ACTION_NONE)
+        self.assertEqual(masked_action["keys"][1][1], KeyActionKind.KEY_DOWN)
 
-        for i, key in enumerate(ACTION_KEYS):
-            if key not in [KEY_A, KEY_B]:
-                self.assertEqual(masked_key_actions[i], KEY_PRESS)
-
-        np.testing.assert_array_equal(
-            masked_action[MOUSE_DISCRETE_INDEX], action[MOUSE_DISCRETE_INDEX]
-        )
-        np.testing.assert_array_equal(
-            masked_action[MOUSE_POSITION_INDEX], action[MOUSE_POSITION_INDEX]
-        )
-
-    def test_mask_action_masks_disallowed_mouse_buttons(self):
-        """Verify that disallowed mouse buttons are set to no-op while other keys are
-        unchanged."""
-        # Create action with all keys set to KEY_PRESS
+    def test_mask_action_does_not_mutate_original_action(self):
         action = no_op_gym_action()
-        action[KEYS_INDEX] = np.ones(len(ACTION_KEYS), dtype=int)
+        action["keys"][0] = [ACTION_KEYCODES.index(KEY_A), KeyActionKind.KEY_PRESS]
 
-        # Mask action to disallow left and right mouse buttons
-        masked_action = mask_action(
-            action,
-            DisallowKeys([LEFT_MOUSE_BUTTON, RIGHT_MOUSE_BUTTON]).to_allow_list(),
-        )
+        mask_action(action, AllowKeys([]))
 
-        # Disallowed mouse buttons should be KEY_NO_OP, others should remain KEY_PRESS
-        masked_key_actions = masked_action[KEYS_INDEX]
-        self.assertEqual(
-            masked_key_actions[ACTION_KEYS.index(LEFT_MOUSE_BUTTON)], KEY_NO_OP
-        )
-        self.assertEqual(
-            masked_key_actions[ACTION_KEYS.index(RIGHT_MOUSE_BUTTON)], KEY_NO_OP
-        )
-        self.assertEqual(
-            masked_key_actions[ACTION_KEYS.index(MIDDLE_MOUSE_BUTTON)], KEY_PRESS
-        )
-        self.assertEqual(masked_key_actions[ACTION_KEYS.index(KEY_A)], KEY_PRESS)
-
-        np.testing.assert_array_equal(
-            masked_action[MOUSE_DISCRETE_INDEX], action[MOUSE_DISCRETE_INDEX]
-        )
-        np.testing.assert_array_equal(
-            masked_action[MOUSE_POSITION_INDEX], action[MOUSE_POSITION_INDEX]
-        )
+        self.assertEqual(action["keys"][0][1], KeyActionKind.KEY_PRESS)
 
 
 class TestProcessGymAction(unittest.TestCase):
-    """Tests for process_gym_action function."""
-
     def test_process_gym_action_generates_key_actions(self):
-        """Verify that key actions are correctly converted to InputActions."""
-        # Setup gym action with specific key actions
         action = no_op_gym_action()
-        action[KEYS_INDEX][ACTION_KEYS.index(KEY_A)] = KEY_PRESS
-        action[KEYS_INDEX][ACTION_KEYS.index(KEY_B)] = KEY_DOWN
-        action[KEYS_INDEX][ACTION_KEYS.index(KEY_C)] = KEY_UP
-
-        # Process the action
-        result = process_gym_action(action, 800, 600)
-
-        # Should generate expected key actions (ordered by ACTION_KEYS)
-        expected = [
-            KeyAction(action=KeyActionType.KEY_PRESS, key=KEY_A),
-            KeyAction(action=KeyActionType.KEY_DOWN, key=KEY_B),
-            KeyAction(action=KeyActionType.KEY_UP, key=KEY_C),
-        ]
-        self.assertEqual(result, expected)
-
-    def test_process_gym_action_relative_move(self):
-        """Verify that relative mouse move is correctly converted."""
-        action = no_op_gym_action()
-        action[MOUSE_DISCRETE_INDEX] = np.array(
-            [MOUSE_RELATIVE, MOUSE_ACTION_MOVE, MOUSE_DRAG_LEFT]
-        )
-        action[MOUSE_POSITION_INDEX] = np.array([10, 20])
+        action["keys"][0] = [ACTION_KEYCODES.index(KEY_A), KeyActionKind.KEY_PRESS]
+        action["keys"][1] = [ACTION_KEYCODES.index(KEY_B), KeyActionKind.KEY_DOWN]
 
         self.assertEqual(
             process_gym_action(action, 800, 600),
             [
-                MouseAction(
-                    is_relative=True, position=(10, 20), is_drag=False, drag_button=None
-                )
+                KeyAction(action=KeyActionKind.KEY_PRESS, keycode=KEY_A),
+                KeyAction(action=KeyActionKind.KEY_DOWN, keycode=KEY_B),
             ],
         )
 
-    def test_process_gym_action_absolute_move(self):
-        """Verify that absolute mouse move is correctly converted."""
+    def test_process_gym_action_handles_no_op(self):
+        self.assertEqual(process_gym_action(no_op_gym_action(), 800, 600), [])
+
+    def test_process_gym_action_generates_mouse_move(self):
         action = no_op_gym_action()
-        action[MOUSE_DISCRETE_INDEX] = np.array(
-            [MOUSE_ABSOLUTE, MOUSE_ACTION_MOVE, MOUSE_DRAG_LEFT]
+        action["mouse_action"]["action"] = MouseActionKind.MOVE
+        action["mouse_action"]["target"] = np.array([1, -1], dtype=np.float32)
+
+        self.assertEqual(
+            process_gym_action(action, 800, 600),
+            [MouseMoveAction(position=(800, 0))],
         )
-        action[MOUSE_POSITION_INDEX] = np.array([100, 200])
+
+    def test_process_gym_action_clamps_mouse_target(self):
+        action = no_op_gym_action()
+        action["mouse_action"]["action"] = MouseActionKind.MOVE
+        action["mouse_action"]["target"] = np.array([2, -2], dtype=np.float32)
+
+        self.assertEqual(
+            process_gym_action(action, 800, 600),
+            [MouseMoveAction(position=(800, 0))],
+        )
+
+    def test_process_gym_action_generates_mouse_button_action(self):
+        action = no_op_gym_action()
+        action["mouse_action"]["button"] = 0
+        action["mouse_action"]["action"] = MouseActionKind.BTN_PRESS
 
         self.assertEqual(
             process_gym_action(action, 800, 600),
             [
-                MouseAction(
-                    is_relative=False,
-                    position=(100, 200),
-                    is_drag=False,
-                    drag_button=None,
-                )
+                MouseMoveAction(position=(400, 300)),
+                MouseButtonAction(action=MouseActionKind.BTN_PRESS, button=BTN_LEFT),
             ],
         )
 
-    def test_process_gym_action_relative_drag(self):
-        """Verify that relative mouse drag is correctly converted."""
+    def test_process_gym_action_generates_drag_sequence(self):
         action = no_op_gym_action()
-        action[MOUSE_DISCRETE_INDEX] = np.array(
-            [MOUSE_RELATIVE, MOUSE_ACTION_DRAG, MOUSE_DRAG_RIGHT]
-        )
-        action[MOUSE_POSITION_INDEX] = np.array([5, -10])
+        action["mouse_action"]["button"] = 0
+        action["mouse_action"]["action"] = MouseActionKind.DRAG
+        action["mouse_action"]["drag_start"] = np.array([-1, -1], dtype=np.float32)
+        action["mouse_action"]["target"] = np.array([1, 1], dtype=np.float32)
 
         self.assertEqual(
             process_gym_action(action, 800, 600),
-            [
-                MouseAction(
-                    is_relative=True,
-                    position=(5, -10),
-                    is_drag=True,
-                    drag_button=RIGHT_MOUSE_BUTTON,
-                )
-            ],
+            [MouseDragAction(start=(0, 0), end=(800, 600), button=BTN_LEFT)],
         )
 
-    def test_process_gym_action_clamps_absolute_positions(self):
-        """Verify that absolute positions are clamped to screen bounds."""
+    def test_process_gym_action_generates_scroll_action(self):
         action = no_op_gym_action()
-        action[MOUSE_DISCRETE_INDEX] = np.array(
-            [MOUSE_ABSOLUTE, MOUSE_ACTION_MOVE, MOUSE_DRAG_LEFT]
-        )
-        action[MOUSE_POSITION_INDEX] = np.array([1000, -200])
+        action["scroll"] = KeyDirection.KEY_DOWN
 
         self.assertEqual(
             process_gym_action(action, 800, 600),
-            [
-                MouseAction(
-                    is_relative=False,
-                    position=(800, 0),
-                    is_drag=False,
-                    drag_button=None,
-                )
-            ],
+            [ScrollAction(direction=KeyDirection.KEY_DOWN)],
         )
 
-    def test_process_gym_action_clamps_relative_positions(self):
-        """Verify that relative positions are clamped to [-400, 400]."""
+    def test_process_gym_action_accepts_explicit_mouse_no_op(self):
         action = no_op_gym_action()
-        action[MOUSE_DISCRETE_INDEX] = np.array(
-            [MOUSE_RELATIVE, MOUSE_ACTION_MOVE, MOUSE_DRAG_LEFT]
-        )
-        action[MOUSE_POSITION_INDEX] = np.array([1000, -500])
+        action["mouse_action"]["action"] = MouseActionKind.NONE
+        action["mouse_action"]["target"] = np.array([1, 1], dtype=np.float32)
 
-        self.assertEqual(
-            process_gym_action(action, 800, 600),
-            [
-                MouseAction(
-                    is_relative=True,
-                    position=(400, -400),
-                    is_drag=False,
-                    drag_button=None,
-                )
-            ],
-        )
-
-    def test_process_gym_action_handles_no_mouse_action(self):
-        """Verify that MOUSE_ACTION_NONE produces no mouse action."""
-        action = no_op_gym_action()
-        action[MOUSE_POSITION_INDEX] = np.array([100, 200])
-
-        result = process_gym_action(action, 800, 600)
-        self.assertEqual(len(result), 0)  # No actions generated
-
-    def test_process_gym_action_generates_both_key_and_mouse_actions(self):
-        """Verify that both key and mouse actions can be generated from single gym
-        action."""
-        action = no_op_gym_action()
-        action[KEYS_INDEX][ACTION_KEYS.index(KEY_A)] = KEY_PRESS
-        action[MOUSE_DISCRETE_INDEX] = np.array(
-            [MOUSE_RELATIVE, MOUSE_ACTION_MOVE, MOUSE_DRAG_LEFT]
-        )
-        action[MOUSE_POSITION_INDEX] = np.array([10, 20])
-
-        result = process_gym_action(action, 800, 600)
-
-        self.assertEqual(len(result), 2)
-        self.assertIsInstance(result[0], KeyAction)
-        self.assertIsInstance(result[1], MouseAction)
+        self.assertEqual(process_gym_action(action, 800, 600), [])
 
 
 if __name__ == "__main__":
