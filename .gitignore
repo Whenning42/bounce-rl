@@ -39,3 +39,5 @@ logs/*
 GPUCache/*
 user_demo*
 validation*
+
+BounceRL.egg-info
