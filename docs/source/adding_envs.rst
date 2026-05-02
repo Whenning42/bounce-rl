@@ -1,4 +1,0 @@
-Adding Environments
-===================
-
-TODO
