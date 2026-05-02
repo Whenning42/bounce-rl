@@ -9,15 +9,7 @@ authors = [
 ]
 dependencies = [
     "numpy>=2.2.0,<3.0.0",
-    "cffi>=1.16.0,<2.0.0",
-    "simplejpeg>=1.7.0,<2.0.0",
-    "psutil>=5.9.8,<6.0.0",
-    "python-xlib>=0.33,<0.34",
     "libtimecontrol>=0.2.1,<0.3.0",
-    "sphinx>=7.3.0,<8.0.0",
-    "sphinx-autodoc-typehints>=2.3.0,<3.0.0",
-    "sphinx-autobuild>=2024.10.3,<2025.0.0",
-    "furo>=2025.7.19,<2026.0.0",
     "factorio-state-exporter",
     "gymnasium>=1.2.2,<2.0.0",
     "pytest>=9.0.2,<10.0.0",

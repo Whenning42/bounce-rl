@@ -1,6 +1,5 @@
-# An class for predicting the current reward for an Art of Rally game running in the Harness.
+# An class for predicting the current reward for an Art of Rally game.
 
-import harness
 import pathlib
 from PIL import Image
 import os
