@@ -18,6 +18,7 @@ from bounce_rl.input.input_types import (
     ScrollAction,
 )
 from bounce_rl.input.keys import MouseButtons
+from bounce_desktop import Desktop
 
 
 def apply_events_to_desktop(events: List[InputAction], desktop) -> None:
@@ -47,14 +48,14 @@ def apply_events_to_desktop(events: List[InputAction], desktop) -> None:
         elif isinstance(event, MouseButtonAction):
             _dispatch_mouse_button_action(event, desktop)
         elif isinstance(event, MouseMoveAction):
-            desktop.move_mouse(event.position[0], event.position[1])
+            desktop.move_mouse_to(event.position[0], event.position[1])
         elif isinstance(event, ScrollAction):
             _dispatch_scroll_action(event, desktop)
         else:
             assert False
 
 
-def _dispatch_key_action(event: KeyAction, desktop) -> None:
+def _dispatch_key_action(event: KeyAction, desktop: Desktop) -> None:
     if event.keycode in MouseButtons:
         _dispatch_mouse_button_action(
             MouseButtonAction(
@@ -66,9 +67,9 @@ def _dispatch_key_action(event: KeyAction, desktop) -> None:
         return
 
     if event.action == KeyActionKind.KEY_DOWN:
-        desktop.key_press(event.keycode)
+        desktop.keycode_down(event.keycode)
     elif event.action == KeyActionKind.KEY_UP:
-        desktop.key_release(event.keycode)
+        desktop.keycode_up(event.keycode)
     else:
         assert False
 

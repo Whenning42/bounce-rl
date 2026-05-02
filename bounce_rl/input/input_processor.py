@@ -12,6 +12,8 @@ from bounce_rl.input.input_types import (
     KeyAction,
     ButtonActionKind,
     MouseButtonAction,
+    MouseDragAction,
+    MouseMoveAction,
 )
 from bounce_rl.input.keys import MouseButtons
 
@@ -65,6 +67,10 @@ class InputProcessor:
                 imm, dly = self._process_button_action(action)
                 immediate.extend(imm)
                 delayed.extend(dly)
+            elif isinstance(action, MouseDragAction):
+                imm, dly = self._process_mouse_drag(action)
+                immediate.extend(imm)
+                delayed.extend(dly)
             else:
                 immediate.append(action)
         return immediate, delayed
@@ -96,9 +102,21 @@ class InputProcessor:
             self._pressed_buttons.add(button)
             return [cls.down(button)], []
         elif action_kind == ButtonActionKind.UP:
-            self._pressed_buttons.remove(button)
+            try:
+                self._pressed_buttons.remove(button)
+            except KeyError:
+                pass
             return [cls.up(button)], []
         elif action_kind == ButtonActionKind.PRESS:
             return [cls.down(button)], [cls.up(button)]
         else:
             assert False
+
+    def _process_mouse_drag(
+        self, action: MouseDragAction
+    ) -> tuple[List[InputAction], List[InputAction]]:
+        return [
+            MouseMoveAction(action.start),
+            MouseButtonAction.down(action.button),
+            MouseMoveAction(action.end),
+        ], [MouseButtonAction.up(action.button)]

@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import bounce_desktop
+from bounce_desktop import Desktop, WaylandDesktop
 import libtimecontrol
 
 from bounce_rl.input.input_processor import InputProcessor
@@ -46,8 +46,8 @@ class AppSession:
             resolution: Desktop resolution as (width, height) tuple
         """
         self._run_command = run_command
-        self._desktop = bounce_desktop.Desktop.create(
-            resolution[0], resolution[1], visible
+        self._desktop = WaylandDesktop(
+            "sleep inf", (resolution[0], resolution[1]), visible=visible
         )
         self._folder = tempfile.TemporaryDirectory(prefix=sessions_folder)
         self._process = None
@@ -81,7 +81,7 @@ class AppSession:
         )
         return self._process
 
-    def desktop(self) -> bounce_desktop.Desktop:
+    def desktop(self) -> Desktop:
         return self._desktop
 
     def data_folder(self) -> str:

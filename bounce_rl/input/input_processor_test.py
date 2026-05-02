@@ -58,15 +58,22 @@ class TestButtonStateHandling(unittest.TestCase):
         self.assertEqual(immediate, [action])
         self.assertEqual(delayed, [])
 
-    def test_mouse_drag_passes_through_as_compound_action(self):
-        """Mouse drag splitting is not done by InputProcessor."""
+    def test_mouse_drag_returns_immediate_and_delayed_events(self):
+        """Mouse drag actions split into raw move/down/move/up events."""
         processor = InputProcessor(800, 600)
         action = MouseDragAction((0, 0), (10, 20), BTN_LEFT)
 
         immediate, delayed = processor.process_input_actions([action])
 
-        self.assertEqual(immediate, [action])
-        self.assertEqual(delayed, [])
+        self.assertEqual(
+            immediate,
+            [
+                MouseMoveAction((0, 0)),
+                MouseButtonAction.down(BTN_LEFT),
+                MouseMoveAction((10, 20)),
+            ],
+        )
+        self.assertEqual(delayed, [MouseButtonAction.up(BTN_LEFT)])
 
 
 class TestReleaseButtons(unittest.TestCase):

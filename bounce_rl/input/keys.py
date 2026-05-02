@@ -102,9 +102,9 @@ KEY_SPACE = 57
 KEY_ESCAPE = KEY_ESC
 
 # Pointer buttons
-BTN_LEFT = 0x110
-BTN_RIGHT = 0x111
-BTN_MIDDLE = 0x112
+BTN_LEFT = 1
+BTN_RIGHT = 2
+BTN_MIDDLE = 3
 
 # Existing repo-facing mouse aliases.
 LEFT_MOUSE_BUTTON = BTN_LEFT

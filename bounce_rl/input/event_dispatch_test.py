@@ -22,11 +22,11 @@ class MockDesktop:
     def __init__(self):
         self.events = []
 
-    def key_press(self, keycode: int):
-        self.events.append(("key_press", keycode))
+    def keycode_down(self, keycode: int):
+        self.events.append(("keycode_down", keycode))
 
-    def key_release(self, keycode: int):
-        self.events.append(("key_release", keycode))
+    def keycode_up(self, keycode: int):
+        self.events.append(("keycode_up", keycode))
 
     def move_mouse(self, x: int, y: int):
         self.events.append(("move_mouse", x, y))
@@ -45,7 +45,7 @@ class TestEventDispatch(unittest.TestCase):
     """Tests for apply_events_to_desktop."""
 
     def test_key_events(self):
-        """Key down/up actions invoke key_press/key_release with evdev keycodes."""
+        """Key down/up actions invoke keycode_down/keycode_up with evdev keycodes."""
         desktop = MockDesktop()
         events = [
             KeyAction.down(KEY_A),
@@ -54,7 +54,9 @@ class TestEventDispatch(unittest.TestCase):
 
         apply_events_to_desktop(events, desktop)
 
-        self.assertEqual(desktop.events, [("key_press", KEY_A), ("key_release", KEY_B)])
+        self.assertEqual(
+            desktop.events, [("keycode_down", KEY_A), ("keycode_up", KEY_B)]
+        )
 
     def test_mouse_move_events(self):
         """Mouse move actions invoke move_mouse with coordinates passed through."""
@@ -140,10 +142,10 @@ class TestEventDispatch(unittest.TestCase):
         self.assertEqual(
             desktop.events,
             [
-                ("key_press", KEY_A),
+                ("keycode_down", KEY_A),
                 ("move_mouse", 50, 75),
                 ("mouse_press", BTN_LEFT),
-                ("key_release", KEY_A),
+                ("keycode_up", KEY_A),
                 ("mouse_release", BTN_LEFT),
             ],
         )

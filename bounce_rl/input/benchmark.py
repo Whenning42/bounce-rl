@@ -11,7 +11,11 @@ import time
 import numpy as np
 
 from bounce_rl.input.event_dispatch import apply_events_to_desktop
-from bounce_rl.input.gym_input import ACTION_KEYCODES, no_op_gym_action, process_gym_action
+from bounce_rl.input.gym_input import (
+    ACTION_KEYCODES,
+    no_op_gym_action,
+    process_gym_action,
+)
 from bounce_rl.input.input_processor import InputProcessor
 from bounce_rl.input.input_types import KeyActionKind, MouseActionKind
 
@@ -23,13 +27,16 @@ class FakeDesktop:
     Implements the same event interface as Bounce Desktop with no-op methods.
     """
 
-    def key_press(self, keycode: int) -> None:
+    def keycode_down(self, keycode: int) -> None:
         pass
 
-    def key_release(self, keycode: int) -> None:
+    def keycode_up(self, keycode: int) -> None:
         pass
 
     def move_mouse(self, x: int, y: int) -> None:
+        pass
+
+    def move_mouse_to(self, x: int, y: int) -> None:
         pass
 
     def mouse_press(self, button: int) -> None:

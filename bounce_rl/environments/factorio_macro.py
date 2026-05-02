@@ -23,10 +23,10 @@ def factorio_start_macro(d: Desktop):
         raise ValueError("Failed to initialize factorio environment.")
 
     def click_at(x: int, y: int):
-        return ((d.move_mouse, x, y), (d.mouse_press, 1), (d.mouse_release, 1))
+        return ((d.move_mouse_to, x, y), (d.mouse_press, 1), (d.mouse_release, 1))
 
     def press_key(k):
-        return ((d.key_press, k), (d.key_release, k))
+        return ((d.keycode_down, k), (d.keycode_up, k))
 
     macro = [
         *click_at(500, 185),  # Click single player
@@ -34,9 +34,9 @@ def factorio_start_macro(d: Desktop):
         *click_at(100, 80),  # Click freeplay
         *click_at(800, 570),  # Click Next
         *click_at(650, 40),  # Click Seed
-        (d.key_press, KEY_BACKSPACE),  # Delete Seed string
+        (d.keycode_down, KEY_BACKSPACE),  # Delete Seed string
         (time.sleep, 1),
-        (d.key_release, KEY_BACKSPACE),
+        (d.keycode_up, KEY_BACKSPACE),
         *press_key(KEY_0),  # Type "0" for the seed
         *click_at(600, 570),  # Click play
         (time.sleep, 1),
