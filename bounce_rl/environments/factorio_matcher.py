@@ -22,4 +22,4 @@ class FactorioMatcher:
         """Check whether the given image is on the game's main menu screen.
 
         Image should be (H, W, 3) and be scaled to the range [0, 255]."""
-        return self._template_matcher.matches(image)
+        return self._template_matcher.matches(image, threshold=0.82)
